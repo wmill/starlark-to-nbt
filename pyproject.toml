@@ -6,4 +6,24 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "nbtlib>=2.0.4",
+    "starlark-pyo3>=2026.1",
 ]
+
+[project.scripts]
+starlark-to-nbt = "starlark_to_nbt.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/starlark_to_nbt"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
