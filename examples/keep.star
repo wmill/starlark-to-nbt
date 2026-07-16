@@ -10,6 +10,7 @@ load("../lib/openings.star", "Archway", "DoubleDoor", "SingleDoor")
 load("../lib/roofs.star", "PyramidRoof")
 load("../lib/fixtures.star", "LanternPost")
 load("../lib/outdoor.star", "FenceRing", "Path", "Tree", "Well")
+load("../lib/fortifications.star", "BattlementWall", "SquareTower")
 
 SIZE = 33
 TOWER = 7
@@ -18,47 +19,6 @@ WALL_HEIGHT = 12
 KEEP = 13
 KEEP_WALL_HEIGHT = 10
 STONE = "minecraft:stone_bricks"
-
-
-def Tower(size, height, material=STONE):
-    """Hollow square tower with arrow slits and a crenellated crown."""
-    parts = [
-        fill_region([0, 0, 0], [size, height, 1], block(material)),
-        fill_region([0, 0, size - 1], [size, height, size], block(material)),
-        fill_region([0, 0, 1], [1, height, size - 1], block(material)),
-        fill_region([size - 1, 0, 1], [size, height, size - 1], block(material)),
-    ]
-    for x in range(0, size, 2):
-        parts.append(place_block([x, height, 0], block(material)))
-        parts.append(place_block([x, height, size - 1], block(material)))
-    for z in range(2, size - 2, 2):
-        parts.append(place_block([0, height, z], block(material)))
-        parts.append(place_block([size - 1, height, z], block(material)))
-    mid = size // 2
-    for y in [height - 10, height - 5]:
-        parts.append(carve_region([mid, y, 0], [mid + 1, y + 2, 1]))
-        parts.append(carve_region([mid, y, size - 1], [mid + 1, y + 2, size]))
-        parts.append(carve_region([0, y, mid], [1, y + 2, mid + 1]))
-        parts.append(carve_region([size - 1, y, mid], [size, y + 2, mid + 1]))
-    return component(
-        name="Tower",
-        props={"size": size, "height": height, "material": material},
-        min_size=[size, height + 1, size],
-        body=group(parts),
-    )
-
-
-def CurtainWall(length, height, material=STONE):
-    """Wall segment along +X with merlons every other block on top."""
-    parts = [fill_region([0, 0, 0], [length, height, 1], block(material))]
-    for x in range(0, length, 2):
-        parts.append(place_block([x, height, 0], block(material)))
-    return component(
-        name="CurtainWall",
-        props={"length": length, "height": height, "material": material},
-        min_size=[length, height + 1, 1],
-        body=group(parts),
-    )
 
 
 def Keep():
@@ -91,15 +51,15 @@ def KeepCastle():
     parts = [
         Foundation(SIZE, SIZE, 1, "minecraft:stone"),
         # Corner towers at all four rotations.
-        transform([0, 1, 0], 0, [TOWER, TOWER_HEIGHT + 1, TOWER], Tower(TOWER, TOWER_HEIGHT)),
-        transform([SIZE - TOWER, 1, 0], 90, [TOWER, TOWER_HEIGHT + 1, TOWER], Tower(TOWER, TOWER_HEIGHT)),
-        transform([SIZE - TOWER, 1, SIZE - TOWER], 180, [TOWER, TOWER_HEIGHT + 1, TOWER], Tower(TOWER, TOWER_HEIGHT)),
-        transform([0, 1, SIZE - TOWER], 270, [TOWER, TOWER_HEIGHT + 1, TOWER], Tower(TOWER, TOWER_HEIGHT)),
+        transform([0, 1, 0], 0, [TOWER, TOWER_HEIGHT + 1, TOWER], SquareTower(TOWER, TOWER_HEIGHT)),
+        transform([SIZE - TOWER, 1, 0], 90, [TOWER, TOWER_HEIGHT + 1, TOWER], SquareTower(TOWER, TOWER_HEIGHT)),
+        transform([SIZE - TOWER, 1, SIZE - TOWER], 180, [TOWER, TOWER_HEIGHT + 1, TOWER], SquareTower(TOWER, TOWER_HEIGHT)),
+        transform([0, 1, SIZE - TOWER], 270, [TOWER, TOWER_HEIGHT + 1, TOWER], SquareTower(TOWER, TOWER_HEIGHT)),
         # Curtain walls; the south wall is rotated 180 to stress mirrored merlons.
-        transform([TOWER, 1, 0], 0, [span, WALL_HEIGHT + 1, 1], CurtainWall(span, WALL_HEIGHT)),
-        transform([TOWER, 1, SIZE - 1], 180, [span, WALL_HEIGHT + 1, 1], CurtainWall(span, WALL_HEIGHT)),
-        transform([0, 1, TOWER], 90, [span, WALL_HEIGHT + 1, 1], CurtainWall(span, WALL_HEIGHT)),
-        transform([SIZE - 1, 1, TOWER], 90, [span, WALL_HEIGHT + 1, 1], CurtainWall(span, WALL_HEIGHT)),
+        transform([TOWER, 1, 0], 0, [span, WALL_HEIGHT + 1, 1], BattlementWall(span, WALL_HEIGHT)),
+        transform([TOWER, 1, SIZE - 1], 180, [span, WALL_HEIGHT + 1, 1], BattlementWall(span, WALL_HEIGHT)),
+        transform([0, 1, TOWER], 90, [span, WALL_HEIGHT + 1, 1], BattlementWall(span, WALL_HEIGHT)),
+        transform([SIZE - 1, 1, TOWER], 90, [span, WALL_HEIGHT + 1, 1], BattlementWall(span, WALL_HEIGHT)),
         # South gate: arch carved through the curtain wall, double door inside.
         # The arch is wider than the door, so stone jambs backfill the flanking
         # columns up to door height -- otherwise you can just walk around the door.

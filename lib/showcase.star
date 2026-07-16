@@ -7,6 +7,7 @@ load("openings.star", "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "
 load("roofs.star", "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof")
 load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Carpet", "Ladder", "DiningTable", "KitchenCounter")
 load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack")
+load("fortifications.star", "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower")
 
 
 def showcase(name):
@@ -84,6 +85,22 @@ def showcase(name):
         return MarketStall()
     elif name == "HayBaleStack":
         return HayBaleStack()
+    elif name == "BattlementWall":
+        return BattlementWall(9, 5)
+    elif name == "SquareTower":
+        return SquareTower(7, 12)
+    elif name == "Portcullis":
+        return Portcullis()
+    elif name == "Gatehouse":
+        return Gatehouse()
+    elif name == "Drawbridge":
+        return Drawbridge()
+    elif name == "PalisadeWall":
+        return PalisadeWall(9)
+    elif name == "PalisadeGate":
+        return PalisadeGate()
+    elif name == "Watchtower":
+        return Watchtower()
     else:
         fail("unknown component %s" % name)
 
@@ -94,6 +111,7 @@ COMPONENT_NAMES = [
     "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof",
     "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Carpet", "Ladder", "DiningTable", "KitchenCounter",
     "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack",
+    "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower",
 ]
 
 

@@ -171,6 +171,22 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `MarketStall(width=5, depth=3, canopy="minecraft:red_wool", accent="minecraft:white_wool", post="minecraft:oak_fence")` | `[width, 4, depth]` | Faces +Z; four posts, rear counter, striped canopy. |
 | `HayBaleStack(width=3, height=2, depth=2, material="minecraft:hay_block")` | `[width, height, depth]` | Tapered layers with alternating horizontal X/Z axes. |
 
+### `lib/fortifications.star`
+
+Linear walls run along +X. Gates, ladders, portcullises, and drawbridges face
+or extend toward +Z at rotation zero.
+
+| Component | Size | Notes |
+|---|---|---|
+| `BattlementWall(length, height, material="minecraft:stone_bricks")` | `[length, height+1, 1]` | Solid curtain wall with alternating merlons; requires length >= 3 and height >= 2. |
+| `SquareTower(size, height, material="minecraft:stone_bricks")` | `[size, height+1, size]` | Hollow tower with two levels of arrow slits and a crenellated crown; requires size >= 5 and height >= 10. |
+| `Portcullis(width=3, height=4, material="minecraft:iron_bars")` | `[width, height, 1]` | Self-carving closed portcullis; requires width and height >= 2. |
+| `Gatehouse(width=9, height=8, depth=5, opening_width=3, opening_height=4, material=..., bars="minecraft:iron_bars")` | `[width, height+1, depth]` | Centered tunnel, front portcullis, arrow slits, and battlements; leaves at least two blocks per side. |
+| `Drawbridge(width=3, length=7, deck="minecraft:dark_oak_planks", chain="minecraft:chain")` | `[width, 2, length]` | Lowered deck extending toward +Z with horizontal side chains. |
+| `PalisadeWall(length, height=5, log="minecraft:spruce_log")` | `[length, height+1, 1]` | Vertical logs with alternating raised tips; requires length >= 2 and height >= 3. |
+| `PalisadeGate(width=5, height=6, log="minecraft:spruce_log", door="minecraft:dark_oak_door")` | `[width, height+1, 1]` | Atomic double door beneath a timber fighting platform; requires width >= 5 and height >= 4. |
+| `Watchtower(size=5, platform_height=6, post="minecraft:spruce_log", deck="minecraft:spruce_planks", railing="minecraft:spruce_fence")` | `[size, platform_height+2, size]` | Four-post tower with a railed deck and south-facing ladder; requires size >= 5 and platform height >= 4. |
+
 ## Worked examples
 
 - `examples/cottage.star` — timber-framed cottage: four rotated walls, gable
@@ -184,6 +200,10 @@ them builds standalone. `lib/showcase.star` builds any single component:
   paths, trees, and lanterns.
 - `examples/market_square.star` — 35x6x35 civic square: central well and
   crossing paths, four rotated striped stalls, flower beds, benches, and lamps.
+- `examples/frontier_outpost.star` — 29x14x29 timber fort: complete palisade,
+  four rotated watchtowers, double gate, furnished barracks, storage, and lamps.
+- `examples/stone_pass_fortress.star` — 35x16x21 linear stone defense: twin
+  towers, battlement walls, gatehouse and portcullis, moat, and drawbridge.
 
 ## Errors
 

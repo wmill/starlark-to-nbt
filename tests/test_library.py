@@ -99,3 +99,34 @@ def test_flower_canopy_and_hay_patterns_are_alternating():
     hay = build_file(SHOWCASE, props={"name": "HayBaleStack"})
     axes = {v.block.block_state["axis"] for v in hay.volume.voxels.values()}
     assert axes == {"x", "z"}
+
+
+def test_stone_fortifications_have_openings_battlements_and_rotating_hardware():
+    wall = build_file(SHOWCASE, props={"name": "BattlementWall"})
+    assert wall.volume.block_at(Point(0, 5, 0)).block_type == "minecraft:stone_bricks"
+    assert Point(1, 5, 0) not in wall.volume.voxels
+
+    tower = build_file(SHOWCASE, props={"name": "SquareTower"})
+    assert tower.volume.block_at(Point(3, 2, 0)).block_type == "minecraft:air"
+
+    gatehouse = build_file(SHOWCASE, props={"name": "Gatehouse"})
+    assert gatehouse.volume.block_at(Point(4, 0, 2)).block_type == "minecraft:air"
+    assert gatehouse.volume.block_at(Point(4, 0, 4)).block_type == "minecraft:iron_bars"
+
+    bridge = build_file(SHOWCASE, entry="rotated", props={"name": "Drawbridge", "rotation": 90})
+    chains = [v.block for v in bridge.volume.voxels.values() if v.block.block_type == "minecraft:chain"]
+    assert chains and {chain.block_state["axis"] for chain in chains} == {"x"}
+
+
+def test_timber_fortifications_have_tips_atomic_gate_and_rotating_ladder():
+    wall = build_file(SHOWCASE, props={"name": "PalisadeWall"})
+    assert wall.volume.block_at(Point(0, 5, 0)).block_type == "minecraft:spruce_log"
+    assert Point(1, 5, 0) not in wall.volume.voxels
+
+    gate = build_file(SHOWCASE, props={"name": "PalisadeGate"})
+    doors = [op for op in gate.operations if op.assembly_name == "double_door"]
+    assert len(doors) == 1 and len(doors[0].writes) == 4
+
+    tower = build_file(SHOWCASE, entry="rotated", props={"name": "Watchtower", "rotation": 90})
+    ladders = [v.block for v in tower.volume.voxels.values() if v.block.block_type == "minecraft:ladder"]
+    assert ladders and {ladder.block_state["facing"] for ladder in ladders} == {"west"}
