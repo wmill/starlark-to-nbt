@@ -101,12 +101,16 @@ def KeepCastle():
         transform([0, 1, TOWER], 90, [span, WALL_HEIGHT + 1, 1], CurtainWall(span, WALL_HEIGHT)),
         transform([SIZE - 1, 1, TOWER], 90, [span, WALL_HEIGHT + 1, 1], CurtainWall(span, WALL_HEIGHT)),
         # South gate: arch carved through the curtain wall, double door inside.
+        # The arch is wider than the door, so stone jambs backfill the flanking
+        # columns up to door height -- otherwise you can just walk around the door.
         transform([gate_x, 1, SIZE - 1], 0, [4, 4, 1], Archway(4, 4)),
+        fill_region([gate_x, 1, SIZE - 1], [gate_x + 1, 3, SIZE], block(STONE), phase="fixture"),
+        fill_region([gate_x + 3, 1, SIZE - 1], [gate_x + 4, 3, SIZE], block(STONE), phase="fixture"),
         transform([gate_x + 1, 1, SIZE - 1], 0, [2, 2, 1], DoubleDoor()),
         # Central keep and courtyard dressing.
         transform([keep_origin, 1, keep_origin], 0,
                   [KEEP, KEEP_WALL_HEIGHT + (KEEP + 1) // 2, KEEP], Keep()),
-        transform([SIZE // 2 - 1, 1, keep_origin + KEEP], 0, [2, 1, 9],
+        transform([SIZE // 2 - 1, 0, keep_origin + KEEP], 0, [2, 1, 9],
                   Path(SIZE - 2 - keep_origin - KEEP + 1, 2)),
         transform([8, 1, 2], 0, [3, 4, 3], Well()),
         transform([21, 1, 2], 0, [3, 6, 3], Tree()),

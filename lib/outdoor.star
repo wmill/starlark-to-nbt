@@ -55,12 +55,15 @@ def FenceRing(width, length, fence="minecraft:oak_fence", gate="minecraft:oak_fe
 
 
 def Path(length, width=1, material="minecraft:dirt_path"):
-    """Ground path running along +Z."""
+    """Ground path running along +Z; carves through whatever is already there so it can overlay a foundation."""
     return component(
         name="Path",
         props={"length": length, "width": width, "material": material},
         min_size=[width, 1, length],
-        body=fill_region([0, 0, 0], [width, 1, length], block(material)),
+        body=group([
+            carve_region([0, 0, 0], [width, 1, length]),
+            fill_region([0, 0, 0], [width, 1, length], block(material), phase="fixture"),
+        ]),
     )
 
 
