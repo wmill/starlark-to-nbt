@@ -4,14 +4,14 @@
 
 Python source lives in `src/starlark_to_nbt/`. The pipeline is intentionally staged:
 
-- `starlark_runtime.py` evaluates `.star` files and exposes host constructors.
+- `starlark_runtime.py` evaluates `.star` files (with `load()` support) and exposes host constructors.
 - `schema.py`, `ir.py`, and `model.py` validate and represent component data.
-- `layout.py` resolves spatial allocations; `lowering.py` creates block operations.
-- `execute.py` applies phased operations to a sparse volume.
-- `serialize.py` writes debug JSON and Minecraft structure NBT.
+- `layout.py` resolves spatial allocations; `lowering.py` creates block operations and rotates block states (`facing`, `axis`, `rotation`, multi-face keys).
+- `execute.py` applies phased operations to a sparse volume (identical structural rewrites allowed; conflicting solids error; fixtures strict).
+- `serialize.py` writes debug JSON and sparse Minecraft structure NBT (untouched cells omitted).
 - `pipeline.py` and `cli.py` provide the public orchestration interfaces.
 
-Starlark examples belong in `examples/`; `examples/church.star` is the reference vertical slice. Tests live in `tests/` and mirror behavior rather than individual modules.
+The reusable component library lives in `lib/*.star` (documented for LLM prompting in `docs/component-catalog.md`); `lib/showcase.star` builds any single component by name. Starlark examples belong in `examples/`; `examples/church.star` is the reference vertical slice, `examples/cottage.star` the reference `load()` composition, and `examples/keep.star` the large stress build. Tests live in `tests/` and mirror behavior rather than individual modules.
 
 ## Build, Test, and Development Commands
 

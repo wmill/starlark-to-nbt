@@ -3,10 +3,10 @@ from __future__ import annotations
 from itertools import product
 
 from .ir import (
-    BlockOperation, BlockWrite, CarveRegion, Component, FillRegion, Phase, PlaceAssembly,
-    PlaceBlock, ResolvedNode,
+    BlockOperation, BlockWrite, CarveRegion, Component, FillRegion, Group, Phase,
+    PlaceAssembly, PlaceBlock, ResolvedNode,
 )
-from .model import Box, BuildError, Diagnostic, Point, Provenance, Transform
+from .model import AIR, Box, BuildError, Diagnostic, Point, Provenance, Transform
 
 
 def _apply(point: Point, transforms: tuple[Transform, ...]) -> Point:
@@ -54,6 +54,8 @@ def _lower(node: ResolvedNode, operations: list[BlockOperation], owner: Resolved
         return
 
     leaf = node.node
+    if isinstance(leaf, Group):  # childless group: nothing to emit
+        return
     owner = owner or node
     owner_region = _world_box(owner.region, owner.world_transforms)
     provenance = Provenance(owner.path, owner_region, owner.node.source if isinstance(owner.node, Component) else None)
@@ -70,14 +72,14 @@ def _lower(node: ResolvedNode, operations: list[BlockOperation], owner: Resolved
             for z in range(leaf.box.min.z, leaf.box.max.z)
             for x in range(leaf.box.min.x, leaf.box.max.x)
         )
-        operations.append(BlockOperation(Phase.STRUCTURE, "fill_region", writes, provenance))
+        phase = Phase.STRUCTURE if leaf.phase == "structure" else Phase.FIXTURE
+        operations.append(BlockOperation(phase, "fill_region", writes, provenance))
     elif isinstance(leaf, CarveRegion):
         writes = tuple(
-            BlockWrite(_world_point(Point(x, y, z), node), leaf_block)
+            BlockWrite(_world_point(Point(x, y, z), node), AIR)
             for y in range(leaf.box.min.y, leaf.box.max.y)
             for z in range(leaf.box.min.z, leaf.box.max.z)
             for x in range(leaf.box.min.x, leaf.box.max.x)
-            for leaf_block in (BlockSpec("minecraft:air"),)
         )
         operations.append(BlockOperation(Phase.CARVE, "carve_region", writes, provenance))
     elif isinstance(leaf, PlaceAssembly):
@@ -98,10 +100,6 @@ def _lower(node: ResolvedNode, operations: list[BlockOperation], owner: Resolved
                 raise BuildError(Diagnostic("assembly_invalid", f"assembly block {item.pos.to_list()} is outside declared size", owner.path))
             writes.append(BlockWrite(_world_point(leaf.pos + item.pos, node), _world_block(item.block, node.world_transforms)))
         operations.append(BlockOperation(Phase.FIXTURE, "place_assembly", tuple(writes), provenance, leaf.name))
-
-
-# Imported late in type order above to keep the operation branches compact.
-from .model import BlockSpec  # noqa: E402
 
 
 def operations_to_dict(operations: list[BlockOperation]) -> list[dict]:

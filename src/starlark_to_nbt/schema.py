@@ -176,8 +176,11 @@ def parse_node(value: Any, path: str = "$", source_file: str | None = None) -> N
             raise _error(f"{path}.phase", "phase must be structure or fixture")
         return PlaceBlock(_point(obj["pos"], f"{path}.pos"), _block(obj["block"], f"{path}.block"), phase)
     if kind == "fill_region":
-        _keys(obj, {"kind", "box", "block"}, set(), path)
-        return FillRegion(_box(obj["box"], f"{path}.box"), _block(obj["block"], f"{path}.block"))
+        _keys(obj, {"kind", "box", "block"}, {"phase"}, path)
+        phase = obj.get("phase", "structure")
+        if phase not in ("structure", "fixture"):
+            raise _error(f"{path}.phase", "phase must be structure or fixture")
+        return FillRegion(_box(obj["box"], f"{path}.box"), _block(obj["block"], f"{path}.block"), phase)
     if kind == "carve_region":
         _keys(obj, {"kind", "box"}, set(), path)
         return CarveRegion(_box(obj["box"], f"{path}.box"))

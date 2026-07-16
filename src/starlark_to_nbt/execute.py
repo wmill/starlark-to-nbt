@@ -50,7 +50,10 @@ def _execute_operation(volume: SparseVolume, operation: BlockOperation) -> None:
             continue
         existing = volume.voxels.get(write.pos)
         if operation.phase == Phase.STRUCTURE and existing and existing.block != AIR:
-            errors.append(_collision(operation, write.pos, existing))
+            # Identical rewrites are harmless: structural fills naturally share
+            # corners and edges. Only differing blocks are a conflict.
+            if existing.block != write.block:
+                errors.append(_collision(operation, write.pos, existing))
         elif operation.phase == Phase.FIXTURE and existing and existing.block != AIR:
             errors.append(_collision(operation, write.pos, existing))
     if errors:

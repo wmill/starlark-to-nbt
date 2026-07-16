@@ -30,6 +30,39 @@ def test_quarter_turn_rotates_coordinates_and_facing_four_times():
     assert block.block_state["facing"] == "south"
 
 
+def test_structure_phase_allows_identical_rewrites_but_rejects_differing_blocks():
+    stone = BlockSpec("minecraft:stone")
+    volume = execute([
+        operation(Phase.STRUCTURE, [((1, 1, 1), stone), ((2, 1, 1), stone)], sequence=0),
+        operation(Phase.STRUCTURE, [((2, 1, 1), stone), ((3, 1, 1), stone)], sequence=1),
+    ], BOUNDS)
+    assert volume.block_at(Point(2, 1, 1)) == stone
+
+    with pytest.raises(BuildError, match="block_conflict"):
+        execute([
+            operation(Phase.STRUCTURE, [((1, 1, 1), stone)], sequence=0),
+            operation(Phase.STRUCTURE, [((1, 1, 1), BlockSpec("minecraft:oak_planks"))], sequence=1),
+        ], BOUNDS)
+
+
+def test_fixture_phase_rejects_even_identical_overlaps():
+    lantern = BlockSpec("minecraft:lantern")
+    with pytest.raises(BuildError, match="block_conflict"):
+        execute([
+            operation(Phase.FIXTURE, [((1, 1, 1), lantern)], sequence=0),
+            operation(Phase.FIXTURE, [((1, 1, 1), lantern)], sequence=1),
+        ], BOUNDS)
+
+
+def test_fixture_phase_fill_region_lowers_into_fixture_operations():
+    from starlark_to_nbt.ir import FillRegion
+    node = Component("Carpet", {}, FillRegion(Box.from_size(Point(2, 1, 2)),
+                                              BlockSpec("minecraft:red_carpet"), "fixture"))
+    operations = lower(resolve(node, Box.from_size(Point(2, 1, 2))))
+    assert [op.phase for op in operations] == [Phase.FIXTURE]
+    assert len(operations[0].writes) == 4
+
+
 def test_phases_allow_carve_then_fixture_but_reject_solid_overwrite():
     stone = BlockSpec("minecraft:stone")
     door = BlockSpec("minecraft:oak_door", {"half": "lower"})

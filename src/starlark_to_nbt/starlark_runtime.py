@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any, Callable
 
@@ -58,8 +59,8 @@ def place_block(pos, block, phase="structure"):
     return _tag("place_block", pos=pos, block=block, phase=phase)
 
 
-def fill_region(min, max, block):
-    return _tag("fill_region", box={"min": min, "max": max}, block=block)
+def fill_region(min, max, block, phase="structure"):
+    return _tag("fill_region", box={"min": min, "max": max}, block=block, phase=phase)
 
 
 def carve_region(min, max):
@@ -78,21 +79,88 @@ BOUND_FUNCTIONS: dict[str, Callable[..., Any]] = {
 }
 
 
-def evaluate_source(source: str, filename: str, entry: str, props: dict[str, Any]) -> Node:
+def _new_module() -> sl.Module:
+    module = sl.Module()
+    for name, function in BOUND_FUNCTIONS.items():
+        module.add_callable(name, function)
+    return module
+
+
+class _Loader:
+    """Resolves load() statements relative to the file issuing the load."""
+
+    def __init__(self, base_dir: Path):
+        self._dir_stack = [base_dir]
+        self._cache: dict[str, sl.FrozenModule] = {}
+        self._in_progress: set[str] = set()
+        # The Rust eval layer wraps Python exceptions raised by the load
+        # callback, so the original BuildError is kept here for re-raising.
+        self.error: BuildError | None = None
+        self.file_loader = sl.FileLoader(self._load)
+
+    def _load(self, path: str) -> sl.FrozenModule:
+        raw = Path(path)
+        resolved = raw if raw.is_absolute() else self._dir_stack[-1] / raw
+        resolved = resolved.resolve()
+        key = str(resolved)
+        if key in self._cache:
+            return self._cache[key]
+        if key in self._in_progress:
+            raise self._fail("load_cycle", f"circular load of {path}", key)
+        try:
+            source = resolved.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise self._fail("load_error", f"cannot load {path}: {exc}", key) from exc
+        self._in_progress.add(key)
+        self._dir_stack.append(resolved.parent)
+        try:
+            module = _new_module()
+            ast = sl.parse(key, source)
+            sl.eval(module, ast, sl.Globals.standard(), self.file_loader)
+            frozen = module.freeze()
+        finally:
+            self._dir_stack.pop()
+            self._in_progress.discard(key)
+        self._cache[key] = frozen
+        return frozen
+
+    def _fail(self, code: str, message: str, file: str) -> BuildError:
+        error = BuildError(Diagnostic(code, message, "<load>", SourceRef(file)))
+        if self.error is None:
+            self.error = error
+        return error
+
+
+_ENTRY_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def evaluate_source(source: str, filename: str, entry: str, props: dict[str, Any],
+                    base_dir: str | Path | None = None) -> Node:
+    if not _ENTRY_NAME.fullmatch(entry):
+        raise BuildError(Diagnostic("invalid_entry", f"entry {entry!r} is not a valid identifier", entry,
+                                    SourceRef(filename)))
+    loader = _Loader(Path(base_dir)) if base_dir is not None else None
+    file_loader = loader.file_loader if loader else None
     try:
-        module = sl.Module()
-        for name, function in BOUND_FUNCTIONS.items():
-            module.add_callable(name, function)
+        module = _new_module()
         ast = sl.parse(filename, source)
-        sl.eval(module, ast, sl.Globals.standard())
-        result = module.freeze().call(entry, **props)
+        sl.eval(module, ast, sl.Globals.standard(), file_loader)
+        # Calling via a trampoline expression instead of FrozenModule.call()
+        # keeps prop names like "name" from colliding with call()'s own
+        # parameters.
+        module["__starlark_to_nbt_props__"] = props
+        call_ast = sl.parse(f"<entry {entry}>", f"{entry}(**__starlark_to_nbt_props__)")
+        result = sl.eval(module, call_ast, sl.Globals.standard(), file_loader)
     except Exception as exc:
         if isinstance(exc, BuildError):
             raise
+        if loader is not None and loader.error is not None:
+            raise loader.error from exc
         raise BuildError(Diagnostic("starlark_error", str(exc), entry, SourceRef(filename))) from exc
     return parse_node(result, source_file=filename)
 
 
 def evaluate_file(path: str | Path, entry: str = "build", props: dict[str, Any] | None = None) -> Node:
     source_path = Path(path)
-    return evaluate_source(source_path.read_text(encoding="utf-8"), str(source_path), entry, props or {})
+    return evaluate_source(source_path.read_text(encoding="utf-8"), str(source_path), entry, props or {},
+                           base_dir=source_path.resolve().parent)

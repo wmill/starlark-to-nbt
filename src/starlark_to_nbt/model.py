@@ -112,6 +112,18 @@ class Transform:
             return facing
         return FACING_ORDER[(FACING_ORDER.index(facing) + self.rotation_y // 90) % 4]
 
+    def rotate_axis(self, axis: str) -> str:
+        if self.rotation_y in (90, 270) and axis in ("x", "z"):
+            return "z" if axis == "x" else "x"
+        return axis
+
+    def rotate_sixteenth(self, rotation: str) -> str:
+        try:
+            value = int(rotation)
+        except ValueError:
+            return rotation
+        return str((value + 4 * (self.rotation_y // 90)) % 16)
+
 
 @dataclass(frozen=True, slots=True)
 class BlockSpec:
@@ -119,9 +131,19 @@ class BlockSpec:
     block_state: dict[str, str] = field(default_factory=dict)
 
     def transformed(self, transform: Transform) -> BlockSpec:
-        state = dict(self.block_state)
+        state = {}
+        for key, value in self.block_state.items():
+            if key in FACING_ORDER:
+                # Multi-face blocks (fences, panes, walls, vines) key their
+                # connections by direction; rotate the key, keep the value.
+                key = transform.rotate_facing(key)
+            state[key] = value
         if "facing" in state:
             state["facing"] = transform.rotate_facing(state["facing"])
+        if "axis" in state:
+            state["axis"] = transform.rotate_axis(state["axis"])
+        if "rotation" in state:
+            state["rotation"] = transform.rotate_sixteenth(state["rotation"])
         return BlockSpec(self.block_type, state)
 
     def key(self) -> tuple[str, tuple[tuple[str, str], ...]]:

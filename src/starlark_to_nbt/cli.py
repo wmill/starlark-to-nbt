@@ -8,10 +8,15 @@ from .pipeline import build_file, write_build_outputs
 
 
 def _arg_value(value: str):
-    try:
-        return int(value)
-    except ValueError:
-        return value
+    lowered = value.lower()
+    if lowered in ("true", "false"):
+        return lowered == "true"
+    for parse in (int, float):
+        try:
+            return parse(value)
+        except ValueError:
+            continue
+    return value
 
 
 def main() -> None:

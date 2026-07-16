@@ -20,16 +20,19 @@ def write_json(value: Any, path: str | Path) -> None:
 
 
 def write_structure_nbt(volume: SparseVolume, path: str | Path) -> None:
-    specs = {volume.block_at(point).key(): volume.block_at(point) for point in _points(volume)}
+    # Only written voxels are emitted; untouched cells are absent from the
+    # template, so pasting the structure leaves the existing terrain there.
+    # Carved cells were written as explicit air and still clear their cell.
+    written = _written(volume)
+    specs = {block.key(): block for _, block in written}
     ordered_specs = sorted(specs.values(), key=lambda block: (block.block_type != "minecraft:air", block.key()))
     palette_index = {block.key(): index for index, block in enumerate(ordered_specs)}
 
     palette = List[Compound]([_palette_entry(block) for block in ordered_specs])
     blocks = List[Compound]()
     origin = volume.bounds.min
-    for point in _points(volume):
+    for point, block in written:
         relative = point - origin
-        block = volume.block_at(point)
         blocks.append(Compound({
             "state": Int(palette_index[block.key()]),
             "pos": List[Int]([Int(relative.x), Int(relative.y), Int(relative.z)]),
@@ -48,12 +51,11 @@ def write_structure_nbt(volume: SparseVolume, path: str | Path) -> None:
             File(root).write(gzipped_file)
 
 
-def _points(volume: SparseVolume):
-    bounds = volume.bounds
-    for y in range(bounds.min.y, bounds.max.y):
-        for z in range(bounds.min.z, bounds.max.z):
-            for x in range(bounds.min.x, bounds.max.x):
-                yield Point(x, y, z)
+def _written(volume: SparseVolume) -> list[tuple[Point, BlockSpec]]:
+    return [
+        (point, volume.voxels[point].block)
+        for point in sorted(volume.voxels, key=lambda p: (p.y, p.z, p.x))
+    ]
 
 
 def _palette_entry(block: BlockSpec) -> Compound:
