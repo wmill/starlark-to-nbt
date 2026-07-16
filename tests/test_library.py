@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from starlark_to_nbt.pipeline import build_file
+from starlark_to_nbt.model import Point
 
 SHOWCASE = Path(__file__).parents[1] / "lib" / "showcase.star"
 
@@ -56,3 +57,45 @@ def test_rotations_preserve_voxel_count(name):
         for rotation in (0, 90, 180, 270)
     }
     assert len(set(counts.values())) == 1, counts
+
+
+def test_straight_staircase_ascends_south_one_level_per_row():
+    result = build_file(SHOWCASE, props={"name": "StraightStaircase"})
+    for z in range(4):
+        assert result.volume.block_at(Point(0, z, z)).block_state["facing"] == "south"
+        assert Point(0, z + 1, z) not in result.volume.voxels
+
+
+def test_ladder_and_counter_face_south_and_rotate():
+    ladder = build_file(SHOWCASE, entry="rotated", props={"name": "Ladder", "rotation": 90})
+    assert {v.block.block_state["facing"] for v in ladder.volume.voxels.values()} == {"west"}
+    counter = build_file(SHOWCASE, props={"name": "KitchenCounter"})
+    barrels = [v.block for v in counter.volume.voxels.values() if v.block.block_type == "minecraft:barrel"]
+    assert barrels and {b.block_state["facing"] for b in barrels} == {"south"}
+
+
+def test_footbridge_rails_connect_along_run_and_to_deck():
+    result = build_file(SHOWCASE, props={"name": "Footbridge"})
+    left = result.volume.block_at(Point(0, 1, 3))
+    right = result.volume.block_at(Point(3, 1, 3))
+    assert left.block_state == {"north": "true", "south": "true", "east": "true"}
+    assert right.block_state == {"north": "true", "south": "true", "west": "true"}
+
+
+def test_crop_plot_has_irrigated_farmland_and_mature_crops():
+    result = build_file(SHOWCASE, props={"name": "CropPlot"})
+    assert result.volume.block_at(Point(3, 0, 3)).block_type == "minecraft:water"
+    assert result.volume.block_at(Point(2, 0, 3)).block_state["moisture"] == "7"
+    assert result.volume.block_at(Point(2, 1, 3)).block_state["age"] == "7"
+
+
+def test_flower_canopy_and_hay_patterns_are_alternating():
+    flowers = build_file(SHOWCASE, props={"name": "FlowerBed"})
+    assert flowers.volume.block_at(Point(1, 1, 1)).block_type == "minecraft:poppy"
+    assert flowers.volume.block_at(Point(2, 1, 1)).block_type == "minecraft:dandelion"
+    stall = build_file(SHOWCASE, props={"name": "MarketStall"})
+    assert stall.volume.block_at(Point(0, 3, 1)).block_type == "minecraft:red_wool"
+    assert stall.volume.block_at(Point(1, 3, 1)).block_type == "minecraft:white_wool"
+    hay = build_file(SHOWCASE, props={"name": "HayBaleStack"})
+    axes = {v.block.block_state["axis"] for v in hay.volume.voxels.values()}
+    assert axes == {"x", "z"}

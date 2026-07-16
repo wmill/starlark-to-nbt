@@ -98,3 +98,35 @@ def Balcony(width, depth=2, material="minecraft:oak_planks", railing="minecraft:
             fill_region([width - 1, 1, 0], [width, 2, depth - 1], rail, phase="fixture"),
         ]),
     )
+
+
+def StraightStaircase(width, rise, stair="minecraft:oak_stairs"):
+    """Solid stair flight ascending toward +Z, one level per row."""
+    parts = []
+    for z in range(rise):
+        parts.append(fill_region(
+            [0, 0, z], [width, z + 1, z + 1],
+            block(stair, {"facing": "south", "half": "bottom", "shape": "straight"}),
+        ))
+    return component(
+        name="StraightStaircase",
+        props={"width": width, "rise": rise, "stair": stair},
+        min_size=[width, rise, rise],
+        body=group(parts),
+    )
+
+
+def Footbridge(width, length, deck="minecraft:oak_planks", railing="minecraft:oak_fence"):
+    """Plank bridge running +Z with connected fence rails along both sides."""
+    parts = [fill_region([0, 0, 0], [width, 1, length], block(deck))]
+    for z in range(length):
+        left = {"north": "true", "south": "true", "east": "true"}
+        right = {"north": "true", "south": "true", "west": "true"}
+        parts.append(place_block([0, 1, z], block(railing, left), phase="fixture"))
+        parts.append(place_block([width - 1, 1, z], block(railing, right), phase="fixture"))
+    return component(
+        name="Footbridge",
+        props={"width": width, "length": length, "deck": deck, "railing": railing},
+        min_size=[width, 2, length],
+        body=group(parts),
+    )

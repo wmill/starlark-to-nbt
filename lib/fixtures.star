@@ -111,3 +111,45 @@ def Carpet(width, length, material="minecraft:red_carpet"):
         min_size=[width, 1, length],
         body=fill_region([0, 0, 0], [width, 1, length], block(material), phase="fixture"),
     )
+
+
+def Ladder(height, material="minecraft:ladder"):
+    """Vertical ladder attached to a north support, facing +Z (south)."""
+    return component(
+        name="Ladder",
+        props={"height": height, "material": material},
+        min_size=[1, height, 1],
+        body=fill_region([0, 0, 0], [1, height, 1],
+                         block(material, {"facing": "south", "waterlogged": "false"}),
+                         phase="fixture"),
+    )
+
+
+def DiningTable(length=3, leg="minecraft:oak_fence", top="minecraft:oak_slab"):
+    """Long table running +X, with end legs and a bottom-slab top."""
+    return component(
+        name="DiningTable",
+        props={"length": length, "leg": leg, "top": top},
+        min_size=[length, 2, 1],
+        body=group([
+            place_block([0, 0, 0], block(leg), phase="fixture"),
+            place_block([length - 1, 0, 0], block(leg), phase="fixture"),
+            fill_region([0, 1, 0], [length, 2, 1],
+                        block(top, {"type": "bottom", "waterlogged": "false"}), phase="fixture"),
+        ]),
+    )
+
+
+def KitchenCounter(length=3, cabinet="minecraft:barrel", top="minecraft:oak_slab"):
+    """South-facing storage run with a bottom-slab worktop."""
+    return component(
+        name="KitchenCounter",
+        props={"length": length, "cabinet": cabinet, "top": top},
+        min_size=[length, 2, 1],
+        body=group([
+            fill_region([0, 0, 0], [length, 1, 1], block(cabinet, {"facing": "south", "open": "false"}),
+                        phase="fixture"),
+            fill_region([0, 1, 0], [length, 2, 1],
+                        block(top, {"type": "bottom", "waterlogged": "false"}), phase="fixture"),
+        ]),
+    )

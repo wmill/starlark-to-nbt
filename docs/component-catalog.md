@@ -120,6 +120,8 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `TimberFrameWall(width, height, log="minecraft:oak_log", infill="minecraft:white_terracotta")` | `[width, height, 1]` | Log posts/beams + plaster; needs >= 3x3. |
 | `Column(height, material="minecraft:quartz_pillar")` | `[1, height, 1]` | Vertical pillar. |
 | `Balcony(width, depth=2, material=..., railing="minecraft:oak_fence")` | `[width, 2, depth]` | Deck + railing on front/side edges. |
+| `StraightStaircase(width, rise, stair="minecraft:oak_stairs")` | `[width, rise, rise]` | Ascends one block per row toward +Z; south-facing stairs. |
+| `Footbridge(width, length, deck="minecraft:oak_planks", railing="minecraft:oak_fence")` | `[width, 2, length]` | Runs along +Z; plank deck with connected side rails. |
 
 ### `lib/openings.star` (all carve their own hole; face south at rotation 0)
 
@@ -152,6 +154,9 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `Fireplace(height=5, material="minecraft:stone_bricks", fire="minecraft:campfire")` | `[3, height, 1]` | Hearth + chimney; needs height >= 4. |
 | `LanternPost(height=3, post="minecraft:oak_fence", lantern="minecraft:lantern")` | `[1, height+1, 1]` | Post + lantern. |
 | `Carpet(width, length, material="minecraft:red_carpet")` | `[width, 1, length]` | Lay one Y above the floor fill. |
+| `Ladder(height, material="minecraft:ladder")` | `[1, height, 1]` | Faces south at rotation 0; place against a north support. |
+| `DiningTable(length=3, leg="minecraft:oak_fence", top="minecraft:oak_slab")` | `[length, 2, 1]` | Runs along +X; end legs and bottom-slab top. |
+| `KitchenCounter(length=3, cabinet="minecraft:barrel", top="minecraft:oak_slab")` | `[length, 2, 1]` | South-facing storage with bottom-slab worktop. |
 
 ### `lib/outdoor.star`
 
@@ -161,6 +166,10 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `FenceRing(width, length, fence="minecraft:oak_fence", gate="minecraft:oak_fence_gate")` | `[width, 1, length]` | Perimeter fence, gate mid-south; needs >= 3x3. |
 | `Path(length, width=1, material="minecraft:dirt_path")` | `[width, 1, length]` | Runs along +Z. |
 | `Tree(height=5, log="minecraft:oak_log", leaves="minecraft:oak_leaves")` | `[3, height+1, 3]` | Persistent leaves; trunk at center. |
+| `CropPlot(width, length, crop="minecraft:wheat", age="7", border="minecraft:oak_log")` | `[width, 2, length]` | Bordered moist farmland, central +Z water channel, mature crops; requires at least 5x5. |
+| `FlowerBed(width, length, flower_a="minecraft:poppy", flower_b="minecraft:dandelion", border="minecraft:cobblestone")` | `[width, 2, length]` | Bordered dirt with alternating flowers; requires at least 3x3. |
+| `MarketStall(width=5, depth=3, canopy="minecraft:red_wool", accent="minecraft:white_wool", post="minecraft:oak_fence")` | `[width, 4, depth]` | Faces +Z; four posts, rear counter, striped canopy. |
+| `HayBaleStack(width=3, height=2, depth=2, material="minecraft:hay_block")` | `[width, height, depth]` | Tapered layers with alternating horizontal X/Z axes. |
 
 ## Worked examples
 
@@ -170,6 +179,11 @@ them builds standalone. `lib/showcase.star` builds any single component:
 - `examples/keep.star` — 33x20x33 castle: four towers at each rotation,
   curtain walls, gate (archway + double door carved through a sibling wall),
   central keep with y-repeated floors and a pyramid roof, courtyard dressing.
+- `examples/riverside_farmstead.star` — 41x16x35 village scene: furnished
+  two-storey farmhouse, stream and footbridge, irrigated crops, hay storage,
+  paths, trees, and lanterns.
+- `examples/market_square.star` — 35x6x35 civic square: central well and
+  crossing paths, four rotated striped stalls, flower beds, benches, and lamps.
 
 ## Errors
 

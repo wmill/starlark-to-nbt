@@ -13,6 +13,8 @@ uv run starlark-to-nbt build examples/church.star \
 # Compose from the component library (lib/*.star) via load():
 uv run starlark-to-nbt build examples/cottage.star --output cottage.nbt
 uv run starlark-to-nbt build examples/keep.star --output keep.nbt
+uv run starlark-to-nbt build examples/riverside_farmstead.star --output riverside_farmstead.nbt
+uv run starlark-to-nbt build examples/market_square.star --output market_square.nbt
 
 # Build a single library component by name:
 uv run starlark-to-nbt build lib/showcase.star --arg name=GableRoof --output roof.nbt

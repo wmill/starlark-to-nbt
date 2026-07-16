@@ -80,3 +80,78 @@ def Tree(height=5, log="minecraft:oak_log", leaves="minecraft:oak_leaves"):
         min_size=[3, height + 1, 3],
         body=group(parts),
     )
+
+
+def CropPlot(width, length, crop="minecraft:wheat", age="7", border="minecraft:oak_log"):
+    """Bordered farmland with a central +Z irrigation channel and mature crops."""
+    if width < 5 or length < 5:
+        fail("CropPlot requires width and length >= 5")
+    water_x = width // 2
+    parts = []
+    for x in range(width):
+        for z in range(length):
+            edge = x == 0 or x == width - 1 or z == 0 or z == length - 1
+            if edge:
+                axis = "x"
+                if x == 0 or x == width - 1:
+                    axis = "z"
+                parts.append(place_block([x, 0, z], block(border, {"axis": axis})))
+            elif x == water_x:
+                parts.append(place_block([x, 0, z], block("minecraft:water")))
+            else:
+                parts.append(place_block([x, 0, z], block("minecraft:farmland", {"moisture": "7"})))
+                parts.append(place_block([x, 1, z], block(crop, {"age": age}), phase="fixture"))
+    return component(name="CropPlot", props={"width": width, "length": length, "crop": crop, "age": age, "border": border},
+                     min_size=[width, 2, length], body=group(parts))
+
+
+def FlowerBed(width, length, flower_a="minecraft:poppy", flower_b="minecraft:dandelion", border="minecraft:cobblestone"):
+    """Stone-bordered soil bed with alternating flowers."""
+    if width < 3 or length < 3:
+        fail("FlowerBed requires width and length >= 3")
+    parts = []
+    for x in range(width):
+        for z in range(length):
+            if x == 0 or x == width - 1 or z == 0 or z == length - 1:
+                parts.append(place_block([x, 0, z], block(border)))
+            else:
+                parts.append(place_block([x, 0, z], block("minecraft:dirt")))
+                flower = flower_a
+                if (x + z) % 2 == 1:
+                    flower = flower_b
+                parts.append(place_block([x, 1, z], block(flower), phase="fixture"))
+    return component(name="FlowerBed", props={"width": width, "length": length, "flower_a": flower_a, "flower_b": flower_b, "border": border},
+                     min_size=[width, 2, length], body=group(parts))
+
+
+def MarketStall(width=5, depth=3, canopy="minecraft:red_wool", accent="minecraft:white_wool", post="minecraft:oak_fence"):
+    """South-facing counter stall with four posts and a striped canopy."""
+    parts = []
+    for x, z in [(0, 0), (width - 1, 0), (0, depth - 1), (width - 1, depth - 1)]:
+        parts.append(fill_region([x, 0, z], [x + 1, 3, z + 1], block(post), phase="fixture"))
+    parts.append(fill_region([1, 1, depth - 1], [width - 1, 2, depth], block("minecraft:oak_slab", {"type": "bottom", "waterlogged": "false"}), phase="fixture"))
+    for x in range(width):
+        material = canopy
+        if x % 2 == 1:
+            material = accent
+        parts.append(fill_region([x, 3, 0], [x + 1, 4, depth], block(material)))
+    return component(name="MarketStall", props={"width": width, "depth": depth, "canopy": canopy, "accent": accent, "post": post},
+                     min_size=[width, 4, depth], body=group(parts))
+
+
+def HayBaleStack(width=3, height=2, depth=2, material="minecraft:hay_block"):
+    """Layered hay pile with alternating horizontal bale axes."""
+    parts = []
+    for y in range(height):
+        layer_width = width - y
+        if layer_width < 1:
+            layer_width = 1
+        x_offset = (width - layer_width) // 2
+        for x in range(layer_width):
+            for z in range(depth):
+                axis = "x"
+                if (x + z + y) % 2 == 1:
+                    axis = "z"
+                parts.append(place_block([x_offset + x, y, z], block(material, {"axis": axis})))
+    return component(name="HayBaleStack", props={"width": width, "height": height, "depth": depth, "material": material},
+                     min_size=[width, height, depth], body=group(parts))

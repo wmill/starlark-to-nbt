@@ -2,11 +2,11 @@
 # harness and handy for eyeballing single components in-game:
 #   uv run starlark-to-nbt build lib/showcase.star --arg name=GableRoof --output roof.nbt
 
-load("structural.star", "Foundation", "Floor", "SolidWall", "WindowedWall", "TimberFrameWall", "Column", "Balcony")
+load("structural.star", "Foundation", "Floor", "SolidWall", "WindowedWall", "TimberFrameWall", "Column", "Balcony", "StraightStaircase", "Footbridge")
 load("openings.star", "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway")
 load("roofs.star", "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof")
-load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Carpet")
-load("outdoor.star", "Well", "FenceRing", "Path", "Tree")
+load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Carpet", "Ladder", "DiningTable", "KitchenCounter")
+load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack")
 
 
 def showcase(name):
@@ -24,6 +24,10 @@ def showcase(name):
         return Column(5)
     elif name == "Balcony":
         return Balcony(4)
+    elif name == "StraightStaircase":
+        return StraightStaircase(2, 4)
+    elif name == "Footbridge":
+        return Footbridge(4, 7)
     elif name == "SingleDoor":
         return SingleDoor()
     elif name == "DoubleDoor":
@@ -58,6 +62,12 @@ def showcase(name):
         return LanternPost()
     elif name == "Carpet":
         return Carpet(3, 4)
+    elif name == "Ladder":
+        return Ladder(5)
+    elif name == "DiningTable":
+        return DiningTable()
+    elif name == "KitchenCounter":
+        return KitchenCounter()
     elif name == "Well":
         return Well()
     elif name == "FenceRing":
@@ -66,16 +76,24 @@ def showcase(name):
         return Path(8, 2)
     elif name == "Tree":
         return Tree()
+    elif name == "CropPlot":
+        return CropPlot(7, 7)
+    elif name == "FlowerBed":
+        return FlowerBed(5, 4)
+    elif name == "MarketStall":
+        return MarketStall()
+    elif name == "HayBaleStack":
+        return HayBaleStack()
     else:
         fail("unknown component %s" % name)
 
 
 COMPONENT_NAMES = [
-    "Foundation", "Floor", "SolidWall", "WindowedWall", "TimberFrameWall", "Column", "Balcony",
+    "Foundation", "Floor", "SolidWall", "WindowedWall", "TimberFrameWall", "Column", "Balcony", "StraightStaircase", "Footbridge",
     "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway",
     "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof",
-    "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Carpet",
-    "Well", "FenceRing", "Path", "Tree",
+    "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Carpet", "Ladder", "DiningTable", "KitchenCounter",
+    "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack",
 ]
 
 

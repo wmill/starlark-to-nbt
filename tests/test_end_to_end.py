@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import nbtlib
+import pytest
 
 from starlark_to_nbt.execute import dense_to_dict
 from starlark_to_nbt.ir import Phase
@@ -102,3 +103,42 @@ def test_keep_stress_build_is_deterministic(tmp_path):
     write_structure_nbt(result.volume, first)
     write_structure_nbt(build_file(EXAMPLES / "keep.star").volume, second)
     assert first.read_bytes() == second.read_bytes()
+
+
+@pytest.mark.parametrize(
+    ("filename", "size", "voxel_count", "representative", "palette"),
+    [
+        ("riverside_farmstead.star", Point(41, 16, 35), 1279, "Footbridge",
+         {"minecraft:wheat", "minecraft:hay_block", "minecraft:ladder", "minecraft:barrel"}),
+        ("market_square.star", Point(35, 6, 35), 474, "MarketStall",
+         {"minecraft:red_wool", "minecraft:blue_wool", "minecraft:cornflower", "minecraft:lantern"}),
+    ],
+)
+def test_village_examples_are_sparse_composed_and_deterministic(
+        tmp_path, filename, size, voxel_count, representative, palette):
+    source = EXAMPLES / filename
+    result = build_file(source)
+    assert result.volume.bounds.size == size
+    assert len(result.volume.voxels) == voxel_count
+    assert any(representative in op.provenance.component_path for op in result.operations)
+    assert all(result.volume.bounds.contains_point(write.pos) for op in result.operations for write in op.writes)
+
+    first = tmp_path / (filename + ".first.nbt")
+    second = tmp_path / (filename + ".second.nbt")
+    write_structure_nbt(result.volume, first)
+    write_structure_nbt(build_file(source).volume, second)
+    assert first.read_bytes() == second.read_bytes()
+    decoded = nbtlib.load(first)
+    assert len(decoded["blocks"]) == voxel_count
+    assert voxel_count < size.x * size.y * size.z
+    names = {str(entry["Name"]) for entry in decoded["palette"]}
+    assert palette <= names
+
+
+def test_market_square_contains_rotated_stall_posts_and_benches():
+    result = build_file(EXAMPLES / "market_square.star")
+    # The east stall is rotated 90 degrees; its striped canopy runs along Z.
+    assert result.volume.block_at(Point(27, 3, 5)).block_type == "minecraft:blue_wool"
+    bench_states = {v.block.block_state["facing"] for v in result.volume.voxels.values()
+                    if v.block.block_type == "minecraft:oak_stairs"}
+    assert bench_states == {"east", "west"}
