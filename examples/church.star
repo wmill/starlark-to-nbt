@@ -63,7 +63,7 @@ def Church(width, length, height):
     return component(
         name="Church",
         props={"width": width, "length": length, "height": height},
-        min_size=[9, 4, 9],
+        min_size=[width, height, length],
         body=group([shell, interior]),
     )
 

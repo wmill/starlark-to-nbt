@@ -18,6 +18,9 @@ uv run starlark-to-nbt build examples/market_square.star --output market_square.
 uv run starlark-to-nbt build examples/frontier_outpost.star --output frontier_outpost.nbt
 uv run starlark-to-nbt build examples/stone_pass_fortress.star --output stone_pass_fortress.nbt
 
+# Rebuild every example into build/<example-name>.nbt:
+./scripts/rebuild_examples.sh
+
 # Build a single library component by name:
 uv run starlark-to-nbt build lib/showcase.star --arg name=GableRoof --output roof.nbt
 ```
