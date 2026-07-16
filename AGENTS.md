@@ -1,45 +1,112 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Purpose and Project Layout
 
-Python source lives in `src/starlark_to_nbt/`. The pipeline is intentionally staged:
+This project turns declarative Starlark components into deterministic, sparse
+Minecraft Java 1.21.7 structure NBT files. Python source lives in
+`src/starlark_to_nbt/`; Starlark code lives in `examples/` and `lib/`.
 
-- `starlark_runtime.py` evaluates `.star` files (with `load()` support) and exposes host constructors.
-- `schema.py`, `ir.py`, and `model.py` validate and represent component data.
-- `layout.py` resolves spatial allocations; `lowering.py` creates block operations and rotates block states (`facing`, `axis`, `rotation`, multi-face keys).
-- `execute.py` applies phased operations to a sparse volume (identical structural rewrites allowed; conflicting solids error; fixtures strict).
-- `serialize.py` writes debug JSON and sparse Minecraft structure NBT (untouched cells omitted).
-- `pipeline.py` and `cli.py` provide the public orchestration interfaces.
+The pipeline is deliberately staged, with `pipeline.py` orchestrating:
 
-The reusable component library lives in `lib/*.star` (documented for LLM prompting in `docs/component-catalog.md`); `lib/showcase.star` builds any single component by name. Starlark examples belong in `examples/`; `examples/church.star` is the reference vertical slice, `examples/cottage.star` the reference `load()` composition, and `examples/keep.star` the large stress build. Tests live in `tests/` and mirror behavior rather than individual modules.
+1. `starlark_runtime.py` evaluates `.star` files, resolves `load()` calls, and
+   exposes host constructors that return JSON-compatible tagged dictionaries.
+2. `schema.py` validates those dictionaries and creates the immutable IR types
+   in `ir.py`. Validation must finish before spatial layout begins.
+3. `layout.py` assigns half-open `model.Box` regions to components.
+4. `lowering.py` produces phased block operations and applies transforms,
+   including rotation of directional block states.
+5. `execute.py` applies `STRUCTURE`, `CARVE`, then `FIXTURE` operations to a
+   sparse volume and enforces overlap rules and assembly atomicity.
+6. `serialize.py` writes debug JSON and sparse structure NBT. Untouched cells
+   are omitted; deliberately carved cells remain explicit air.
 
-## Build, Test, and Development Commands
+Shared geometry, block, transform, and diagnostic types live in `model.py`.
+The CLI entry point is `cli.py` (`starlark-to-nbt`).
 
-Use `uv` for dependency and environment management:
+The reusable component library is grouped in `lib/*.star`; its prompt-ready DSL
+and component reference is `docs/component-catalog.md`. `lib/showcase.star`
+builds individual components for testing. `examples/church.star` is the full
+pipeline vertical slice, `examples/cottage.star` demonstrates `load()`-based
+composition, and `examples/keep.star` is the large stress build.
+
+## Development Commands
+
+Use `uv` for the environment and all Python commands:
 
 ```sh
-uv sync --dev                 # Install runtime and test dependencies
-uv run pytest                 # Run the complete test suite
+uv sync --dev
+uv run pytest
 uv run pytest -q tests/test_end_to_end.py
+uv run pytest tests/test_end_to_end.py::test_name
+uv run python -m py_compile src/starlark_to_nbt/*.py
+```
+
+Build the reference example with inspectable intermediate output:
+
+```sh
 uv run starlark-to-nbt build examples/church.star \
   --arg width=11 --arg length=19 --arg height=4 \
   --output church.nbt --debug-dir build/church
 ```
 
-The final command generates a Minecraft 1.21.7 NBT structure plus inspectable intermediate JSON files.
+Generated `.nbt` files and `build/` artifacts are development output; do not
+commit them unless a task explicitly calls for fixtures or examples.
 
-## Coding Style & Naming Conventions
+## Coding Conventions and Invariants
 
-Use four-space indentation, type annotations, and Python 3.13+ syntax. Prefer immutable, slotted dataclasses for IR and geometry values. Name modules, functions, and variables with `snake_case`; classes and component types use `PascalCase`; constants use `UPPER_SNAKE_CASE`.
+Use four-space indentation, type annotations, and Python 3.13+ syntax. Follow
+the existing PEP 8-style formatting; no formatter or linter is configured.
+Prefer frozen, slotted dataclasses for IR and geometry values. Use
+`snake_case` for modules, functions, and variables, `PascalCase` for classes and
+component types, and `UPPER_SNAKE_CASE` for constants.
 
-Keep pipeline boundaries explicit. Starlark constructors must return JSON-compatible tagged dictionaries, and validation must occur before layout. Do not silently clamp geometry or permit components to write outside assigned half-open boxes. No formatter or linter is currently configured; follow existing PEP 8-style formatting and run `python -m py_compile src/starlark_to_nbt/*.py` when changing imports or types.
+Preserve these boundaries and invariants:
 
-## Testing Guidelines
+- Starlark host constructors return tagged, JSON-compatible data—not Python IR
+  objects. Parse and validate it before layout.
+- Coordinates use `+X` east, `+Y` up, and `+Z` south. Boxes are half-open: the
+  minimum is inclusive and the maximum is exclusive.
+- Never silently clamp geometry or allow a component to write outside its
+  assigned box. Invalid allocations must produce a diagnostic.
+- Extend the existing `BuildError`/`Diagnostic` pattern with stable error codes,
+  provenance, and useful regions or coordinates instead of raising bare errors.
+- Preserve execution semantics: identical structural rewrites are allowed,
+  conflicting solid writes fail, fixture overlap is strict, and multi-block
+  assemblies are atomic.
+- When adding transforms, account for both coordinates and affected block-state
+  properties (`facing`, `axis`, numeric `rotation`, and horizontal face keys).
+- Output must be deterministic. Serialization changes should preserve stable
+  palette/block ordering and reproducible gzip bytes.
 
-Tests use `pytest` and follow `test_<behavior>.py` / `test_<scenario>()` naming. Add focused tests for schema errors, spatial invariants, transforms, phase conflicts, and assembly atomicity. Any pipeline change should include an end-to-end assertion against decoded NBT. Generated output must remain deterministic.
+Starlark library components conventionally draw from `[0, 0, 0]`, face `+Z` at
+rotation zero, and declare a `min_size` matching what they actually draw.
+Openings carve their own holes so they can be transformed onto existing walls.
+Update `docs/component-catalog.md` whenever the public DSL or component library
+changes.
 
-## Commit & Pull Request Guidelines
+## Testing Expectations
 
-History uses brief, lowercase summaries such as `basic test` and `brief description`. Keep commits small and use a concise imperative subject describing one logical change.
+Tests describe behavior rather than mirroring every source module:
 
-Pull requests should explain the behavior changed, identify affected pipeline stages, and include test results. Link relevant issues and include example CLI output or debug artifacts when serialization or generated geometry changes; screenshots are only useful for in-game visual differences.
+- `test_schema_layout.py`: validation and spatial invariants
+- `test_transform_execution.py`: transforms, phases, conflicts, and assemblies
+- `test_rotation_states.py`: directional block-state rotation
+- `test_runtime_load.py`: `load()` resolution, caching, cycles, and diagnostics
+- `test_library.py`: every library component standalone and under rotation
+- `test_end_to_end.py`: decoded NBT assertions for reference builds
+
+Add the narrowest regression test that demonstrates a change. Pipeline,
+execution, or serialization changes should also include an end-to-end assertion
+against decoded NBT. Run the focused test while iterating, then the full suite
+before handing off. If imports or annotations changed, also run `py_compile`.
+
+## Commits and Pull Requests
+
+Keep commits small and use a concise, imperative, lowercase subject describing
+one logical change. Do not mix generated artifacts or unrelated cleanup into a
+feature commit.
+
+Pull requests should explain the behavior change and affected pipeline stages,
+list the tests run, and link relevant issues. Include representative CLI output
+or debug artifacts when serialization or generated geometry changes; screenshots
+are useful only when the in-game appearance materially changes.
