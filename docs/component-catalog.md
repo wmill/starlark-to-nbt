@@ -204,6 +204,18 @@ or extend toward +Z at rotation zero.
   four rotated watchtowers, double gate, furnished barracks, storage, and lamps.
 - `examples/stone_pass_fortress.star` — 35x16x21 linear stone defense: twin
   towers, battlement walls, gatehouse and portcullis, moat, and drawbridge.
+- `examples/procedural_facade.star` — 29x8x1 pattern wall gallery: checkerboard,
+  gradient, diagonal-stripe, and triangular-wave-crenellation panels, each a
+  different index-driven material formula.
+- `examples/procedural_pavilion.star` — 13x8x13 garden pavilion: one
+  asymmetric wing authored once and stamped into all four quadrants by looping
+  over `transform()` rotations.
+- `examples/procedural_ziggurat.star` — 15x17x15 stepped tower grown by a
+  for-loop that shrinks the footprint and cycles a material gradient per
+  level, capped with a wave-formula crenellated crown.
+- `examples/procedural_spiral_stair.star` — 9x23x9 hollow shaft with a spiral
+  staircase built by a hand-rolled per-step loop, since `repeat()` cannot vary
+  rotation or position between copies.
 
 ## Errors
 

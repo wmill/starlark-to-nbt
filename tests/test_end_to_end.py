@@ -185,3 +185,68 @@ def test_frontier_gate_and_stone_pass_defenses_are_aligned():
     assert fortress.volume.block_at(Point(16, 2, 13)).block_state["axis"] == "z"
     assert fortress.volume.block_at(Point(0, 0, 13)).block_type == "minecraft:water"
     assert fortress.volume.block_at(Point(3, 5, 7)).block_type == "minecraft:air"
+
+
+@pytest.mark.parametrize(
+    ("filename", "size", "voxel_count", "representative", "palette"),
+    [
+        ("procedural_facade.star", Point(29, 8, 1), 211, "WaveFriezePanel",
+         {"minecraft:white_concrete", "minecraft:black_concrete", "minecraft:red_concrete", "minecraft:mossy_cobblestone"}),
+        ("procedural_pavilion.star", Point(13, 8, 13), 260, "Wing",
+         {"minecraft:andesite", "minecraft:lantern", "minecraft:poppy", "minecraft:dandelion"}),
+        ("procedural_ziggurat.star", Point(15, 17, 15), 1943, "ProceduralZiggurat",
+         {"minecraft:stone_bricks", "minecraft:deepslate_bricks", "minecraft:blackstone",
+          "minecraft:polished_blackstone", "minecraft:gilded_blackstone"}),
+        ("procedural_spiral_stair.star", Point(9, 23, 9), 805, "ProceduralSpiralStair",
+         {"minecraft:deepslate_tiles", "minecraft:polished_deepslate", "minecraft:cobbled_deepslate_stairs"}),
+    ],
+)
+def test_procedural_examples_are_sparse_composed_and_deterministic(
+        tmp_path, filename, size, voxel_count, representative, palette):
+    source = EXAMPLES / filename
+    result = build_file(source)
+    assert result.volume.bounds.size == size
+    assert len(result.volume.voxels) == voxel_count
+    assert any(representative in op.provenance.component_path for op in result.operations)
+    assert all(result.volume.bounds.contains_point(write.pos) for op in result.operations for write in op.writes)
+
+    first = tmp_path / (filename + ".first.nbt")
+    second = tmp_path / (filename + ".second.nbt")
+    write_structure_nbt(result.volume, first)
+    write_structure_nbt(build_file(source).volume, second)
+    assert first.read_bytes() == second.read_bytes()
+    decoded = nbtlib.load(first)
+    assert len(decoded["blocks"]) == voxel_count
+    assert voxel_count < size.x * size.y * size.z
+    names = {str(entry["Name"]) for entry in decoded["palette"]}
+    assert palette <= names
+
+
+def test_procedural_facade_patterns_vary_by_formula():
+    result = build_file(EXAMPLES / "procedural_facade.star")
+    # Checkerboard: adjacent cells alternate.
+    assert result.volume.block_at(Point(1, 0, 0)).block_type == "minecraft:white_concrete"
+    assert result.volume.block_at(Point(2, 0, 0)).block_type == "minecraft:black_concrete"
+    # Gradient: bottom and top rows land on different palette bands.
+    assert result.volume.block_at(Point(8, 0, 0)).block_type == "minecraft:red_concrete"
+    assert result.volume.block_at(Point(8, 7, 0)).block_type == "minecraft:magenta_concrete"
+
+
+def test_procedural_pavilion_wing_is_stamped_at_all_four_rotations():
+    result = build_file(EXAMPLES / "procedural_pavilion.star")
+    lanterns = {(p.x, p.y, p.z) for p, v in result.volume.voxels.items() if v.block.block_type == "minecraft:lantern"}
+    assert lanterns == {(1, 3, 6), (6, 3, 1), (6, 3, 11), (11, 3, 6)}
+
+
+def test_procedural_ziggurat_gradient_and_crown():
+    result = build_file(EXAMPLES / "procedural_ziggurat.star")
+    assert result.volume.block_at(Point(0, 0, 0)).block_type == "minecraft:stone_bricks"
+    assert result.volume.block_at(Point(7, 12, 7)).block_type == "minecraft:gilded_blackstone"
+    # The wave-formula crown adds merlons above the topmost level.
+    assert any(p.y >= 15 for p in result.volume.voxels)
+
+
+def test_procedural_spiral_stair_facing_rotates_with_height():
+    result = build_file(EXAMPLES / "procedural_spiral_stair.star")
+    assert result.volume.block_at(Point(2, 1, 2)).block_state["facing"] == "east"
+    assert result.volume.block_at(Point(6, 9, 6)).block_state["facing"] == "west"
