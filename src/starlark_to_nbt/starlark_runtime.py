@@ -58,6 +58,14 @@ def block(block_type, block_state=None, nbt=None):
     return value
 
 
+def entity(entity_type, nbt=None, yaw=0, pitch=0):
+    return {"entity_type": entity_type, "nbt": nbt, "yaw": yaw, "pitch": pitch}
+
+
+def place_entity(pos, entity):
+    return _tag("place_entity", pos=pos, entity=entity)
+
+
 def sign_nbt(lines=None, color="black", glowing=False,
              back_lines=None, back_color="black", back_glowing=False, waxed=True):
     """Sign block-entity data for block(..., nbt=...). Messages are plain
@@ -123,7 +131,7 @@ BOUND_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "split": split, "inset": inset, "repeat": repeat, "transform": transform,
     "block": block, "sign_nbt": sign_nbt, "container_nbt": container_nbt, "loot_nbt": loot_nbt,
     "place_block": place_block, "fill_region": fill_region, "carve_region": carve_region,
-    "place_assembly": place_assembly,
+    "place_assembly": place_assembly, "entity": entity, "place_entity": place_entity,
 }
 
 

@@ -6,9 +6,9 @@ from pathlib import Path
 from typing import Any
 
 from .execute import SparseVolume, dense_to_dict, execute
-from .ir import BlockOperation, BuildMetadata, Component, Node, ResolvedNode
+from .ir import BlockOperation, BuildMetadata, Component, EntityPlacement, Node, ResolvedNode
 from .layout import resolve, resolved_to_dict
-from .lowering import lower, operations_to_dict
+from .lowering import entities_to_dict, lower_all, operations_to_dict
 from .model import Box, Point
 from .serialize import write_json, write_structure_nbt
 from .starlark_runtime import evaluate_file
@@ -19,6 +19,7 @@ class BuildResult:
     component_ir: Node
     resolved: ResolvedNode
     operations: list[BlockOperation]
+    entities: list[EntityPlacement]
     volume: SparseVolume
     metadata: BuildMetadata
 
@@ -31,14 +32,15 @@ def build_file(path: str | Path, entry: str = "build", props: dict[str, Any] | N
         root_size = _root_size(component_ir, props)
     root_box = Box.from_size(root_size)
     resolved = resolve(component_ir, root_box)
-    operations = lower(resolved)
-    volume = execute(operations, root_box)
+    lowered = lower_all(resolved)
+    operations = lowered.operations
+    volume = execute(operations, root_box, lowered.entities)
     metadata = (
         component_ir.metadata
         if isinstance(component_ir, Component) and component_ir.metadata
         else BuildMetadata()
     )
-    return BuildResult(component_ir, resolved, operations, volume, metadata)
+    return BuildResult(component_ir, resolved, operations, lowered.entities, volume, metadata)
 
 
 def write_build_outputs(result: BuildResult, nbt_path: str | Path, debug_dir: str | Path | None = None) -> None:
@@ -51,6 +53,7 @@ def write_build_outputs(result: BuildResult, nbt_path: str | Path, debug_dir: st
     write_json(_jsonable(result.component_ir), directory / "component-ir.json")
     write_json(resolved_to_dict(result.resolved), directory / "resolved.json")
     write_json(operations_to_dict(result.operations), directory / "operations.json")
+    write_json(entities_to_dict(result.entities), directory / "entities.json")
     write_json(dense_to_dict(result.volume), directory / "dense.json")
 
 

@@ -76,6 +76,8 @@ Multi-block objects that must be placed all-or-nothing (doors, beds) use
 | `repeat(axis, count, child_extent, gap, child)` | `count` copies laid out along `axis`, each `child_extent` deep, `gap` blocks apart, starting at the region min. |
 | `transform(translation, rotation_y, child_size, child)` | Place a `child_size` child at `translation`, rotated 0/90/180/270 degrees around +Y. The rotated footprint must fit in the region. Block states rotate too: `facing`, `axis`, sign `rotation`, and multi-face keys (`north`/`south`/`east`/`west`). |
 | `block(block_type, block_state={}, nbt=None)` | e.g. `block("minecraft:oak_stairs", {"facing": "south", "half": "bottom"})`. States are strings. `nbt` is an optional object of block-entity data (sign text, etc.) serialized onto that block instance. |
+| `entity(entity_type, nbt=None, yaw=0, pitch=0)` | Declares an entity. Engine-owned `id`, `Pos`, `Rotation`, and `UUID` fields are reserved. Rotation zero faces +Z (south). |
+| `place_entity(pos, entity)` | Places an entity at an integer ground-cell anchor. Structure NBT centers it at X/Z + 0.5; transforms rotate both anchor and yaw. |
 | `sign_nbt(lines=None, color="black", glowing=False, back_lines=None, back_color="black", back_glowing=False, waxed=True)` | Sign block-entity data for `block(..., nbt=...)`: up to four `lines` of front text, dye `color`, glow-ink `glowing`. Signs are waxed by default so pasted text is not editable. |
 | `container_nbt(items=None, id="minecraft:chest")` | Container block-entity data (chest, barrel, furnace, hopper, ...). `items` entries are item ids or `{"id", "count", "slot", "components"}` dicts; omitted slots are assigned in order. Set `id` to the container's block id. |
 | `loot_nbt(table, seed=None, id="minecraft:chest")` | Container that rolls the named loot table (e.g. `"minecraft:chests/simple_dungeon"`) when first opened. |
@@ -181,6 +183,7 @@ them builds standalone. `lib/showcase.star` builds any single component:
 
 | Component | Size | Notes |
 |---|---|---|
+| `Horse(variant=0, tame=True)` | `[1, 2, 1]` | Persistent, usable horse facing +Z. `variant` is Minecraft's packed coat/marking value; transforms rotate its yaw. |
 | `Well(material="minecraft:cobblestone", post="minecraft:oak_fence", roof="minecraft:oak_slab")` | `[3, 4, 3]` | Water core, corner posts, slab roof. |
 | `FenceRing(width, length, fence="minecraft:oak_fence", gate="minecraft:oak_fence_gate")` | `[width, 1, length]` | Perimeter fence, gate mid-south; needs >= 3x3. |
 | `Path(length, width=1, material="minecraft:dirt_path")` | `[width, 1, length]` | Runs along +Z. |
@@ -209,6 +212,9 @@ or extend toward +Z at rotation zero.
 
 ## Worked examples
 
+- `examples/mega_castle.star` — Aethercourt, a 48x40x48 high-fantasy castle
+  with four roofed towers, wall walks, gatehouse, three-level furnished palace,
+  stocked armory, stable with four horses, gardens, and placement ground level 1.
 - `examples/cottage.star` — timber-framed cottage: four rotated walls, gable
   roof with plank gable ends, self-carving door/windows, furnished interior.
   The reference for what a generated script should look like.

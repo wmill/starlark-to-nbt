@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from .ir import BlockOperation, Phase
+from .ir import BlockOperation, EntityPlacement, Phase
 from .model import AIR, BlockSpec, Box, BuildError, Diagnostic, Point, Provenance
 
 
@@ -17,14 +17,21 @@ class Voxel:
 class SparseVolume:
     bounds: Box
     voxels: dict[Point, Voxel]
+    entities: list[EntityPlacement] = field(default_factory=list)
 
     def block_at(self, point: Point) -> BlockSpec:
         voxel = self.voxels.get(point)
         return voxel.block if voxel else AIR
 
 
-def execute(operations: list[BlockOperation], root_box: Box) -> SparseVolume:
-    volume = SparseVolume(root_box, {})
+def execute(operations: list[BlockOperation], root_box: Box,
+            entities: list[EntityPlacement] | None = None) -> SparseVolume:
+    entities = list(entities or [])
+    for item in entities:
+        if not root_box.contains_point(item.pos):
+            raise BuildError(Diagnostic("entity_root_overflow", "entity anchor is outside root bounds",
+                                        item.provenance.component_path, region=root_box, coordinates=item.pos))
+    volume = SparseVolume(root_box, {}, entities)
     for operation in sorted(operations, key=lambda op: (op.phase, op.sequence)):
         _execute_operation(volume, operation)
     return volume

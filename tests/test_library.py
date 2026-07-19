@@ -35,7 +35,7 @@ def test_showcase_names_cover_all_library_constructors():
 @pytest.mark.parametrize("name", COMPONENT_NAMES)
 def test_component_builds_standalone(name):
     result = build_file(SHOWCASE, props={"name": name})
-    assert len(result.volume.voxels) > 0
+    assert len(result.volume.voxels) > 0 or len(result.entities) > 0
     assert all(result.volume.bounds.contains_point(write.pos)
                for op in result.operations for write in op.writes)
 
@@ -44,7 +44,7 @@ def test_component_builds_standalone(name):
 @pytest.mark.parametrize("rotation", [0, 90, 180, 270])
 def test_component_builds_under_rotation(name, rotation):
     result = build_file(SHOWCASE, entry="rotated", props={"name": name, "rotation": rotation})
-    assert len(result.volume.voxels) > 0
+    assert len(result.volume.voxels) > 0 or len(result.entities) > 0
     assert all(result.volume.bounds.contains_point(write.pos)
                for op in result.operations for write in op.writes)
 
@@ -57,6 +57,14 @@ def test_rotations_preserve_voxel_count(name):
         for rotation in (0, 90, 180, 270)
     }
     assert len(set(counts.values())) == 1, counts
+
+
+def test_horse_rotations_preserve_entity_and_yaw():
+    for rotation in (0, 90, 180, 270):
+        result = build_file(SHOWCASE, entry="rotated", props={"name": "Horse", "rotation": rotation})
+        assert len(result.entities) == 1
+        assert result.entities[0].entity.yaw == rotation
+        assert result.volume.bounds.contains_point(result.entities[0].pos)
 
 
 def test_straight_staircase_ascends_south_one_level_per_row():

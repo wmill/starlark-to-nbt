@@ -1,6 +1,25 @@
 # Outdoor components: wells, fences, paths, trees.
 
 
+def Horse(variant=0, tame=True):
+    """A persistent, usable horse facing +Z. Variant is Minecraft's packed
+    coat/marking integer; transforms rotate its anchor and yaw."""
+    return component(
+        name="Horse",
+        props={"variant": variant, "tame": tame},
+        min_size=[1, 2, 1],
+        body=place_entity([0, 0, 0], entity(
+            "minecraft:horse",
+            nbt={
+                "Variant": variant,
+                "Tame": tame,
+                "PersistenceRequired": True,
+                "Health": 30.0,
+            },
+        )),
+    )
+
+
 def Well(material="minecraft:cobblestone", post="minecraft:oak_fence", roof="minecraft:oak_slab"):
     """3x3 well: stone ring around water, corner posts, slab roof."""
     parts = [

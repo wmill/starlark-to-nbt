@@ -28,7 +28,8 @@ The reusable component library is grouped in `lib/*.star`; its prompt-ready DSL
 and component reference is `docs/component-catalog.md`. `lib/showcase.star`
 builds individual components for testing. `examples/church.star` is the full
 pipeline vertical slice, `examples/cottage.star` demonstrates `load()`-based
-composition, and `examples/keep.star` is the large stress build. The remaining
+composition, `examples/keep.star` is the large stress build, and
+`examples/mega_castle.star` is the 48x40x48 entity-enabled showcase. The remaining
 files in `examples/` are representative composed builds and procedural cases.
 
 ## Development Commands
@@ -83,6 +84,10 @@ Preserve these boundaries and invariants:
   it unchanged through transforms and serialize it on the block entry. Use the
   Starlark `sign_nbt`, `container_nbt`, and `loot_nbt` helpers rather than
   duplicating raw block-entity shapes in library components.
+- Entity positions are integer ground-cell anchors serialized at centered X/Z
+  coordinates. Rotate anchors and yaw together, keep placements within both
+  component and root regions, and reserve `id`, `Pos`, `Rotation`, and `UUID`
+  for deterministic structure serialization. Entities do not collide with blocks.
 - Root-only build metadata is typed and validated before layout. Keep
   `ground_level` non-negative and preserve the derived `y_offset` in the
   deterministic `.meta.json` sidecar; do not add custom placement tags to the

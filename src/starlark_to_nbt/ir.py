@@ -85,6 +85,20 @@ class PlaceBlock:
 
 
 @dataclass(frozen=True, slots=True)
+class EntitySpec:
+    entity_type: str
+    nbt: dict[str, Any] | None = None
+    yaw: float = 0.0
+    pitch: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class PlaceEntity:
+    pos: Point
+    entity: EntitySpec
+
+
+@dataclass(frozen=True, slots=True)
 class FillRegion:
     box: Box
     block: BlockSpec
@@ -110,7 +124,7 @@ class PlaceAssembly:
     blocks: tuple[AssemblyBlock, ...]
 
 
-Node: TypeAlias = Component | Group | Split | Inset | Repeat | TransformNode | PlaceBlock | FillRegion | CarveRegion | PlaceAssembly
+Node: TypeAlias = Component | Group | Split | Inset | Repeat | TransformNode | PlaceBlock | PlaceEntity | FillRegion | CarveRegion | PlaceAssembly
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,3 +156,17 @@ class BlockOperation:
     provenance: Provenance
     assembly_name: str | None = None
     sequence: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class EntityPlacement:
+    pos: Point
+    entity: EntitySpec
+    provenance: Provenance
+    sequence: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class LoweringResult:
+    operations: list[BlockOperation]
+    entities: list[EntityPlacement]

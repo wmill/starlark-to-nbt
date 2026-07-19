@@ -6,7 +6,7 @@ load("structural.star", "Foundation", "Floor", "SolidWall", "WindowedWall", "Tim
 load("openings.star", "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway")
 load("roofs.star", "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof")
 load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Chest", "Barrel", "Furnace", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter")
-load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola")
+load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse")
 load("fortifications.star", "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower")
 
 
@@ -82,6 +82,8 @@ def showcase(name):
         return KitchenCounter()
     elif name == "Well":
         return Well()
+    elif name == "Horse":
+        return Horse()
     elif name == "FenceRing":
         return FenceRing(6, 8)
     elif name == "Path":
@@ -123,7 +125,7 @@ COMPONENT_NAMES = [
     "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway",
     "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof",
     "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Chest", "Barrel", "Furnace", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter",
-    "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola",
+    "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse",
     "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower",
 ]
 

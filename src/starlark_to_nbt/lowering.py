@@ -3,8 +3,8 @@ from __future__ import annotations
 from itertools import product
 
 from .ir import (
-    BlockOperation, BlockWrite, CarveRegion, Component, FillRegion, Group, Phase,
-    PlaceAssembly, PlaceBlock, ResolvedNode,
+    BlockOperation, BlockWrite, CarveRegion, Component, EntityPlacement, EntitySpec,
+    FillRegion, Group, LoweringResult, Phase, PlaceAssembly, PlaceBlock, PlaceEntity, ResolvedNode,
 )
 from .model import AIR, Box, BuildError, Diagnostic, Point, Provenance, Transform
 
@@ -39,17 +39,25 @@ def _world_box(box: Box, transforms: tuple[Transform, ...]) -> Box:
 
 
 def lower(root: ResolvedNode) -> list[BlockOperation]:
+    return lower_all(root).operations
+
+
+def lower_all(root: ResolvedNode) -> LoweringResult:
     operations: list[BlockOperation] = []
-    _lower(root, operations, None)
-    return [BlockOperation(op.phase, op.kind, op.writes, op.provenance, op.assembly_name, i)
-            for i, op in enumerate(operations)]
+    entities: list[EntityPlacement] = []
+    _lower(root, operations, entities, None)
+    sequenced_ops = [BlockOperation(op.phase, op.kind, op.writes, op.provenance, op.assembly_name, i)
+                     for i, op in enumerate(operations)]
+    sequenced_entities = [EntityPlacement(item.pos, item.entity, item.provenance, i)
+                          for i, item in enumerate(entities)]
+    return LoweringResult(sequenced_ops, sequenced_entities)
 
 
-def _lower(node: ResolvedNode, operations: list[BlockOperation], owner: ResolvedNode | None) -> None:
+def _lower(node: ResolvedNode, operations: list[BlockOperation], entities: list[EntityPlacement], owner: ResolvedNode | None) -> None:
     if isinstance(node.node, Component):
         owner = node
     for child in node.children:
-        _lower(child, operations, owner)
+        _lower(child, operations, entities, owner)
     if node.children:
         return
 
@@ -65,6 +73,16 @@ def _lower(node: ResolvedNode, operations: list[BlockOperation], owner: Resolved
         operations.append(BlockOperation(phase, "place_block", (
             BlockWrite(_world_point(leaf.pos, node), _world_block(leaf.block, node.world_transforms)),
         ), provenance))
+    elif isinstance(leaf, PlaceEntity):
+        pos = _world_point(leaf.pos, node)
+        if not owner_region.contains_point(pos):
+            raise BuildError(Diagnostic("entity_component_overflow", "entity anchor is outside its component's assigned region",
+                                        owner.path, region=owner_region, coordinates=pos))
+        yaw = leaf.entity.yaw
+        for transform in reversed(node.world_transforms):
+            yaw = (yaw + transform.rotation_y) % 360
+        spec = EntitySpec(leaf.entity.entity_type, leaf.entity.nbt, yaw, leaf.entity.pitch)
+        entities.append(EntityPlacement(pos, spec, provenance))
     elif isinstance(leaf, FillRegion):
         writes = tuple(
             BlockWrite(_world_point(Point(x, y, z), node), _world_block(leaf.block, node.world_transforms))
@@ -115,3 +133,10 @@ def operations_to_dict(operations: list[BlockOperation]) -> list[dict]:
         }
         for op in operations
     ]
+
+
+def entities_to_dict(entities: list[EntityPlacement]) -> list[dict]:
+    return [{"sequence": item.sequence, "pos": item.pos.to_list(), "entityType": item.entity.entity_type,
+             "yaw": item.entity.yaw, "pitch": item.entity.pitch, "nbt": item.entity.nbt,
+             "componentPath": item.provenance.component_path,
+             "assignedRegion": item.provenance.assigned_region.to_dict()} for item in entities]

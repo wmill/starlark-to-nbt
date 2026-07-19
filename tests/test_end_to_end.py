@@ -115,6 +115,34 @@ def test_keep_stress_build_is_deterministic(tmp_path):
     assert first.read_bytes() == second.read_bytes()
 
 
+def test_mega_castle_bounds_entities_content_and_determinism(tmp_path):
+    result = build_file(EXAMPLES / "mega_castle.star")
+    assert result.volume.bounds.size == Point(48, 40, 48)
+    assert result.metadata.to_dict() == {"ground_level": 1, "y_offset": -1}
+    assert len(result.volume.voxels) > 10_000
+    palette = {voxel.block.block_type for voxel in result.volume.voxels.values()}
+    assert len(palette) >= 20
+
+    horses = [item for item in result.entities if item.entity.entity_type == "minecraft:horse"]
+    assert len(horses) == 4
+    assert {item.entity.nbt["Variant"] for item in horses} == {0, 256, 512, 768}
+    assert all(10 <= item.pos.x < 21 and 28 <= item.pos.z < 41 for item in horses)
+
+    first, second = tmp_path / "castle-1.nbt", tmp_path / "castle-2.nbt"
+    write_structure_nbt(result.volume, first)
+    write_structure_nbt(result.volume, second)
+    assert first.read_bytes() == second.read_bytes()
+    decoded = nbtlib.load(first)
+    labels = {
+        str(message)
+        for entry in decoded["blocks"] if "nbt" in entry and "front_text" in entry["nbt"]
+        for message in entry["nbt"]["front_text"]["messages"]
+    }
+    assert {"AETHERCOURT", "THRONE HALL", "ROYAL ARMORY", "ROYAL STABLES", "LIBRARY", "WAR COUNCIL"} <= labels
+    stocked = [entry for entry in decoded["blocks"] if "nbt" in entry and "Items" in entry["nbt"]]
+    assert len(stocked) >= 9
+
+
 @pytest.mark.parametrize(
     ("filename", "size", "voxel_count", "representative", "palette"),
     [

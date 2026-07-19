@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
 from .ir import (
     AssemblyBlock, BuildMetadata, CarveRegion, Component, Fill, FillRegion, Fixed,
-    Group, Inset, Node, PlaceAssembly, PlaceBlock, Repeat, SizeExpr, Split,
+    EntitySpec, Group, Inset, Node, PlaceAssembly, PlaceBlock, PlaceEntity, Repeat, SizeExpr, Split,
     TransformNode,
 )
 from .model import Axis, BlockSpec, Box, BuildError, Diagnostic, Point, SourceRef
@@ -85,6 +86,8 @@ def _block(value: Any, path: str) -> BlockSpec:
 
 def _nbt_value(value: Any, path: str) -> Any:
     # Like _json_value, but NBT has no null, so None is rejected everywhere.
+    if isinstance(value, float) and not math.isfinite(value):
+        raise _error(path, "nbt numbers must be finite")
     if isinstance(value, (str, bool, int, float)):
         return value
     if isinstance(value, list):
@@ -92,6 +95,32 @@ def _nbt_value(value: Any, path: str) -> Any:
     if isinstance(value, dict) and all(isinstance(k, str) for k in value):
         return {k: _nbt_value(v, f"{path}.{k}") for k, v in value.items()}
     raise _error(path, "nbt must contain only strings, numbers, booleans, lists, and objects")
+
+
+def _number(value: Any, path: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise _error(path, "expected a finite number")
+    return float(value)
+
+
+def _entity(value: Any, path: str) -> EntitySpec:
+    obj = _dict(value, path)
+    _keys(obj, {"entity_type"}, {"nbt", "yaw", "pitch"}, path)
+    entity_type = obj["entity_type"]
+    if not isinstance(entity_type, str) or not IDENTIFIER.fullmatch(entity_type):
+        raise _error(f"{path}.entity_type", "expected a namespaced Minecraft identifier")
+    nbt = obj.get("nbt")
+    if nbt is not None:
+        nbt = _dict(nbt, f"{path}.nbt")
+        reserved = nbt.keys() & {"id", "Pos", "Rotation", "UUID"}
+        if reserved:
+            raise _error(f"{path}.nbt", f"reserved entity fields: {', '.join(sorted(reserved))}")
+        nbt = _nbt_value(nbt, f"{path}.nbt")
+    yaw = _number(obj.get("yaw", 0), f"{path}.yaw")
+    pitch = _number(obj.get("pitch", 0), f"{path}.pitch")
+    if not -90 <= pitch <= 90:
+        raise _error(f"{path}.pitch", "pitch must be between -90 and 90")
+    return EntitySpec(entity_type, nbt, yaw, pitch)
 
 
 def _json_value(value: Any, path: str) -> Any:
@@ -217,6 +246,9 @@ def parse_node(value: Any, path: str = "$", source_file: str | None = None) -> N
         if phase not in ("structure", "fixture"):
             raise _error(f"{path}.phase", "phase must be structure or fixture")
         return PlaceBlock(_point(obj["pos"], f"{path}.pos"), _block(obj["block"], f"{path}.block"), phase)
+    if kind == "place_entity":
+        _keys(obj, {"kind", "pos", "entity"}, set(), path)
+        return PlaceEntity(_point(obj["pos"], f"{path}.pos"), _entity(obj["entity"], f"{path}.entity"))
     if kind == "fill_region":
         _keys(obj, {"kind", "box", "block"}, {"phase"}, path)
         phase = obj.get("phase", "structure")

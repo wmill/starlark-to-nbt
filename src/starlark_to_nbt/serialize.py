@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import nbtlib
-from nbtlib import Byte, Compound, Double, File, Int, List, String
+from nbtlib import Byte, Compound, Double, File, Float, Int, List, String
 
 from .execute import SparseVolume, dense_to_dict
 from .model import BlockSpec, Point
@@ -47,7 +47,7 @@ def write_structure_nbt(volume: SparseVolume, path: str | Path) -> None:
         "size": List[Int]([Int(v) for v in volume.bounds.size.to_list()]),
         "palette": palette,
         "blocks": blocks,
-        "entities": List[Compound](),
+        "entities": List[Compound]([_entity_entry(item, origin) for item in sorted(volume.entities, key=lambda e: e.sequence)]),
     })
     # Avoid gzip's current-time header so identical builds are byte-for-byte stable.
     with Path(path).open("wb") as raw_file:
@@ -86,6 +86,21 @@ def _palette_entry(block: BlockSpec) -> Compound:
     if block.block_state:
         value["Properties"] = Compound({key: String(state) for key, state in sorted(block.block_state.items())})
     return value
+
+
+def _entity_entry(item, origin: Point) -> Compound:
+    relative = item.pos - origin
+    entity_nbt = _to_nbt(dict(item.entity.nbt or {}))
+    entity_nbt["id"] = String(item.entity.entity_type)
+    entity_nbt["Pos"] = List[Double]([
+        Double(relative.x + 0.5), Double(relative.y), Double(relative.z + 0.5),
+    ])
+    entity_nbt["Rotation"] = List[Float]([Float(item.entity.yaw), Float(item.entity.pitch)])
+    return Compound({
+        "pos": List[Double]([Double(relative.x + 0.5), Double(relative.y), Double(relative.z + 0.5)]),
+        "blockPos": List[Int]([Int(relative.x), Int(relative.y), Int(relative.z)]),
+        "nbt": entity_nbt,
+    })
 
 
 __all__ = ["DATA_VERSION_1_21_7", "dense_to_dict", "write_json", "write_structure_nbt"]
