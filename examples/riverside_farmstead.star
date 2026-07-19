@@ -42,14 +42,20 @@ def build():
     parts = [
         transform([2, 0, 3], 0, [13, 16, 11], Farmhouse()),
         transform([18, 0, 3], 0, [9, 2, 9], CropPlot(9, 9)),
-        transform([29, 0, 4], 0, [5, 3, 3], HayBaleStack(5, 3, 3)),
+        transform([29, 1, 4], 0, [5, 3, 3], HayBaleStack(5, 3, 3)),
         # Stream runs east/west; the bridge crosses it north/south.
         fill_region([0, 0, 17], [41, 1, 22], block("minecraft:water")),
         transform([16, 1, 15], 0, [5, 2, 9], Footbridge(5, 9)),
         transform([17, 0, 24], 0, [3, 1, 8], Path(8, 3)),
-        transform([4, 0, 25], 0, [3, 6, 3], Tree()),
-        transform([34, 0, 26], 0, [3, 6, 3], Tree()),
-        transform([12, 0, 15], 0, [1, 4, 1], LanternPost()),
-        transform([28, 0, 23], 0, [1, 4, 1], LanternPost()),
+        transform([4, 1, 25], 0, [3, 6, 3], Tree()),
+        transform([34, 1, 26], 0, [3, 6, 3], Tree()),
+        transform([12, 1, 15], 0, [1, 4, 1], LanternPost()),
+        transform([28, 1, 23], 0, [1, 4, 1], LanternPost()),
     ]
-    return component(name="RiversideFarmstead", props={}, min_size=[41, 16, 35], body=group(parts))
+    return component(
+        name="RiversideFarmstead",
+        props={},
+        min_size=[41, 16, 35],
+        metadata={"ground_level": 1},
+        body=group(parts),
+    )

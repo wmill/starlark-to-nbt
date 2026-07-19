@@ -205,10 +205,11 @@ or extend toward +Z at rotation zero.
   The reference for what a generated script should look like.
 - `examples/keep.star` — 33x20x33 castle: four towers at each rotation,
   curtain walls, gate (archway + double door carved through a sibling wall),
-  central keep with y-repeated floors and a pyramid roof, courtyard dressing.
-- `examples/riverside_farmstead.star` — 41x16x35 village scene: furnished
-  two-storey farmhouse, stream and footbridge, irrigated crops, hay storage,
-  paths, trees, and lanterns.
+  central keep with an embedded ground floor, ladder-accessible y-repeated
+  upper floors, and a pyramid roof, plus courtyard dressing.
+- `examples/riverside_farmstead.star` — 41x16x35 village scene with ground
+  level 1: furnished two-storey farmhouse, embedded stream, footbridge,
+  irrigated crops, hay storage, paths, trees, and lanterns.
 - `examples/market_square.star` — 35x6x35 civic square: central well and
   crossing paths, four rotated striped stalls, flower beds, benches, and lamps.
 - `examples/frontier_outpost.star` — 29x14x29 timber fort with ground level 1:

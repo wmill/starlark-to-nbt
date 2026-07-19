@@ -8,7 +8,7 @@
 load("../lib/structural.star", "Foundation", "Floor", "WindowedWall")
 load("../lib/openings.star", "Archway", "DoubleDoor", "SingleDoor")
 load("../lib/roofs.star", "PyramidRoof")
-load("../lib/fixtures.star", "LanternPost")
+load("../lib/fixtures.star", "Ladder", "LanternPost")
 load("../lib/outdoor.star", "FenceRing", "Path", "Tree", "Well")
 load("../lib/fortifications.star", "BattlementWall", "SquareTower")
 
@@ -29,10 +29,14 @@ def Keep():
         transform([0, 0, 1], 90, [KEEP - 2, KEEP_WALL_HEIGHT, 1], WindowedWall(KEEP - 2, KEEP_WALL_HEIGHT)),
         transform([KEEP - 1, 0, 1], 90, [KEEP - 2, KEEP_WALL_HEIGHT, 1], WindowedWall(KEEP - 2, KEEP_WALL_HEIGHT)),
         transform([KEEP // 2, 0, KEEP - 1], 0, [1, 2, 1], SingleDoor()),
-        # Ground floor plus two upper storeys via a y-axis repeat.
-        transform([1, 0, 1], 0, [KEEP - 2, 1, KEEP - 2], Floor(KEEP - 2, KEEP - 2)),
+        # Two upper storeys via a y-axis repeat. The ground floor is embedded
+        # into the castle foundation by KeepCastle so it aligns with the door.
         transform([1, 5, 1], 0, [KEEP - 2, 6, KEEP - 2],
                   repeat(axis="y", count=2, child_extent=1, gap=4, child=Floor(KEEP - 2, KEEP - 2))),
+        # The ladder uses the solid north wall for support and passes through
+        # a carved opening in the first upper floor.
+        carve_region([1, 5, 1], [2, 6, 2]),
+        transform([1, 0, 1], 0, [1, 6, 1], Ladder(6)),
         transform([0, KEEP_WALL_HEIGHT, 0], 0, [KEEP, (KEEP + 1) // 2, KEEP], PyramidRoof(KEEP)),
     ]
     return component(
@@ -68,6 +72,13 @@ def KeepCastle():
         fill_region([gate_x + 3, 1, SIZE - 1], [gate_x + 4, 3, SIZE], block(STONE), phase="fixture"),
         transform([gate_x + 1, 1, SIZE - 1], 0, [2, 2, 1], DoubleDoor()),
         # Central keep and courtyard dressing.
+        # Replace the foundation beneath the keep interior with a wood floor;
+        # its top surface is level with the keep door at Y=1.
+        carve_region([keep_origin + 1, 0, keep_origin + 1],
+                     [keep_origin + KEEP - 1, 1, keep_origin + KEEP - 1]),
+        fill_region([keep_origin + 1, 0, keep_origin + 1],
+                    [keep_origin + KEEP - 1, 1, keep_origin + KEEP - 1],
+                    block("minecraft:oak_planks"), phase="fixture"),
         transform([keep_origin, 1, keep_origin], 0,
                   [KEEP, KEEP_WALL_HEIGHT + (KEEP + 1) // 2, KEEP], Keep()),
         transform([SIZE // 2 - 1, 0, keep_origin + KEEP], 0, [2, 1, 9],

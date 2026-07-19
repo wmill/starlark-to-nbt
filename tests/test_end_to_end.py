@@ -87,6 +87,14 @@ def test_keep_stress_build_is_deterministic(tmp_path):
 
     assert result.volume.bounds.size == Point(33, 20, 33)
     assert len(result.volume.voxels) > 4000
+    # The keep's ground floor occupies the foundation layer, so its walking
+    # surface aligns with the lower half of the south door at Y=1.
+    assert result.volume.block_at(Point(11, 0, 11)).block_type == "minecraft:oak_planks"
+    assert result.volume.block_at(Point(16, 1, 22)).block_type == "minecraft:oak_door"
+    # A north-wall-backed ladder passes through the first upper floor.
+    assert result.volume.block_at(Point(11, 1, 11)).block_type == "minecraft:ladder"
+    assert result.volume.block_at(Point(11, 6, 11)).block_type == "minecraft:ladder"
+    assert result.volume.block_at(Point(12, 6, 11)).block_type == "minecraft:oak_planks"
     # Tower arrow slits are carved and never refilled, so they survive into
     # the template as explicit air that clears the cell on paste.
     assert any(v.block.block_type == "minecraft:air" for v in result.volume.voxels.values())
@@ -135,6 +143,19 @@ def test_village_examples_are_sparse_composed_and_deterministic(
     assert voxel_count < size.x * size.y * size.z
     names = {str(entry["Name"]) for entry in decoded["palette"]}
     assert palette <= names
+
+
+def test_riverside_farmstead_embeds_terrain_layers_and_raises_props():
+    result = build_file(EXAMPLES / "riverside_farmstead.star")
+
+    assert result.metadata.ground_level == 1
+    assert result.metadata.y_offset == -1
+    assert result.volume.block_at(Point(2, 0, 3)).block_type == "minecraft:cobblestone"
+    assert result.volume.block_at(Point(0, 0, 17)).block_type == "minecraft:water"
+    assert result.volume.block_at(Point(17, 0, 24)).block_type == "minecraft:dirt_path"
+    assert result.volume.block_at(Point(29, 1, 4)).block_type == "minecraft:hay_block"
+    assert result.volume.block_at(Point(5, 1, 26)).block_type == "minecraft:oak_log"
+    assert result.volume.block_at(Point(12, 1, 15)).block_type == "minecraft:oak_fence"
 
 
 def test_market_square_contains_rotated_stall_posts_and_benches():
