@@ -19,10 +19,12 @@ def Farmhouse():
         transform([0, 1, 1], 90, [length - 2, wall_height, 1], TimberFrameWall(length - 2, wall_height)),
         transform([width - 1, 1, 1], 90, [length - 2, wall_height, 1], TimberFrameWall(length - 2, wall_height)),
         transform([0, 9, 0], 0, [width, 7, length], GableRoof(width, length)),
-        # Upper floor leaves a two-block-wide stair opening at the east side.
+        # Upper floor leaves a two-block-wide stairwell at the east side and
+        # resumes beyond the top tread to form the landing.
         transform([1, 5, 1], 0, [8, 1, length - 2], Floor(8, length - 2)),
         transform([11, 5, 1], 0, [1, 1, length - 2], Floor(1, length - 2)),
-        transform([9, 1, 2], 0, [2, 4, 4], StraightStaircase(2, 4)),
+        transform([9, 5, 7], 0, [2, 1, 3], Floor(2, 3)),
+        transform([9, 1, 2], 0, [2, 5, 5], StraightStaircase(2, 5)),
     ]
     details = [
         transform([6, 1, 10], 0, [1, 2, 1], SingleDoor()),

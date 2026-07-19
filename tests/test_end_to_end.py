@@ -118,7 +118,7 @@ def test_keep_stress_build_is_deterministic(tmp_path):
 @pytest.mark.parametrize(
     ("filename", "size", "voxel_count", "representative", "palette"),
     [
-        ("riverside_farmstead.star", Point(41, 16, 35), 1351, "Footbridge",
+        ("riverside_farmstead.star", Point(41, 16, 35), 1367, "Footbridge",
          {"minecraft:wheat", "minecraft:hay_block", "minecraft:ladder", "minecraft:barrel"}),
         ("market_square.star", Point(35, 6, 35), 474, "MarketStall",
          {"minecraft:red_wool", "minecraft:blue_wool", "minecraft:cornflower", "minecraft:lantern"}),
@@ -156,6 +156,13 @@ def test_riverside_farmstead_embeds_terrain_layers_and_raises_props():
     assert result.volume.block_at(Point(29, 1, 4)).block_type == "minecraft:hay_block"
     assert result.volume.block_at(Point(5, 1, 26)).block_type == "minecraft:oak_log"
     assert result.volume.block_at(Point(12, 1, 15)).block_type == "minecraft:oak_fence"
+    # The last stair tread and neighboring upper floor share a Y=6 walking surface.
+    assert result.volume.block_at(Point(11, 5, 9)).block_type == "minecraft:oak_stairs"
+    assert result.volume.block_at(Point(10, 5, 9)).block_type == "minecraft:oak_planks"
+    # The upper floor resumes after the top tread while the stairwell stays open.
+    assert result.volume.block_at(Point(11, 5, 10)).block_type == "minecraft:oak_planks"
+    assert result.volume.block_at(Point(12, 5, 12)).block_type == "minecraft:oak_planks"
+    assert result.volume.block_at(Point(11, 5, 8)).block_type == "minecraft:air"
 
 
 def test_market_square_contains_rotated_stall_posts_and_benches():
