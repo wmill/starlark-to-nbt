@@ -21,12 +21,25 @@ SizeExpr: TypeAlias = Fixed | Fill
 
 
 @dataclass(frozen=True, slots=True)
+class BuildMetadata:
+    ground_level: int = 0
+
+    @property
+    def y_offset(self) -> int:
+        return -self.ground_level
+
+    def to_dict(self) -> dict[str, int]:
+        return {"ground_level": self.ground_level, "y_offset": self.y_offset}
+
+
+@dataclass(frozen=True, slots=True)
 class Component:
     name: str
     props: dict[str, Any]
     body: Node
     min_size: Point | None = None
     source: SourceRef | None = None
+    metadata: BuildMetadata | None = None
 
 
 @dataclass(frozen=True, slots=True)

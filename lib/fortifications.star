@@ -163,7 +163,10 @@ def Watchtower(size=5, platform_height=6, post="minecraft:spruce_log",
     parts.append(fill_region([0, platform_height, 1], [1, platform_height + 1, size - 1], block(deck)))
     parts.append(fill_region([size - 1, platform_height, 1], [size, platform_height + 1, size - 1], block(deck)))
     center = size // 2
-    parts.append(transform([center, 0, 1], 0, [1, platform_height, 1], Ladder(platform_height)))
+    # Continue the ladder through a carved deck cell so a climber can step
+    # onto the platform instead of stopping beneath its ceiling.
+    parts.append(carve_region([center, platform_height, 1], [center + 1, platform_height + 1, 2]))
+    parts.append(transform([center, 0, 1], 0, [1, platform_height + 1, 1], Ladder(platform_height + 1)))
     ew = block(railing, {"east": "true", "west": "true"})
     ns = block(railing, {"north": "true", "south": "true"})
     parts.append(fill_region([0, platform_height + 1, 0], [size, platform_height + 2, 1], ew, phase="fixture"))

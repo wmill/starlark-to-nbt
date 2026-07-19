@@ -8,7 +8,7 @@ import pytest
 from starlark_to_nbt.execute import dense_to_dict
 from starlark_to_nbt.ir import Phase
 from starlark_to_nbt.model import Point
-from starlark_to_nbt.pipeline import build_file
+from starlark_to_nbt.pipeline import build_file, write_build_outputs
 from starlark_to_nbt.serialize import DATA_VERSION_1_21_7, write_structure_nbt
 
 
@@ -63,6 +63,8 @@ def test_church_vertical_slice_and_deterministic_nbt(tmp_path):
 def test_cottage_composes_library_components_via_load(tmp_path):
     result = build_file(EXAMPLES / "cottage.star")
 
+    assert result.metadata.ground_level == 0
+    assert result.metadata.y_offset == 0
     assert result.volume.bounds.size == Point(13, 13, 11)
     door_lower = result.volume.block_at(Point(6, 1, 10))
     assert door_lower.block_type == "minecraft:oak_door"
@@ -176,15 +178,27 @@ def test_fortification_examples_are_sparse_composed_and_deterministic(
 
 def test_frontier_gate_and_stone_pass_defenses_are_aligned():
     frontier = build_file(EXAMPLES / "frontier_outpost.star")
-    gate = frontier.volume.block_at(Point(13, 0, 28))
+    gate = frontier.volume.block_at(Point(13, 1, 28))
     assert gate.block_type == "minecraft:dark_oak_door"
     assert gate.block_state["facing"] == "south"
+    assert frontier.volume.block_at(Point(13, 0, 17)).block_type == "minecraft:coarse_dirt"
+    assert frontier.metadata.ground_level == 1
+    assert frontier.metadata.y_offset == -1
 
     fortress = build_file(EXAMPLES / "stone_pass_fortress.star")
     assert fortress.volume.block_at(Point(16, 1, 12)).block_type == "minecraft:iron_bars"
     assert fortress.volume.block_at(Point(16, 2, 13)).block_state["axis"] == "z"
     assert fortress.volume.block_at(Point(0, 0, 13)).block_type == "minecraft:water"
     assert fortress.volume.block_at(Point(3, 5, 7)).block_type == "minecraft:air"
+
+
+def test_build_outputs_write_deterministic_metadata_sidecar(tmp_path):
+    result = build_file(EXAMPLES / "frontier_outpost.star")
+    output = tmp_path / "frontier.nbt"
+    write_build_outputs(result, output)
+
+    metadata = output.with_suffix(".meta.json")
+    assert metadata.read_text(encoding="utf-8") == '{\n  "ground_level": 1,\n  "y_offset": -1\n}\n'
 
 
 @pytest.mark.parametrize(

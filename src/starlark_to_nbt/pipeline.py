@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .execute import SparseVolume, dense_to_dict, execute
-from .ir import BlockOperation, Node, ResolvedNode
+from .ir import BlockOperation, BuildMetadata, Component, Node, ResolvedNode
 from .layout import resolve, resolved_to_dict
 from .lowering import lower, operations_to_dict
 from .model import Box, Point
@@ -20,6 +20,7 @@ class BuildResult:
     resolved: ResolvedNode
     operations: list[BlockOperation]
     volume: SparseVolume
+    metadata: BuildMetadata
 
 
 def build_file(path: str | Path, entry: str = "build", props: dict[str, Any] | None = None,
@@ -32,11 +33,17 @@ def build_file(path: str | Path, entry: str = "build", props: dict[str, Any] | N
     resolved = resolve(component_ir, root_box)
     operations = lower(resolved)
     volume = execute(operations, root_box)
-    return BuildResult(component_ir, resolved, operations, volume)
+    metadata = (
+        component_ir.metadata
+        if isinstance(component_ir, Component) and component_ir.metadata
+        else BuildMetadata()
+    )
+    return BuildResult(component_ir, resolved, operations, volume, metadata)
 
 
 def write_build_outputs(result: BuildResult, nbt_path: str | Path, debug_dir: str | Path | None = None) -> None:
     write_structure_nbt(result.volume, nbt_path)
+    write_json(result.metadata.to_dict(), Path(nbt_path).with_suffix(".meta.json"))
     if debug_dir is None:
         return
     directory = Path(debug_dir)

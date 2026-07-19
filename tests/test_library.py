@@ -139,3 +139,5 @@ def test_timber_fortifications_have_tips_atomic_gate_and_rotating_ladder():
     tower = build_file(SHOWCASE, entry="rotated", props={"name": "Watchtower", "rotation": 90})
     ladders = [v.block for v in tower.volume.voxels.values() if v.block.block_type == "minecraft:ladder"]
     assert ladders and {ladder.block_state["facing"] for ladder in ladders} == {"west"}
+    assert len(ladders) == 7
+    assert tower.volume.block_at(Point(3, 6, 2)).block_type == "minecraft:ladder"

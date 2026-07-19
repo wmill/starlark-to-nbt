@@ -38,22 +38,28 @@ def build():
     parts = [
         # North and side walls are continuous; the south wall leaves room for
         # the centered five-block gate.
-        transform([0, 0, 0], 0, [SIZE, 6, 1], PalisadeWall(SIZE)),
-        transform([0, 0, 1], 90, [wall_span, 6, 1], PalisadeWall(wall_span)),
-        transform([SIZE - 1, 0, 1], 90, [wall_span, 6, 1], PalisadeWall(wall_span)),
-        transform([0, 0, SIZE - 1], 0, [12, 6, 1], PalisadeWall(12)),
-        transform([17, 0, SIZE - 1], 0, [12, 6, 1], PalisadeWall(12)),
-        transform([12, 0, SIZE - 1], 0, [5, 7, 1], PalisadeGate()),
+        transform([0, 1, 0], 0, [SIZE, 6, 1], PalisadeWall(SIZE)),
+        transform([0, 1, 1], 90, [wall_span, 6, 1], PalisadeWall(wall_span)),
+        transform([SIZE - 1, 1, 1], 90, [wall_span, 6, 1], PalisadeWall(wall_span)),
+        transform([0, 1, SIZE - 1], 0, [12, 6, 1], PalisadeWall(12)),
+        transform([17, 1, SIZE - 1], 0, [12, 6, 1], PalisadeWall(12)),
+        transform([12, 1, SIZE - 1], 0, [5, 7, 1], PalisadeGate()),
         # Towers sit just inside the perimeter so their posts remain distinct
         # from the palisade columns.
-        transform([2, 0, 2], 0, [5, 8, 5], Watchtower()),
-        transform([22, 0, 2], 90, [5, 8, 5], Watchtower()),
-        transform([22, 0, 22], 180, [5, 8, 5], Watchtower()),
-        transform([2, 0, 22], 270, [5, 8, 5], Watchtower()),
+        transform([2, 1, 2], 0, [5, 8, 5], Watchtower()),
+        transform([22, 1, 2], 90, [5, 8, 5], Watchtower()),
+        transform([22, 1, 22], 180, [5, 8, 5], Watchtower()),
+        transform([2, 1, 22], 270, [5, 8, 5], Watchtower()),
         transform([9, 0, 8], 0, [11, 12, 9], Barracks()),
         transform([13, 0, 17], 0, [3, 1, 11], Path(11, 3, "minecraft:coarse_dirt")),
-        transform([4, 0, 12], 0, [4, 3, 2], HayBaleStack(4, 3, 2)),
-        transform([7, 0, 18], 0, [1, 4, 1], LanternPost(post="minecraft:spruce_fence")),
-        transform([21, 0, 18], 0, [1, 4, 1], LanternPost(post="minecraft:spruce_fence")),
+        transform([4, 1, 12], 0, [4, 3, 2], HayBaleStack(4, 3, 2)),
+        transform([7, 1, 18], 0, [1, 4, 1], LanternPost(post="minecraft:spruce_fence")),
+        transform([21, 1, 18], 0, [1, 4, 1], LanternPost(post="minecraft:spruce_fence")),
     ]
-    return component(name="FrontierOutpost", props={"size": SIZE}, min_size=[SIZE, 14, SIZE], body=group(parts))
+    return component(
+        name="FrontierOutpost",
+        props={"size": SIZE},
+        min_size=[SIZE, 14, SIZE],
+        metadata={"ground_level": 1},
+        body=group(parts),
+    )

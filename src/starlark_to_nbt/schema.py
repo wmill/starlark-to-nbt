@@ -4,8 +4,9 @@ import re
 from typing import Any
 
 from .ir import (
-    AssemblyBlock, CarveRegion, Component, Fill, FillRegion, Fixed, Group, Inset,
-    Node, PlaceAssembly, PlaceBlock, Repeat, SizeExpr, Split, TransformNode,
+    AssemblyBlock, BuildMetadata, CarveRegion, Component, Fill, FillRegion, Fixed,
+    Group, Inset, Node, PlaceAssembly, PlaceBlock, Repeat, SizeExpr, Split,
+    TransformNode,
 )
 from .model import Axis, BlockSpec, Box, BuildError, Diagnostic, Point, SourceRef
 
@@ -99,6 +100,20 @@ def _source(value: Any, path: str) -> SourceRef:
     )
 
 
+def _metadata(value: Any, path: str) -> BuildMetadata:
+    obj = _dict(value, path)
+    unknown = obj.keys() - {"ground_level"}
+    if unknown:
+        names = ", ".join(sorted(unknown))
+        raise _error(path, f"unknown metadata fields: {names}", "invalid_metadata")
+    ground_level = obj.get("ground_level", 0)
+    if isinstance(ground_level, bool) or not isinstance(ground_level, int) or ground_level < 0:
+        raise _error(
+            f"{path}.ground_level", "expected a non-negative integer", "invalid_metadata",
+        )
+    return BuildMetadata(ground_level)
+
+
 def parse_size(value: Any, path: str) -> SizeExpr:
     obj = _dict(value, path)
     kind = obj.get("kind")
@@ -118,16 +133,27 @@ def parse_node(value: Any, path: str = "$", source_file: str | None = None) -> N
         raise _error(path, "missing string field 'kind'")
 
     if kind == "component":
-        _keys(obj, {"kind", "name", "props", "body"}, {"min_size", "source"}, path)
+        _keys(obj, {"kind", "name", "props", "body"}, {"min_size", "source", "metadata"}, path)
         if not isinstance(obj["name"], str) or not obj["name"]:
             raise _error(f"{path}.name", "expected a non-empty string")
         props_obj = _dict(obj["props"], f"{path}.props")
-        source = _source(obj["source"], f"{path}.source") if obj.get("source") else (SourceRef(source_file) if source_file else None)
+        source = (
+            _source(obj["source"], f"{path}.source")
+            if obj.get("source")
+            else (SourceRef(source_file) if source_file else None)
+        )
+        if obj.get("metadata") is not None and path != "$":
+            raise _error(
+                f"{path}.metadata", "metadata is only allowed on the root component",
+                "metadata_not_root",
+            )
         return Component(
             obj["name"], _json_value(props_obj, f"{path}.props"),
             parse_node(obj["body"], f"{path}.body", source_file),
             _point(obj["min_size"], f"{path}.min_size", True) if obj.get("min_size") is not None else None,
             source,
+            _metadata(obj["metadata"], f"{path}.metadata")
+            if obj.get("metadata") is not None else None,
         )
     if kind == "group":
         _keys(obj, {"kind", "children"}, set(), path)

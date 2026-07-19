@@ -15,8 +15,8 @@ def _tag(kind: str, **values: Any) -> dict[str, Any]:
     return {"kind": kind, **{key: value for key, value in values.items() if value is not None}}
 
 
-def component(name, props, body, min_size=None):
-    return _tag("component", name=name, props=props, body=body, min_size=min_size)
+def component(name, props, body, min_size=None, metadata=None):
+    return _tag("component", name=name, props=props, body=body, min_size=min_size, metadata=metadata)
 
 
 def group(children):

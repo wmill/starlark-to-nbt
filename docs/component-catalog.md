@@ -20,9 +20,20 @@ def build(width=9, wall_height=4):
         name="Demo",
         props={"width": width},
         min_size=[width, wall_height, 1],
+        metadata={"ground_level": 0},
         body=SolidWall(width, wall_height),
     )
 ```
+
+The root component may declare `metadata={"ground_level": n}`. Ground level is
+the local Y coordinate that should align with the terrain walking plane. The
+build companion metadata derives `y_offset = -ground_level`; metadata describes
+placement but never shifts generated coordinates automatically. If omitted,
+ground level defaults to 0. Metadata is only valid on the root component.
+
+Every CLI build writes a deterministic companion beside the structure. For
+`demo.nbt`, `demo.meta.json` contains both `ground_level` and `y_offset`. The NBT
+itself remains a standard Minecraft structure with no custom metadata tags.
 
 ## Coordinates and geometry
 
@@ -58,7 +69,7 @@ Multi-block objects that must be placed all-or-nothing (doors, beds) use
 
 | Constructor | Semantics |
 |---|---|
-| `component(name, props, body, min_size=None)` | Named subtree; `min_size=[x,y,z]` is validated against the assigned region and used as the natural size when built standalone. |
+| `component(name, props, body, min_size=None, metadata=None)` | Named subtree; `min_size=[x,y,z]` is validated against the assigned region and used as the natural size when built standalone. The root may set typed placement metadata such as `metadata={"ground_level": 1}`. |
 | `group(children)` | Children share the parent's region unchanged. |
 | `split(axis, sizes, children)` | Partition the region along `axis` (`"x"`/`"y"`/`"z"`). `sizes` entries are `fixed(n)` or `fill()`; fills share the remainder deterministically. Overflow/underflow are errors. |
 | `inset(child, amount=n)` or `inset(child, x=[lo,hi], y=[...], z=[...])` | Shrink the region by per-axis margins. |
@@ -185,7 +196,7 @@ or extend toward +Z at rotation zero.
 | `Drawbridge(width=3, length=7, deck="minecraft:dark_oak_planks", chain="minecraft:chain")` | `[width, 2, length]` | Lowered deck extending toward +Z with horizontal side chains. |
 | `PalisadeWall(length, height=5, log="minecraft:spruce_log")` | `[length, height+1, 1]` | Vertical logs with alternating raised tips; requires length >= 2 and height >= 3. |
 | `PalisadeGate(width=5, height=6, log="minecraft:spruce_log", door="minecraft:dark_oak_door")` | `[width, height+1, 1]` | Atomic double door beneath a timber fighting platform; requires width >= 5 and height >= 4. |
-| `Watchtower(size=5, platform_height=6, post="minecraft:spruce_log", deck="minecraft:spruce_planks", railing="minecraft:spruce_fence")` | `[size, platform_height+2, size]` | Four-post tower with a railed deck and south-facing ladder; requires size >= 5 and platform height >= 4. |
+| `Watchtower(size=5, platform_height=6, post="minecraft:spruce_log", deck="minecraft:spruce_planks", railing="minecraft:spruce_fence")` | `[size, platform_height+2, size]` | Four-post tower with a railed deck and south-facing ladder passing through a deck opening; requires size >= 5 and platform height >= 4. |
 
 ## Worked examples
 
@@ -200,8 +211,9 @@ or extend toward +Z at rotation zero.
   paths, trees, and lanterns.
 - `examples/market_square.star` — 35x6x35 civic square: central well and
   crossing paths, four rotated striped stalls, flower beds, benches, and lamps.
-- `examples/frontier_outpost.star` — 29x14x29 timber fort: complete palisade,
-  four rotated watchtowers, double gate, furnished barracks, storage, and lamps.
+- `examples/frontier_outpost.star` — 29x14x29 timber fort with ground level 1:
+  complete palisade, four rotated watchtowers, double gate, furnished barracks,
+  storage, and lamps. Its foundation and path occupy local Y=0 for embedding.
 - `examples/stone_pass_fortress.star` — 35x16x21 linear stone defense: twin
   towers, battlement walls, gatehouse and portcullis, moat, and drawbridge.
 - `examples/procedural_facade.star` — 29x8x1 pattern wall gallery: checkerboard,
@@ -224,5 +236,6 @@ Failures raise diagnostics with a stable code, the component path, and the
 offending coordinates/region: `component_too_small`, `split_overflow`,
 `split_underflow`, `repeat_overflow`, `inset_collapsed`, `transform_overflow`,
 `component_overflow`, `root_overflow`, `block_conflict`, `assembly_overflow`,
-`load_error`, `load_cycle`, `starlark_error`. Starlark syntax/eval errors
-include file:line spans; build-rule errors identify the component path instead.
+`invalid_metadata`, `metadata_not_root`, `load_error`, `load_cycle`,
+`starlark_error`. Starlark syntax/eval errors include file:line spans;
+build-rule errors identify the component path instead.

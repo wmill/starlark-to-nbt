@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from starlark_to_nbt.ir import Fill, Fixed, Group, Inset, PlaceBlock, Repeat, Split
+from starlark_to_nbt.ir import BuildMetadata, Fill, Fixed, Group, Inset, PlaceBlock, Repeat, Split
 from starlark_to_nbt.layout import resolve
 from starlark_to_nbt.model import Axis, BlockSpec, Box, BuildError, Point
 from starlark_to_nbt.schema import parse_node
@@ -20,6 +20,42 @@ def test_schema_rejects_unknown_fields_and_bool_coordinates():
         parse_node({"kind": "group", "children": [], "surprise": 1})
     with pytest.raises(BuildError, match="expected an integer"):
         parse_node({"kind": "place_block", "pos": [True, 0, 0], "block": {"block_type": "minecraft:stone"}})
+
+
+def test_root_component_parses_typed_metadata():
+    node = parse_node({
+        "kind": "component",
+        "name": "Embedded",
+        "props": {},
+        "min_size": [1, 2, 1],
+        "metadata": {"ground_level": 1},
+        "body": {"kind": "place_block", "pos": [0, 0, 0], "block": {"block_type": "minecraft:stone"}},
+    })
+    assert node.metadata == BuildMetadata(1)
+    assert node.metadata.y_offset == -1
+
+
+@pytest.mark.parametrize(
+    "metadata", [{"ground_level": True}, {"ground_level": -1}, {"surprise": 1}],
+)
+def test_schema_rejects_invalid_metadata(metadata):
+    with pytest.raises(BuildError, match="invalid_metadata"):
+        parse_node({
+            "kind": "component", "name": "Invalid", "props": {}, "metadata": metadata,
+            "body": {"kind": "group", "children": []},
+        })
+
+
+def test_schema_rejects_metadata_on_nested_components():
+    with pytest.raises(BuildError, match="metadata_not_root"):
+        parse_node({
+            "kind": "component", "name": "Root", "props": {},
+            "body": {
+                "kind": "component", "name": "Nested", "props": {},
+                "metadata": {"ground_level": 1},
+                "body": {"kind": "group", "children": []},
+            },
+        })
 
 
 def test_split_allocates_fixed_and_fill_with_deterministic_remainder():
