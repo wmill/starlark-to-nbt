@@ -138,9 +138,50 @@ def test_mega_castle_bounds_entities_content_and_determinism(tmp_path):
         for entry in decoded["blocks"] if "nbt" in entry and "front_text" in entry["nbt"]
         for message in entry["nbt"]["front_text"]["messages"]
     }
-    assert {"AETHERCOURT", "THRONE HALL", "ROYAL ARMORY", "ROYAL STABLES", "LIBRARY", "WAR COUNCIL"} <= labels
+    assert {
+        "AETHERCOURT", "THRONE HALL", "ROYAL ARMORY", "ROYAL STABLES",
+        "GUEST AZURE", "GUEST VIOLET", "GUEST GOLD", "GUEST JADE",
+        "LIBRARY", "WAR COUNCIL",
+    } <= labels
     stocked = [entry for entry in decoded["blocks"] if "nbt" in entry and "Items" in entry["nbt"]]
     assert len(stocked) >= 9
+
+    # Both stair cores pass through the second floor and finish beside an
+    # intact upper landing instead of terminating beneath the floor plate.
+    for x in (12, 34):
+        for step in range(9):
+            stair = result.volume.block_at(Point(x, 2 + step, 14 + step))
+            assert stair.block_type == "minecraft:dark_oak_stairs"
+        for z in range(19, 22):
+            assert result.volume.block_at(Point(x, 10, z)).block_type == "minecraft:air"
+        assert result.volume.block_at(Point(x, 10, 22)).block_type == "minecraft:dark_oak_stairs"
+        assert result.volume.block_at(Point(x, 10, 23)).block_type == "minecraft:polished_diorite"
+
+        upper_x = 13 if x == 12 else 33
+        assert result.volume.block_at(Point(x, 11, 22)).block_type == "minecraft:air"
+        assert result.volume.block_at(Point(x, 12, 22)).block_type == "minecraft:air"
+        for step in range(9):
+            stair = result.volume.block_at(Point(upper_x, 11 + step, 22 - step))
+            assert stair.block_type == "minecraft:dark_oak_stairs"
+            assert stair.block_state["facing"] == "north"
+        for z in range(15, 18):
+            assert result.volume.block_at(Point(upper_x, 19, z)).block_type == "minecraft:air"
+        assert result.volume.block_at(Point(upper_x, 19, 14)).block_type == "minecraft:dark_oak_stairs"
+        assert result.volume.block_at(Point(upper_x, 19, 13)).block_type == "minecraft:polished_diorite"
+
+    guest_paths = {
+        op.provenance.component_path
+        for op in result.operations
+        if "GuestChamber" in op.provenance.component_path
+    }
+    assert guest_paths
+    for point, bed_type in [
+        (Point(16, 11, 10), "minecraft:blue_bed"),
+        (Point(16, 11, 18), "minecraft:purple_bed"),
+        (Point(28, 11, 10), "minecraft:yellow_bed"),
+        (Point(28, 11, 18), "minecraft:green_bed"),
+    ]:
+        assert result.volume.block_at(point).block_type == bed_type
 
 
 @pytest.mark.parametrize(

@@ -93,6 +93,47 @@ def gatehouse():
     return component("GrandGatehouse", {}, group(parts), min_size=[48, 25, 48])
 
 
+def GuestChamber(name, color, door_side):
+    parts = []
+    door_x = 5
+    door_facing = "east"
+    sign_facing = "east"
+    if door_side == "west":
+        door_x = 0
+        door_facing = "west"
+        sign_facing = "west"
+
+    # Each instance owns its partitions and opens toward the central gallery.
+    for y in range(8):
+        for z in range(6):
+            for x in [0, 5]:
+                doorway = x == door_x and z == 3 and y < 2
+                sign_space = x == door_x and z == 2 and y == 3
+                if not doorway and not sign_space:
+                    parts.append(place_block([x, y, z], WOOD))
+        for x in range(1, 5):
+            if not (x in [2, 3] and y in [2, 3]):
+                parts.append(place_block([x, y, 0], WOOD))
+            parts.append(place_block([x, y, 5], WOOD))
+
+    # A façade window plus the furnishings required in every guest chamber.
+    for x in [2, 3]:
+        for y in [2, 3]:
+            parts.append(place_block([x, y, 0], block("minecraft:cyan_stained_glass"), phase="fixture"))
+    parts.append(place_assembly([door_x, 0, 3], "guest chamber door", [1, 2, 1], [
+        {"pos": [0, 0, 0], "block": block("minecraft:dark_oak_door", {"facing": door_facing, "half": "lower", "hinge": "left", "open": "false", "powered": "false"})},
+        {"pos": [0, 1, 0], "block": block("minecraft:dark_oak_door", {"facing": door_facing, "half": "upper", "hinge": "left", "open": "false", "powered": "false"})},
+    ]))
+    parts.append(label([door_x, 3, 2], name, sign_facing))
+    parts.append(place_block([1, 0, 1], block("minecraft:%s_bed" % color, {"facing": "south", "part": "foot", "occupied": "false"}), phase="fixture"))
+    parts.append(place_block([1, 0, 2], block("minecraft:%s_bed" % color, {"facing": "south", "part": "head", "occupied": "false"}), phase="fixture"))
+    parts.append(place_block([4, 0, 1], block("minecraft:chest", {"facing": "south", "type": "single", "waterlogged": "false"}, container_nbt(["minecraft:book", "minecraft:apple"])), phase="fixture"))
+    parts.append(place_block([3, 0, 4], block("minecraft:dark_oak_fence"), phase="fixture"))
+    parts.append(place_block([2, 0, 4], block("minecraft:dark_oak_stairs", {"facing": "east", "half": "bottom", "shape": "straight", "waterlogged": "false"}), phase="fixture"))
+    parts.append(place_block([3, 0, 1], block("minecraft:%s_carpet" % color), phase="fixture"))
+    return component("GuestChamber", {"name": name, "color": color, "door_side": door_side}, group(parts), min_size=[6, 8, 6])
+
+
 def palace():
     parts = []
     # Three floor plates and a tall perimeter. The central hall is double-height.
@@ -120,14 +161,25 @@ def palace():
     parts.append(place_block([23, 3, 10], block("minecraft:gold_block"), phase="fixture"))
     for x in [13, 19, 28, 34]:
         parts.append(fill_region([x, 2, 12], [x + 1, 10, 13], block("minecraft:calcite")))
-    for side in [12, 34]:
-        for step in range(8):
-            parts.append(place_block([side, 2 + step, 16 + step], block("minecraft:dark_oak_stairs", {"facing": "south", "half": "bottom", "shape": "straight", "waterlogged": "false"})))
+    for side, upper_side in [(12, 13), (34, 33)]:
+        # Open the upper floor over the final approach, then rise onto a full
+        # landing at Z=23. Fixtures restore the ninth tread after the carve.
+        parts.append(carve_region([side, 10, 19], [side + 1, 11, 23]))
+        for step in range(9):
+            parts.append(place_block([side, 2 + step, 14 + step], block("minecraft:dark_oak_stairs", {"facing": "south", "half": "bottom", "shape": "straight", "waterlogged": "false"}), phase="fixture"))
+        # Turn back north from the second-floor landing and repeat the climb to
+        # the third floor, emerging beside the intact landing at Z=13.
+        parts.append(carve_region([upper_side, 19, 14], [upper_side + 1, 20, 18]))
+        for step in range(9):
+            parts.append(place_block([upper_side, 11 + step, 22 - step], block("minecraft:dark_oak_stairs", {"facing": "north", "half": "bottom", "shape": "straight", "waterlogged": "false"}), phase="fixture"))
+    # Four reusable guest-chamber instances flank the open central gallery.
+    parts.append(transform([15, 11, 9], 0, [6, 8, 6], GuestChamber("GUEST AZURE", "blue", "east")))
+    parts.append(transform([15, 11, 17], 0, [6, 8, 6], GuestChamber("GUEST VIOLET", "purple", "east")))
+    parts.append(transform([27, 11, 9], 0, [6, 8, 6], GuestChamber("GUEST GOLD", "yellow", "west")))
+    parts.append(transform([27, 11, 17], 0, [6, 8, 6], GuestChamber("GUEST JADE", "green", "west")))
     # Interior labels, guest rooms, library and council suite.
     labels = [
         ([22, 4, 23], "THRONE HALL"), ([11, 4, 13], "ROYAL ARMORY"),
-        ([11, 13, 11], "GUEST AZURE"), ([11, 13, 15], "GUEST VIOLET"),
-        ([36, 13, 11], "GUEST GOLD"), ([36, 13, 15], "GUEST JADE"),
         ([11, 22, 11], "ROYAL SUITE"), ([36, 22, 11], "LIBRARY"),
         ([36, 22, 18], "WAR COUNCIL"),
     ]
@@ -142,11 +194,7 @@ def palace():
     ]
     for i in range(4):
         parts.append(place_block([12 + i, 2, 13], block("minecraft:chest", {"facing": "south", "type": "single", "waterlogged": "false"}, container_nbt(stocks[i])), phase="fixture"))
-    # Beds, tables, shelves, dining/kitchen detail and chandeliers.
-    for x, z, color in [(13, 11, "blue"), (13, 17, "purple"), (33, 11, "yellow"), (33, 17, "green")]:
-        parts.append(place_block([x, 11, z], block("minecraft:%s_bed" % color, {"facing": "south", "part": "foot", "occupied": "false"}), phase="fixture"))
-        parts.append(place_block([x, 11, z + 1], block("minecraft:%s_bed" % color, {"facing": "south", "part": "head", "occupied": "false"}), phase="fixture"))
-        parts.append(place_block([x + 2, 11, z], block("minecraft:chest", {"facing": "south", "type": "single", "waterlogged": "false"}, container_nbt(["minecraft:book", "minecraft:apple"])), phase="fixture"))
+    # Shelves, dining/kitchen detail and chandeliers.
     parts.append(fill_region([30, 20, 9], [37, 24, 10], block("minecraft:bookshelf")))
     parts.append(fill_region([13, 2, 20], [20, 3, 22], WOOD))
     parts.append(fill_region([29, 2, 20], [36, 3, 22], block("minecraft:smooth_stone")))
