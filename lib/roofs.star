@@ -2,8 +2,12 @@
 # with transform(). Gable and shed roofs slope along +X; the ridge runs along +Z.
 
 
-def GableRoof(width, length, stair="minecraft:oak_stairs", ridge="minecraft:oak_planks"):
-    """Two opposed stair slopes meeting at a ridge. Height is (width+1)//2."""
+def GableRoof(width, length, stair="minecraft:oak_stairs", ridge="minecraft:oak_planks", gable=None):
+    """Two opposed stair slopes meeting at a ridge, with the triangular gable
+    ends closed in `gable` material (defaults to `ridge`). Height is
+    (width+1)//2."""
+    if gable == None:
+        gable = ridge
     half = width // 2
     rows = []
     for i in range(half):
@@ -11,11 +15,14 @@ def GableRoof(width, length, stair="minecraft:oak_stairs", ridge="minecraft:oak_
                                 block(stair, {"facing": "east", "half": "bottom", "shape": "straight"})))
         rows.append(fill_region([width - 1 - i, i, 0], [width - i, i + 1, length],
                                 block(stair, {"facing": "west", "half": "bottom", "shape": "straight"})))
+        if i + 1 < width - 1 - i:
+            for z in [0, length - 1]:
+                rows.append(fill_region([i + 1, i, z], [width - 1 - i, i + 1, z + 1], block(gable)))
     if width % 2 == 1:
         rows.append(fill_region([half, half, 0], [half + 1, half + 1, length], block(ridge)))
     return component(
         name="GableRoof",
-        props={"width": width, "length": length, "stair": stair, "ridge": ridge},
+        props={"width": width, "length": length, "stair": stair, "ridge": ridge, "gable": gable},
         min_size=[width, (width + 1) // 2, length],
         body=group(rows),
     )

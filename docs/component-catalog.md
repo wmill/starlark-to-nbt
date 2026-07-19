@@ -137,7 +137,7 @@ them builds standalone. `lib/showcase.star` builds any single component:
 
 | Component | Size | Notes |
 |---|---|---|
-| `GableRoof(width, length, stair="minecraft:oak_stairs", ridge="minecraft:oak_planks")` | `[width, (width+1)//2, length]` | Slopes along +X, ridge along +Z; gable ends are open (close them with wall fills). |
+| `GableRoof(width, length, stair="minecraft:oak_stairs", ridge="minecraft:oak_planks", gable=None)` | `[width, (width+1)//2, length]` | Slopes along +X, ridge along +Z; triangular gable ends are closed in `gable` material (defaults to `ridge`). |
 | `ShedRoof(width, length, stair=...)` | `[width, width, length]` | Single 45-degree slope ascending +X. |
 | `FlatRoof(width, length, slab="minecraft:oak_slab", trim="minecraft:oak_fence")` | `[width, 2, length]` | Slab deck + fence parapet. |
 | `PyramidRoof(size, stair=..., cap="minecraft:oak_planks")` | `[size, (size+1)//2, size]` | Square footprint. |

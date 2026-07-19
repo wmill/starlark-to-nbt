@@ -108,7 +108,7 @@ def test_keep_stress_build_is_deterministic(tmp_path):
 @pytest.mark.parametrize(
     ("filename", "size", "voxel_count", "representative", "palette"),
     [
-        ("riverside_farmstead.star", Point(41, 16, 35), 1279, "Footbridge",
+        ("riverside_farmstead.star", Point(41, 16, 35), 1351, "Footbridge",
          {"minecraft:wheat", "minecraft:hay_block", "minecraft:ladder", "minecraft:barrel"}),
         ("market_square.star", Point(35, 6, 35), 474, "MarketStall",
          {"minecraft:red_wool", "minecraft:blue_wool", "minecraft:cornflower", "minecraft:lantern"}),
@@ -147,7 +147,7 @@ def test_market_square_contains_rotated_stall_posts_and_benches():
 @pytest.mark.parametrize(
     ("filename", "size", "voxel_count", "representative", "palette"),
     [
-        ("frontier_outpost.star", Point(29, 14, 29), 1355, "Watchtower",
+        ("frontier_outpost.star", Point(29, 14, 29), 1405, "Watchtower",
          {"minecraft:spruce_log", "minecraft:dark_oak_door", "minecraft:ladder", "minecraft:hay_block"}),
         ("stone_pass_fortress.star", Point(35, 16, 21), 1597, "Gatehouse",
          {"minecraft:stone_bricks", "minecraft:iron_bars", "minecraft:chain", "minecraft:water"}),

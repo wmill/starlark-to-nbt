@@ -82,6 +82,15 @@ def test_footbridge_rails_connect_along_run_and_to_deck():
     assert right.block_state == {"north": "true", "south": "true", "west": "true"}
 
 
+def test_gable_roof_closes_triangular_ends():
+    result = build_file(SHOWCASE, props={"name": "GableRoof"})
+    # Showcase size is GableRoof(7, 9): the base of the triangle, between the
+    # two eave stairs, must be solid at both gable ends, not open air.
+    assert result.volume.block_at(Point(3, 0, 0)).block_type == "minecraft:oak_planks"
+    assert result.volume.block_at(Point(3, 0, 8)).block_type == "minecraft:oak_planks"
+    assert result.volume.block_at(Point(2, 1, 0)).block_type == "minecraft:oak_planks"
+
+
 def test_crop_plot_has_irrigated_farmland_and_mature_crops():
     result = build_file(SHOWCASE, props={"name": "CropPlot"})
     assert result.volume.block_at(Point(3, 0, 3)).block_type == "minecraft:water"

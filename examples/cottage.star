@@ -27,13 +27,6 @@ def Cottage(width, length, wall_height):
         transform([door_x, 1, length - 1], 0, [1, 2, 1], SingleDoor()),
     ]
 
-    # Plank gable triangles closing the roof ends.
-    for i in range(width // 2):
-        if i + 1 < width - 1 - i:
-            for z in [0, length - 1]:
-                shell.append(fill_region([i + 1, base + i, z], [width - 1 - i, base + i + 1, z + 1],
-                                         block("minecraft:oak_planks")))
-
     windows = [
         transform([2, 2, length - 1], 0, [1, 2, 1], Window()),
         transform([width - 3, 2, length - 1], 0, [1, 2, 1], Window()),
