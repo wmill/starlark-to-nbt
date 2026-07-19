@@ -51,8 +51,26 @@ def transform(translation, rotation_y, child_size, child):
     return _tag("transform", translation=translation, rotation_y=rotation_y, child_size=child_size, child=child)
 
 
-def block(block_type, block_state=None):
-    return {"block_type": block_type, "block_state": block_state or {}}
+def block(block_type, block_state=None, nbt=None):
+    value = {"block_type": block_type, "block_state": block_state or {}}
+    if nbt is not None:
+        value["nbt"] = nbt
+    return value
+
+
+def sign_nbt(lines=None, color="black", glowing=False,
+             back_lines=None, back_color="black", back_glowing=False, waxed=True):
+    """Sign block-entity data for block(..., nbt=...). Messages are plain
+    strings: 1.21.5+ text components treat a bare string as literal text."""
+    def side(text, side_color, side_glowing):
+        text = (list(text or []) + ["", "", "", ""])[:4]
+        return {"messages": text, "color": side_color, "has_glowing_text": bool(side_glowing)}
+    return {
+        "id": "minecraft:sign",
+        "front_text": side(lines, color, glowing),
+        "back_text": side(back_lines, back_color, back_glowing),
+        "is_waxed": bool(waxed),
+    }
 
 
 def place_block(pos, block, phase="structure"):
@@ -74,8 +92,8 @@ def place_assembly(pos, name, size, blocks):
 BOUND_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "component": component, "group": group, "fixed": fixed, "fill": fill,
     "split": split, "inset": inset, "repeat": repeat, "transform": transform,
-    "block": block, "place_block": place_block, "fill_region": fill_region,
-    "carve_region": carve_region, "place_assembly": place_assembly,
+    "block": block, "sign_nbt": sign_nbt, "place_block": place_block,
+    "fill_region": fill_region, "carve_region": carve_region, "place_assembly": place_assembly,
 }
 
 

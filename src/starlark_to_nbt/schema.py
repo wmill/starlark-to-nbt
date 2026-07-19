@@ -68,14 +68,30 @@ def _axis(value: Any, path: str) -> Axis:
 
 def _block(value: Any, path: str) -> BlockSpec:
     obj = _dict(value, path)
-    _keys(obj, {"block_type"}, {"block_state"}, path)
+    _keys(obj, {"block_type"}, {"block_state", "nbt"}, path)
     block_type = obj["block_type"]
     if not isinstance(block_type, str) or not IDENTIFIER.fullmatch(block_type):
         raise _error(f"{path}.block_type", "expected a namespaced Minecraft identifier")
     state = obj.get("block_state", {})
     if not isinstance(state, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in state.items()):
         raise _error(f"{path}.block_state", "expected a string-to-string object")
-    return BlockSpec(block_type, dict(state))
+    nbt = obj.get("nbt")
+    if nbt is not None:
+        if not isinstance(nbt, dict):
+            raise _error(f"{path}.nbt", "expected an object of block-entity data")
+        nbt = _nbt_value(nbt, f"{path}.nbt")
+    return BlockSpec(block_type, dict(state), nbt)
+
+
+def _nbt_value(value: Any, path: str) -> Any:
+    # Like _json_value, but NBT has no null, so None is rejected everywhere.
+    if isinstance(value, (str, bool, int, float)):
+        return value
+    if isinstance(value, list):
+        return [_nbt_value(v, f"{path}[{i}]") for i, v in enumerate(value)]
+    if isinstance(value, dict) and all(isinstance(k, str) for k in value):
+        return {k: _nbt_value(v, f"{path}.{k}") for k, v in value.items()}
+    raise _error(path, "nbt must contain only strings, numbers, booleans, lists, and objects")
 
 
 def _json_value(value: Any, path: str) -> Any:

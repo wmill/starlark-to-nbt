@@ -89,3 +89,18 @@ def test_inset_allocates_inner_box_and_rejects_collapse():
     assert resolved.children[0].region == Box(Point(1, 1, 2), Point(6, 3, 8))
     with pytest.raises(BuildError, match="inset_collapsed"):
         resolve(Inset({Axis.X: (1, 1), Axis.Y: (0, 0), Axis.Z: (0, 0)}, leaf()), Box.from_size(Point(2, 1, 1)))
+
+
+def test_block_accepts_nested_nbt_and_rejects_invalid_payloads():
+    node = parse_node({
+        "kind": "place_block", "pos": [0, 0, 0],
+        "block": {"block_type": "minecraft:oak_sign",
+                  "nbt": {"front_text": {"messages": ["hi", "", "", ""], "has_glowing_text": True}}},
+    })
+    assert node.block.block_nbt == {"front_text": {"messages": ["hi", "", "", ""], "has_glowing_text": True}}
+    with pytest.raises(BuildError, match="expected an object of block-entity data"):
+        parse_node({"kind": "place_block", "pos": [0, 0, 0],
+                    "block": {"block_type": "minecraft:oak_sign", "nbt": ["not", "an", "object"]}})
+    with pytest.raises(BuildError, match="nbt must contain only"):
+        parse_node({"kind": "place_block", "pos": [0, 0, 0],
+                    "block": {"block_type": "minecraft:oak_sign", "nbt": {"front_text": None}}})

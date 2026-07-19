@@ -5,8 +5,8 @@
 load("structural.star", "Foundation", "Floor", "SolidWall", "WindowedWall", "TimberFrameWall", "Column", "Balcony", "StraightStaircase", "Footbridge")
 load("openings.star", "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway")
 load("roofs.star", "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof")
-load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Carpet", "Ladder", "DiningTable", "KitchenCounter")
-load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack")
+load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter")
+load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola")
 load("fortifications.star", "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower")
 
 
@@ -61,6 +61,10 @@ def showcase(name):
         return Fireplace()
     elif name == "LanternPost":
         return LanternPost()
+    elif name == "Sign":
+        return Sign(["Hello"])
+    elif name == "WallSign":
+        return WallSign(["Hello"])
     elif name == "Carpet":
         return Carpet(3, 4)
     elif name == "Ladder":
@@ -85,6 +89,8 @@ def showcase(name):
         return MarketStall()
     elif name == "HayBaleStack":
         return HayBaleStack()
+    elif name == "Pergola":
+        return Pergola()
     elif name == "BattlementWall":
         return BattlementWall(9, 5)
     elif name == "SquareTower":
@@ -109,8 +115,8 @@ COMPONENT_NAMES = [
     "Foundation", "Floor", "SolidWall", "WindowedWall", "TimberFrameWall", "Column", "Balcony", "StraightStaircase", "Footbridge",
     "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway",
     "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof",
-    "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Carpet", "Ladder", "DiningTable", "KitchenCounter",
-    "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack",
+    "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter",
+    "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola",
     "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower",
 ]
 

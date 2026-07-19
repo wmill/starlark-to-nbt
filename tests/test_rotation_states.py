@@ -49,3 +49,11 @@ def test_relative_states_are_untouched_by_rotation():
     assert rotated.block_state["shape"] == "inner_left"
     assert rotated.block_state["half"] == "top"
     assert rotated.block_state["facing"] == "south"
+
+
+def test_block_nbt_is_preserved_unchanged_through_rotation():
+    text = {"front_text": {"messages": ["hi", "", "", ""], "has_glowing_text": True}}
+    sign = BlockSpec("minecraft:oak_sign", {"rotation": "0"}, text)
+    rotated = _rotate(sign, 90)
+    assert rotated.block_state["rotation"] == "4"
+    assert rotated.block_nbt == text

@@ -129,6 +129,10 @@ class Transform:
 class BlockSpec:
     block_type: str
     block_state: dict[str, str] = field(default_factory=dict)
+    # Block-entity data (e.g. sign text), serialized per block instance; it is
+    # deliberately excluded from key() because the structure palette is only
+    # Name+Properties.
+    block_nbt: dict[str, Any] | None = None
 
     def transformed(self, transform: Transform) -> BlockSpec:
         state = {}
@@ -144,13 +148,16 @@ class BlockSpec:
             state["axis"] = transform.rotate_axis(state["axis"])
         if "rotation" in state:
             state["rotation"] = transform.rotate_sixteenth(state["rotation"])
-        return BlockSpec(self.block_type, state)
+        return BlockSpec(self.block_type, state, self.block_nbt)
 
     def key(self) -> tuple[str, tuple[tuple[str, str], ...]]:
         return self.block_type, tuple(sorted(self.block_state.items()))
 
     def to_dict(self) -> dict[str, Any]:
-        return {"blockType": self.block_type, "blockState": dict(sorted(self.block_state.items()))}
+        value: dict[str, Any] = {"blockType": self.block_type, "blockState": dict(sorted(self.block_state.items()))}
+        if self.block_nbt is not None:
+            value["blockNbt"] = self.block_nbt
+        return value
 
 
 AIR = BlockSpec("minecraft:air")

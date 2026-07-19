@@ -142,6 +142,29 @@ def MarketStall(width=5, depth=3, canopy="minecraft:red_wool", accent="minecraft
                      min_size=[width, 4, depth], body=group(parts))
 
 
+def Pergola(width=5, depth=5, height=4, post="minecraft:oak_log", beam="minecraft:stripped_oak_log", slat="minecraft:oak_slab"):
+    """Open garden pergola: corner posts, perimeter top beams, and a slatted
+    lattice roof with gaps between every other run."""
+    if width < 3 or depth < 3:
+        fail("Pergola requires width and depth >= 3")
+    parts = []
+    for x, z in [(0, 0), (width - 1, 0), (0, depth - 1), (width - 1, depth - 1)]:
+        parts.append(fill_region([x, 0, z], [x + 1, height, z + 1], block(post, {"axis": "y"})))
+    parts.append(fill_region([0, height, 0], [width, height + 1, 1], block(beam, {"axis": "x"})))
+    parts.append(fill_region([0, height, depth - 1], [width, height + 1, depth], block(beam, {"axis": "x"})))
+    parts.append(fill_region([0, height, 1], [1, height + 1, depth - 1], block(beam, {"axis": "z"})))
+    parts.append(fill_region([width - 1, height, 1], [width, height + 1, depth - 1], block(beam, {"axis": "z"})))
+    for x in range(1, width - 1, 2):
+        parts.append(fill_region([x, height, 1], [x + 1, height + 1, depth - 1],
+                                 block(slat, {"type": "top", "waterlogged": "false"})))
+    return component(
+        name="Pergola",
+        props={"width": width, "depth": depth, "height": height, "post": post, "beam": beam, "slat": slat},
+        min_size=[width, height + 1, depth],
+        body=group(parts),
+    )
+
+
 def HayBaleStack(width=3, height=2, depth=2, material="minecraft:hay_block"):
     """Layered hay pile with alternating horizontal bale axes."""
     parts = []

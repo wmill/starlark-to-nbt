@@ -103,6 +103,36 @@ def LanternPost(height=3, post="minecraft:oak_fence", lantern="minecraft:lantern
     )
 
 
+def Sign(lines=None, material="minecraft:oak_sign", color="black", glowing=False):
+    """Standing sign facing +Z (south); `lines` is up to four strings of front text."""
+    if lines == None:
+        lines = ["Sign"]
+    return component(
+        name="Sign",
+        props={"lines": lines, "material": material, "color": color, "glowing": glowing},
+        min_size=[1, 1, 1],
+        body=place_block([0, 0, 0],
+                         block(material, {"rotation": "0", "waterlogged": "false"},
+                               nbt=sign_nbt(lines, color=color, glowing=glowing)),
+                         phase="fixture"),
+    )
+
+
+def WallSign(lines=None, material="minecraft:oak_wall_sign", color="black", glowing=False):
+    """Wall sign attached to a north support, facing +Z (south)."""
+    if lines == None:
+        lines = ["Sign"]
+    return component(
+        name="WallSign",
+        props={"lines": lines, "material": material, "color": color, "glowing": glowing},
+        min_size=[1, 1, 1],
+        body=place_block([0, 0, 0],
+                         block(material, {"facing": "south", "waterlogged": "false"},
+                               nbt=sign_nbt(lines, color=color, glowing=glowing)),
+                         phase="fixture"),
+    )
+
+
 def Carpet(width, length, material="minecraft:red_carpet"):
     """Fixture-phase carpet layer over an existing floor."""
     return component(

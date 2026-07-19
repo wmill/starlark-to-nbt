@@ -75,7 +75,8 @@ Multi-block objects that must be placed all-or-nothing (doors, beds) use
 | `inset(child, amount=n)` or `inset(child, x=[lo,hi], y=[...], z=[...])` | Shrink the region by per-axis margins. |
 | `repeat(axis, count, child_extent, gap, child)` | `count` copies laid out along `axis`, each `child_extent` deep, `gap` blocks apart, starting at the region min. |
 | `transform(translation, rotation_y, child_size, child)` | Place a `child_size` child at `translation`, rotated 0/90/180/270 degrees around +Y. The rotated footprint must fit in the region. Block states rotate too: `facing`, `axis`, sign `rotation`, and multi-face keys (`north`/`south`/`east`/`west`). |
-| `block(block_type, block_state={})` | e.g. `block("minecraft:oak_stairs", {"facing": "south", "half": "bottom"})`. States are strings. |
+| `block(block_type, block_state={}, nbt=None)` | e.g. `block("minecraft:oak_stairs", {"facing": "south", "half": "bottom"})`. States are strings. `nbt` is an optional object of block-entity data (sign text, etc.) serialized onto that block instance. |
+| `sign_nbt(lines=None, color="black", glowing=False, back_lines=None, back_color="black", back_glowing=False, waxed=True)` | Sign block-entity data for `block(..., nbt=...)`: up to four `lines` of front text, dye `color`, glow-ink `glowing`. Signs are waxed by default so pasted text is not editable. |
 | `place_block(pos, block, phase="structure")` | Single block; `phase` is `"structure"` or `"fixture"`. |
 | `fill_region(min, max, block, phase="structure")` | Box fill. |
 | `carve_region(min, max)` | Box of air (CARVE phase). |
@@ -164,6 +165,8 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `BookshelfWall(width, height, material="minecraft:bookshelf")` | `[width, height, 1]` | Stands against a wall. |
 | `Fireplace(height=5, material="minecraft:stone_bricks", fire="minecraft:campfire")` | `[3, height, 1]` | Hearth + chimney; needs height >= 4. |
 | `LanternPost(height=3, post="minecraft:oak_fence", lantern="minecraft:lantern")` | `[1, height+1, 1]` | Post + lantern. |
+| `Sign(lines=None, material="minecraft:oak_sign", color="black", glowing=False)` | `[1, 1, 1]` | Standing sign facing south; `lines` is up to four strings of front text. |
+| `WallSign(lines=None, material="minecraft:oak_wall_sign", color="black", glowing=False)` | `[1, 1, 1]` | Wall sign facing south; place against a north support. |
 | `Carpet(width, length, material="minecraft:red_carpet")` | `[width, 1, length]` | Lay one Y above the floor fill. |
 | `Ladder(height, material="minecraft:ladder")` | `[1, height, 1]` | Faces south at rotation 0; place against a north support. |
 | `DiningTable(length=3, leg="minecraft:oak_fence", top="minecraft:oak_slab")` | `[length, 2, 1]` | Runs along +X; end legs and bottom-slab top. |
@@ -181,6 +184,7 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `FlowerBed(width, length, flower_a="minecraft:poppy", flower_b="minecraft:dandelion", border="minecraft:cobblestone")` | `[width, 2, length]` | Bordered dirt with alternating flowers; requires at least 3x3. |
 | `MarketStall(width=5, depth=3, canopy="minecraft:red_wool", accent="minecraft:white_wool", post="minecraft:oak_fence")` | `[width, 4, depth]` | Faces +Z; four posts, rear counter, striped canopy. |
 | `HayBaleStack(width=3, height=2, depth=2, material="minecraft:hay_block")` | `[width, height, depth]` | Tapered layers with alternating horizontal X/Z axes. |
+| `Pergola(width=5, depth=5, height=4, post="minecraft:oak_log", beam="minecraft:stripped_oak_log", slat="minecraft:oak_slab")` | `[width, height+1, depth]` | Corner posts, perimeter top beams, and an open slatted lattice roof; requires at least 3x3. |
 
 ### `lib/fortifications.star`
 
@@ -217,6 +221,9 @@ or extend toward +Z at rotation zero.
   storage, and lamps. Its foundation and path occupy local Y=0 for embedding.
 - `examples/stone_pass_fortress.star` — 35x16x21 linear stone defense: twin
   towers, battlement walls, gatehouse and portcullis, moat, and drawbridge.
+- `examples/claude_pergola.star` — 11x7x13 garden nook with ground level 1: an
+  open pergola sheltering a bench and a standing sign with glowing orange
+  block-entity text, plus an entrance path, flower beds, and lantern posts.
 - `examples/procedural_facade.star` — 29x8x1 pattern wall gallery: checkerboard,
   gradient, diagonal-stripe, and triangular-wave-crenellation panels, each a
   different index-driven material formula.

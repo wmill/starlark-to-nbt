@@ -308,3 +308,28 @@ def test_procedural_spiral_stair_uses_full_blocks_at_walkable_corners():
                for pos in corners)
     assert result.volume.block_at(Point(3, 2, 2)).block_state["facing"] == "east"
     assert result.volume.block_at(Point(5, 10, 6)).block_state["facing"] == "west"
+
+
+def test_claude_pergola_sign_carries_glowing_block_entity_text(tmp_path):
+    result = build_file(EXAMPLES / "claude_pergola.star")
+    assert result.volume.bounds.size == Point(11, 7, 13)
+    assert result.metadata.ground_level == 1
+
+    first = tmp_path / "first.nbt"
+    second = tmp_path / "second.nbt"
+    write_structure_nbt(result.volume, first)
+    write_structure_nbt(build_file(EXAMPLES / "claude_pergola.star").volume, second)
+    assert first.read_bytes() == second.read_bytes()
+
+    decoded = nbtlib.load(first)
+    # Block-entity data rides on block instances; the palette stays Name+Properties.
+    assert all("nbt" not in entry for entry in decoded["palette"])
+    with_nbt = [entry for entry in decoded["blocks"] if "nbt" in entry]
+    assert len(with_nbt) == 1
+    sign = with_nbt[0]
+    assert str(decoded["palette"][int(sign["state"])]["Name"]) == "minecraft:oak_sign"
+    front = sign["nbt"]["front_text"]
+    assert [str(message) for message in front["messages"]] == ["", "Designed by", "Claude ☺", ""]
+    assert str(front["color"]) == "orange"
+    assert int(front["has_glowing_text"]) == 1
+    assert int(sign["nbt"]["is_waxed"]) == 1

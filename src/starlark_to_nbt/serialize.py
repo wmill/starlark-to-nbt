@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import nbtlib
-from nbtlib import Compound, File, Int, List, String
+from nbtlib import Byte, Compound, Double, File, Int, List, String
 
 from .execute import SparseVolume, dense_to_dict
 from .model import BlockSpec, Point
@@ -33,10 +33,14 @@ def write_structure_nbt(volume: SparseVolume, path: str | Path) -> None:
     origin = volume.bounds.min
     for point, block in written:
         relative = point - origin
-        blocks.append(Compound({
+        entry = Compound({
             "state": Int(palette_index[block.key()]),
             "pos": List[Int]([Int(relative.x), Int(relative.y), Int(relative.z)]),
-        }))
+        })
+        if block.block_nbt:
+            # Block-entity data rides on the block instance, never the palette.
+            entry["nbt"] = _to_nbt(block.block_nbt)
+        blocks.append(entry)
 
     root = Compound({
         "DataVersion": Int(DATA_VERSION_1_21_7),
@@ -56,6 +60,25 @@ def _written(volume: SparseVolume) -> list[tuple[Point, BlockSpec]]:
         (point, volume.voxels[point].block)
         for point in sorted(volume.voxels, key=lambda p: (p.y, p.z, p.x))
     ]
+
+
+def _to_nbt(value: Any) -> Any:
+    if isinstance(value, bool):  # before int: bool is an int subclass
+        return Byte(1 if value else 0)
+    if isinstance(value, int):
+        return Int(value)
+    if isinstance(value, float):
+        return Double(value)
+    if isinstance(value, str):
+        return String(value)
+    if isinstance(value, dict):
+        return Compound({key: _to_nbt(item) for key, item in value.items()})
+    if isinstance(value, list):
+        tags = [_to_nbt(item) for item in value]
+        if not tags:
+            return List[String]([])
+        return List[type(tags[0])](tags)
+    raise ValueError(f"cannot serialize {type(value).__name__} as NBT")
 
 
 def _palette_entry(block: BlockSpec) -> Compound:
