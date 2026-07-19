@@ -333,3 +333,42 @@ def test_claude_pergola_sign_carries_glowing_block_entity_text(tmp_path):
     assert str(front["color"]) == "orange"
     assert int(front["has_glowing_text"]) == 1
     assert int(sign["nbt"]["is_waxed"]) == 1
+
+
+def test_container_helpers_pack_items_and_loot():
+    from starlark_to_nbt.starlark_runtime import container_nbt, loot_nbt
+
+    value = container_nbt(["minecraft:apple", {"id": "minecraft:bread", "count": 3},
+                           {"slot": 8, "id": "minecraft:coal"}, "minecraft:stick"],
+                          id="minecraft:barrel")
+    assert value == {"id": "minecraft:barrel", "Items": [
+        {"Slot": 0, "id": "minecraft:apple", "count": 1},
+        {"Slot": 1, "id": "minecraft:bread", "count": 3},
+        {"Slot": 8, "id": "minecraft:coal", "count": 1},
+        {"Slot": 9, "id": "minecraft:stick", "count": 1},
+    ]}
+    with pytest.raises(ValueError, match="container item"):
+        container_nbt([{"id": "minecraft:coal", "Count": 4}])
+    assert loot_nbt("minecraft:chests/simple_dungeon", seed=7) == {
+        "id": "minecraft:chest", "LootTable": "minecraft:chests/simple_dungeon", "LootTableSeed": 7,
+    }
+
+
+def test_showcase_containers_serialize_block_entity_items(tmp_path):
+    showcase = Path(__file__).parents[1] / "lib" / "showcase.star"
+
+    result = build_file(showcase, props={"name": "Chest"})
+    output = tmp_path / "chest.nbt"
+    write_structure_nbt(result.volume, output)
+    decoded = nbtlib.load(output)
+    (chest,) = list(decoded["blocks"])
+    items = chest["nbt"]["Items"]
+    assert [(int(i["Slot"]), str(i["id"]), int(i["count"])) for i in items] == [
+        (0, "minecraft:bread", 3), (1, "minecraft:apple", 1),
+    ]
+
+    result = build_file(showcase, props={"name": "Barrel"})
+    write_structure_nbt(result.volume, output)
+    (barrel,) = list(nbtlib.load(output)["blocks"])
+    assert str(barrel["nbt"]["LootTable"]) == "minecraft:chests/simple_dungeon"
+    assert "Items" not in barrel["nbt"]

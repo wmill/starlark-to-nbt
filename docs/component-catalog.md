@@ -77,6 +77,8 @@ Multi-block objects that must be placed all-or-nothing (doors, beds) use
 | `transform(translation, rotation_y, child_size, child)` | Place a `child_size` child at `translation`, rotated 0/90/180/270 degrees around +Y. The rotated footprint must fit in the region. Block states rotate too: `facing`, `axis`, sign `rotation`, and multi-face keys (`north`/`south`/`east`/`west`). |
 | `block(block_type, block_state={}, nbt=None)` | e.g. `block("minecraft:oak_stairs", {"facing": "south", "half": "bottom"})`. States are strings. `nbt` is an optional object of block-entity data (sign text, etc.) serialized onto that block instance. |
 | `sign_nbt(lines=None, color="black", glowing=False, back_lines=None, back_color="black", back_glowing=False, waxed=True)` | Sign block-entity data for `block(..., nbt=...)`: up to four `lines` of front text, dye `color`, glow-ink `glowing`. Signs are waxed by default so pasted text is not editable. |
+| `container_nbt(items=None, id="minecraft:chest")` | Container block-entity data (chest, barrel, furnace, hopper, ...). `items` entries are item ids or `{"id", "count", "slot", "components"}` dicts; omitted slots are assigned in order. Set `id` to the container's block id. |
+| `loot_nbt(table, seed=None, id="minecraft:chest")` | Container that rolls the named loot table (e.g. `"minecraft:chests/simple_dungeon"`) when first opened. |
 | `place_block(pos, block, phase="structure")` | Single block; `phase` is `"structure"` or `"fixture"`. |
 | `fill_region(min, max, block, phase="structure")` | Box fill. |
 | `carve_region(min, max)` | Box of air (CARVE phase). |
@@ -165,6 +167,9 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `BookshelfWall(width, height, material="minecraft:bookshelf")` | `[width, height, 1]` | Stands against a wall. |
 | `Fireplace(height=5, material="minecraft:stone_bricks", fire="minecraft:campfire")` | `[3, height, 1]` | Hearth + chimney; needs height >= 4. |
 | `LanternPost(height=3, post="minecraft:oak_fence", lantern="minecraft:lantern")` | `[1, height+1, 1]` | Post + lantern. |
+| `Chest(items=None, loot=None, material="minecraft:chest")` | `[1, 1, 1]` | Faces south; `items` preloads slots, or `loot` names a loot table rolled on first open. |
+| `Barrel(items=None, loot=None, material="minecraft:barrel")` | `[1, 1, 1]` | Faces south; same item/loot props as Chest. |
+| `Furnace(items=None, material="minecraft:furnace")` | `[1, 1, 1]` | Faces south, unlit; item slots are 0 input, 1 fuel, 2 output. |
 | `Sign(lines=None, material="minecraft:oak_sign", color="black", glowing=False)` | `[1, 1, 1]` | Standing sign facing south; `lines` is up to four strings of front text. |
 | `WallSign(lines=None, material="minecraft:oak_wall_sign", color="black", glowing=False)` | `[1, 1, 1]` | Wall sign facing south; place against a north support. |
 | `Carpet(width, length, material="minecraft:red_carpet")` | `[width, 1, length]` | Lay one Y above the floor fill. |

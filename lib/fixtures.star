@@ -103,6 +103,52 @@ def LanternPost(height=3, post="minecraft:oak_fence", lantern="minecraft:lantern
     )
 
 
+def Chest(items=None, loot=None, material="minecraft:chest"):
+    """Single chest facing +Z (south). `items` preloads slots (item ids or
+    {"id", "count", "slot"} dicts); `loot` names a loot table rolled on first open."""
+    if loot != None:
+        nbt = loot_nbt(loot, id=material)
+    else:
+        nbt = container_nbt(items, id=material)
+    return component(
+        name="Chest",
+        props={"items": items or [], "loot": loot, "material": material},
+        min_size=[1, 1, 1],
+        body=place_block([0, 0, 0],
+                         block(material, {"facing": "south", "type": "single", "waterlogged": "false"}, nbt=nbt),
+                         phase="fixture"),
+    )
+
+
+def Barrel(items=None, loot=None, material="minecraft:barrel"):
+    """Barrel facing +Z (south); same item/loot props as Chest."""
+    if loot != None:
+        nbt = loot_nbt(loot, id=material)
+    else:
+        nbt = container_nbt(items, id=material)
+    return component(
+        name="Barrel",
+        props={"items": items or [], "loot": loot, "material": material},
+        min_size=[1, 1, 1],
+        body=place_block([0, 0, 0],
+                         block(material, {"facing": "south", "open": "false"}, nbt=nbt),
+                         phase="fixture"),
+    )
+
+
+def Furnace(items=None, material="minecraft:furnace"):
+    """Unlit furnace facing +Z (south); `items` slots are 0 input, 1 fuel, 2 output."""
+    return component(
+        name="Furnace",
+        props={"items": items or [], "material": material},
+        min_size=[1, 1, 1],
+        body=place_block([0, 0, 0],
+                         block(material, {"facing": "south", "lit": "false"},
+                               nbt=container_nbt(items, id=material)),
+                         phase="fixture"),
+    )
+
+
 def Sign(lines=None, material="minecraft:oak_sign", color="black", glowing=False):
     """Standing sign facing +Z (south); `lines` is up to four strings of front text."""
     if lines == None:

@@ -73,6 +73,35 @@ def sign_nbt(lines=None, color="black", glowing=False,
     }
 
 
+def container_nbt(items=None, id="minecraft:chest"):
+    """Container block-entity data (chest, barrel, furnace, ...) for
+    block(..., nbt=...). `items` entries are item ids or dicts with "id" and
+    optional "count" (default 1), "slot" (defaults to the next slot in order),
+    and "components"."""
+    packed = []
+    next_slot = 0
+    for entry in list(items or []):
+        if isinstance(entry, str):
+            entry = {"id": entry}
+        unknown = entry.keys() - {"id", "count", "slot", "components"}
+        if unknown or "id" not in entry:
+            raise ValueError(f"container item must have 'id' and only 'count', 'slot', 'components': {entry}")
+        item = {"Slot": entry.get("slot", next_slot), "id": entry["id"], "count": entry.get("count", 1)}
+        if "components" in entry:
+            item["components"] = entry["components"]
+        next_slot = item["Slot"] + 1
+        packed.append(item)
+    return {"id": id, "Items": packed}
+
+
+def loot_nbt(table, seed=None, id="minecraft:chest"):
+    """Loot-table block-entity data: the container rolls `table` when first opened."""
+    value = {"id": id, "LootTable": table}
+    if seed is not None:
+        value["LootTableSeed"] = seed
+    return value
+
+
 def place_block(pos, block, phase="structure"):
     return _tag("place_block", pos=pos, block=block, phase=phase)
 
@@ -92,8 +121,9 @@ def place_assembly(pos, name, size, blocks):
 BOUND_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "component": component, "group": group, "fixed": fixed, "fill": fill,
     "split": split, "inset": inset, "repeat": repeat, "transform": transform,
-    "block": block, "sign_nbt": sign_nbt, "place_block": place_block,
-    "fill_region": fill_region, "carve_region": carve_region, "place_assembly": place_assembly,
+    "block": block, "sign_nbt": sign_nbt, "container_nbt": container_nbt, "loot_nbt": loot_nbt,
+    "place_block": place_block, "fill_region": fill_region, "carve_region": carve_region,
+    "place_assembly": place_assembly,
 }
 
 

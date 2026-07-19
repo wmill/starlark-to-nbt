@@ -5,7 +5,7 @@
 load("structural.star", "Foundation", "Floor", "SolidWall", "WindowedWall", "TimberFrameWall", "Column", "Balcony", "StraightStaircase", "Footbridge")
 load("openings.star", "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway")
 load("roofs.star", "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof")
-load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter")
+load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Chest", "Barrel", "Furnace", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter")
 load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola")
 load("fortifications.star", "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower")
 
@@ -61,6 +61,13 @@ def showcase(name):
         return Fireplace()
     elif name == "LanternPost":
         return LanternPost()
+    elif name == "Chest":
+        return Chest([{"id": "minecraft:bread", "count": 3}, "minecraft:apple"])
+    elif name == "Barrel":
+        return Barrel(loot="minecraft:chests/simple_dungeon")
+    elif name == "Furnace":
+        return Furnace([{"slot": 0, "id": "minecraft:raw_iron", "count": 8},
+                        {"slot": 1, "id": "minecraft:coal", "count": 4}])
     elif name == "Sign":
         return Sign(["Hello"])
     elif name == "WallSign":
@@ -115,7 +122,7 @@ COMPONENT_NAMES = [
     "Foundation", "Floor", "SolidWall", "WindowedWall", "TimberFrameWall", "Column", "Balcony", "StraightStaircase", "Footbridge",
     "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway",
     "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof",
-    "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter",
+    "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Chest", "Barrel", "Furnace", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter",
     "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola",
     "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower",
 ]
