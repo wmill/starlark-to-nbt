@@ -120,7 +120,7 @@ def test_keep_stress_build_is_deterministic(tmp_path):
     [
         ("riverside_farmstead.star", Point(41, 16, 35), 1367, "Footbridge",
          {"minecraft:wheat", "minecraft:hay_block", "minecraft:ladder", "minecraft:barrel"}),
-        ("market_square.star", Point(35, 6, 35), 474, "MarketStall",
+        ("market_square.star", Point(35, 7, 35), 474, "MarketStall",
          {"minecraft:red_wool", "minecraft:blue_wool", "minecraft:cornflower", "minecraft:lantern"}),
     ],
 )
@@ -167,8 +167,15 @@ def test_riverside_farmstead_embeds_terrain_layers_and_raises_props():
 
 def test_market_square_contains_rotated_stall_posts_and_benches():
     result = build_file(EXAMPLES / "market_square.star")
+
+    assert result.metadata.ground_level == 1
+    assert result.metadata.y_offset == -1
+    assert result.volume.block_at(Point(16, 0, 0)).block_type == "minecraft:dirt_path"
+    assert result.volume.block_at(Point(5, 0, 12)).block_type == "minecraft:cobblestone"
+    assert result.volume.block_at(Point(16, 1, 16)).block_type == "minecraft:cobblestone"
+    assert result.volume.block_at(Point(5, 1, 5)).block_type == "minecraft:oak_fence"
     # The east stall is rotated 90 degrees; its striped canopy runs along Z.
-    assert result.volume.block_at(Point(27, 3, 5)).block_type == "minecraft:blue_wool"
+    assert result.volume.block_at(Point(27, 4, 5)).block_type == "minecraft:blue_wool"
     bench_states = {v.block.block_state["facing"] for v in result.volume.voxels.values()
                     if v.block.block_type == "minecraft:oak_stairs"}
     assert bench_states == {"east", "west"}

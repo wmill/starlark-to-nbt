@@ -210,7 +210,7 @@ or extend toward +Z at rotation zero.
 - `examples/riverside_farmstead.star` — 41x16x35 village scene with ground
   level 1: furnished two-storey farmhouse, embedded stream, footbridge,
   irrigated crops, hay storage, paths, trees, and lanterns.
-- `examples/market_square.star` — 35x6x35 civic square: central well and
+- `examples/market_square.star` — 35x7x35 civic square: central well and
   crossing paths, four rotated striped stalls, flower beds, benches, and lamps.
 - `examples/frontier_outpost.star` — 29x14x29 timber fort with ground level 1:
   complete palisade, four rotated watchtowers, double gate, furnished barracks,
