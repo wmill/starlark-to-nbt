@@ -17,8 +17,9 @@ The pipeline is deliberately staged, with `pipeline.py` orchestrating:
    including rotation of directional block states.
 5. `execute.py` applies `STRUCTURE`, `CARVE`, then `FIXTURE` operations to a
    sparse volume and enforces overlap rules and assembly atomicity.
-6. `serialize.py` writes debug JSON and sparse structure NBT. Untouched cells
-   are omitted; deliberately carved cells remain explicit air.
+6. `serialize.py` writes debug JSON and sparse structure NBT, including
+   per-block block-entity NBT. Untouched cells are omitted; deliberately carved
+   cells remain explicit air.
 
 Shared geometry, block, transform, and diagnostic types live in `model.py`.
 The CLI entry point is `cli.py` (`starlark-to-nbt`).
@@ -27,7 +28,8 @@ The reusable component library is grouped in `lib/*.star`; its prompt-ready DSL
 and component reference is `docs/component-catalog.md`. `lib/showcase.star`
 builds individual components for testing. `examples/church.star` is the full
 pipeline vertical slice, `examples/cottage.star` demonstrates `load()`-based
-composition, and `examples/keep.star` is the large stress build.
+composition, and `examples/keep.star` is the large stress build. The remaining
+files in `examples/` are representative composed builds and procedural cases.
 
 ## Development Commands
 
@@ -39,6 +41,7 @@ uv run pytest
 uv run pytest -q tests/test_end_to_end.py
 uv run pytest tests/test_end_to_end.py::test_name
 uv run python -m py_compile src/starlark_to_nbt/*.py
+./scripts/rebuild_examples.sh
 ```
 
 Build the reference example with inspectable intermediate output:
@@ -49,8 +52,9 @@ uv run starlark-to-nbt build examples/church.star \
   --output church.nbt --debug-dir build/church
 ```
 
-Generated `.nbt` files and `build/` artifacts are development output; do not
-commit them unless a task explicitly calls for fixtures or examples.
+Building an NBT file also writes a sibling `.meta.json` placement sidecar.
+Generated `.nbt`, `.meta.json`, and `build/` artifacts are development output;
+do not commit them unless a task explicitly calls for fixtures or examples.
 
 ## Coding Conventions and Invariants
 
@@ -75,8 +79,16 @@ Preserve these boundaries and invariants:
   assemblies are atomic.
 - When adding transforms, account for both coordinates and affected block-state
   properties (`facing`, `axis`, numeric `rotation`, and horizontal face keys).
+- Treat block-entity NBT as per-block instance data, not palette data. Preserve
+  it unchanged through transforms and serialize it on the block entry. Use the
+  Starlark `sign_nbt`, `container_nbt`, and `loot_nbt` helpers rather than
+  duplicating raw block-entity shapes in library components.
+- Root-only build metadata is typed and validated before layout. Keep
+  `ground_level` non-negative and preserve the derived `y_offset` in the
+  deterministic `.meta.json` sidecar; do not add custom placement tags to the
+  standard structure NBT.
 - Output must be deterministic. Serialization changes should preserve stable
-  palette/block ordering and reproducible gzip bytes.
+  palette/block ordering, metadata JSON, and reproducible gzip bytes.
 
 Starlark library components conventionally draw from `[0, 0, 0]`, face `+Z` at
 rotation zero, and declare a `min_size` matching what they actually draw.
@@ -93,7 +105,8 @@ Tests describe behavior rather than mirroring every source module:
 - `test_rotation_states.py`: directional block-state rotation
 - `test_runtime_load.py`: `load()` resolution, caching, cycles, and diagnostics
 - `test_library.py`: every library component standalone and under rotation
-- `test_end_to_end.py`: decoded NBT assertions for reference builds
+- `test_end_to_end.py`: decoded NBT, block-entity data, metadata sidecars, and
+  reference-build assertions
 
 Add the narrowest regression test that demonstrates a change. Pipeline,
 execution, or serialization changes should also include an end-to-end assertion
