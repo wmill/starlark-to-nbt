@@ -246,7 +246,16 @@ def test_procedural_ziggurat_gradient_and_crown():
     assert any(p.y >= 15 for p in result.volume.voxels)
 
 
-def test_procedural_spiral_stair_facing_rotates_with_height():
+def test_procedural_spiral_stair_uses_full_blocks_at_walkable_corners():
     result = build_file(EXAMPLES / "procedural_spiral_stair.star")
-    assert result.volume.block_at(Point(2, 1, 2)).block_state["facing"] == "east"
-    assert result.volume.block_at(Point(6, 9, 6)).block_state["facing"] == "west"
+    corners = [
+        Point(2, 1, 2),
+        Point(6, 5, 2),
+        Point(6, 9, 6),
+        Point(2, 13, 6),
+        Point(2, 17, 2),
+    ]
+    assert all(result.volume.block_at(pos).block_type == "minecraft:polished_deepslate"
+               for pos in corners)
+    assert result.volume.block_at(Point(3, 2, 2)).block_state["facing"] == "east"
+    assert result.volume.block_at(Point(5, 10, 6)).block_state["facing"] == "west"

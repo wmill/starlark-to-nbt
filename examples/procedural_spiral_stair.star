@@ -41,10 +41,18 @@ def build(shaft=SHAFT, steps=STEPS, inset=INSET):
             sx, sz = shaft - 1 - inset - pos_along, shaft - 1 - inset
         else:
             sx, sz = inset, shaft - 1 - inset - pos_along
-        parts.append(place_block(
-            [sx, step + 1, sz],
-            block(STAIR_MATERIAL, {"facing": facing, "half": "bottom", "shape": "straight", "waterlogged": "false"}),
-        ))
+        material = block(STAIR_MATERIAL, {
+            "facing": facing,
+            "half": "bottom",
+            "shape": "straight",
+            "waterlogged": "false",
+        })
+        # Minecraft stairs cannot make a walkable one-block rise while also
+        # turning 90 degrees. Use a full landing block where each new leg
+        # begins so the player can step up and turn normally.
+        if pos_along == 0:
+            material = block(FLOOR_MATERIAL)
+        parts.append(place_block([sx, step + 1, sz], material))
 
     return component(
         name="ProceduralSpiralStair",

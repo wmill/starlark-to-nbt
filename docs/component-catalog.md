@@ -215,7 +215,8 @@ or extend toward +Z at rotation zero.
   level, capped with a wave-formula crenellated crown.
 - `examples/procedural_spiral_stair.star` — 9x23x9 hollow shaft with a spiral
   staircase built by a hand-rolled per-step loop, since `repeat()` cannot vary
-  rotation or position between copies.
+  rotation or position between copies; full-block corner landings keep every
+  90-degree turn walkable under Minecraft movement rules.
 
 ## Errors
 
