@@ -122,7 +122,7 @@ def palace():
         parts.append(fill_region([x, 2, 12], [x + 1, 10, 13], block("minecraft:calcite")))
     for side in [12, 34]:
         for step in range(8):
-            parts.append(place_block([side, 2 + step, 16 + step], block("minecraft:dark_oak_stairs", {"facing": "north", "half": "bottom", "shape": "straight", "waterlogged": "false"})))
+            parts.append(place_block([side, 2 + step, 16 + step], block("minecraft:dark_oak_stairs", {"facing": "south", "half": "bottom", "shape": "straight", "waterlogged": "false"})))
     # Interior labels, guest rooms, library and council suite.
     labels = [
         ([22, 4, 23], "THRONE HALL"), ([11, 4, 13], "ROYAL ARMORY"),
