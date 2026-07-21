@@ -82,6 +82,64 @@ def test_cottage_composes_library_components_via_load(tmp_path):
     assert len(decoded["blocks"]) == len(result.volume.voxels)
 
 
+def test_medieval_manor_matches_reference_scale_profile_and_interior(tmp_path):
+    source = EXAMPLES / "medieval_manor.star"
+    result = build_file(source)
+
+    assert result.volume.bounds.size == Point(20, 18, 18)
+    assert result.metadata.to_dict() == {"ground_level": 1, "y_offset": -1}
+    assert len(result.volume.voxels) == 1621
+
+    # The west entrance is a rotated, atomic double door reached from the
+    # gravel path, and both main floors retain their stair landings.
+    assert result.volume.block_at(Point(0, 0, 8)).block_type == "minecraft:gravel"
+    lower = result.volume.block_at(Point(3, 1, 8))
+    upper = result.volume.block_at(Point(3, 2, 8))
+    assert lower.block_type == upper.block_type == "minecraft:oak_door"
+    assert lower.block_state["facing"] == upper.block_state["facing"] == "west"
+    assert lower.block_state["half"] == "lower"
+    assert upper.block_state["half"] == "upper"
+    assert result.volume.block_at(Point(10, 4, 8)).block_type == "minecraft:oak_stairs"
+    assert result.volume.block_at(Point(10, 4, 9)).block_type == "minecraft:oak_planks"
+    assert result.volume.block_at(Point(10, 9, 13)).block_type == "minecraft:oak_stairs"
+    assert result.volume.block_at(Point(10, 9, 14)).block_type == "minecraft:oak_slab"
+
+    # Source-like material bands and the oversized roof make this a manor,
+    # despite the training description calling the original a small house.
+    assert result.volume.block_at(Point(3, 3, 10)).block_type == "minecraft:stone_bricks"
+    assert result.volume.block_at(Point(3, 6, 10)).block_type == "minecraft:birch_planks"
+    assert result.volume.block_at(Point(9, 12, 4)).block_type == "minecraft:white_wool"
+    assert result.volume.block_at(Point(1, 16, 8)).block_type == "minecraft:oak_slab"
+    assert result.volume.block_at(Point(2, 11, 8)).block_type == "minecraft:glass"
+    assert result.volume.block_at(Point(17, 11, 8)).block_type == "minecraft:glass"
+    assert result.volume.block_at(Point(15, 1, 12)).block_type == "minecraft:enchanting_table"
+    assert result.volume.block_at(Point(14, 5, 4)).block_type == "minecraft:red_bed"
+
+    paths = {op.provenance.component_path for op in result.operations}
+    assert any("DecorativeRoof" in path for path in paths)
+    assert any("GroundFloorInterior" in path for path in paths)
+    assert any("UpperFloorInterior" in path for path in paths)
+
+    first = tmp_path / "manor-1.nbt"
+    second = tmp_path / "manor-2.nbt"
+    write_structure_nbt(result.volume, first)
+    write_structure_nbt(build_file(source).volume, second)
+    assert first.read_bytes() == second.read_bytes()
+
+    decoded = nbtlib.load(first)
+    assert len(decoded["blocks"]) == 1621
+    assert len(decoded["blocks"]) < 20 * 18 * 18
+    palette = {str(entry["Name"]) for entry in decoded["palette"]}
+    assert {
+        "minecraft:stone_bricks", "minecraft:oak_planks", "minecraft:birch_planks",
+        "minecraft:white_wool", "minecraft:glass_pane", "minecraft:bookshelf",
+        "minecraft:brewing_stand", "minecraft:enchanting_table",
+    } <= palette
+    stocked = [entry for entry in decoded["blocks"] if "nbt" in entry and "Items" in entry["nbt"]]
+    assert len(stocked) == 7
+    assert any(len(entry["nbt"]["Items"]) >= 3 for entry in stocked)
+
+
 def test_keep_stress_build_is_deterministic(tmp_path):
     result = build_file(EXAMPLES / "keep.star")
 

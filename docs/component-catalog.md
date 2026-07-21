@@ -232,6 +232,10 @@ or extend toward +Z at rotation zero.
   storage, and lamps. Its foundation and path occupy local Y=0 for embedding.
 - `examples/stone_pass_fortress.star` — 35x16x21 linear stone defense: twin
   towers, battlement walls, gatehouse and portcullis, moat, and drawbridge.
+- `examples/medieval_manor.star` — 20x18x18 source-inspired medieval manor:
+  stone ground floor, birch-and-oak timber upper storey, oversized white-wool
+  roof with glazed end gables, two walkable stair flights, and fully furnished
+  workshop, kitchen, bedrooms, library, enchanting area, and loft storage.
 - `examples/claude_pergola.star` — 11x7x13 garden nook with ground level 1: an
   open pergola sheltering a bench and a standing sign with glowing orange
   block-entity text, plus an entrance path, flower beds, and lantern posts.

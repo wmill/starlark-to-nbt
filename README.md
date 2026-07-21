@@ -17,6 +17,7 @@ uv run starlark-to-nbt build examples/riverside_farmstead.star --output riversid
 uv run starlark-to-nbt build examples/market_square.star --output market_square.nbt
 uv run starlark-to-nbt build examples/frontier_outpost.star --output frontier_outpost.nbt
 uv run starlark-to-nbt build examples/stone_pass_fortress.star --output stone_pass_fortress.nbt
+uv run starlark-to-nbt build examples/medieval_manor.star --output medieval_manor.nbt
 uv run starlark-to-nbt build examples/mega_castle.star --output mega_castle.nbt
 
 # Rebuild every example into build/<example-name>.nbt:
