@@ -269,6 +269,25 @@ Composite residential buildings assembled from `structural.star` /
   staircase built by a hand-rolled per-step loop, since `repeat()` cannot vary
   rotation or position between copies; full-block corner landings keep every
   90-degree turn walkable under Minecraft movement rules.
+- `examples/procedural_rotunda.star` — 19x19x19 round glass rotunda: a
+  thin cylindrical wall shell and true hemispherical dome shell, both
+  voxelized with integer distance-squared circle tests (no `sqrt()`
+  available); window openings are cut into the wall by a raster-order
+  modulo counter.
+- `examples/procedural_twisting_spire.star` — 9x40x9 tower built from 20
+  stacked square rings whose (x,z) offset cycles through a small fixed
+  lookup table (not true rotation matrices, since Starlark here has no
+  trig or `**`), producing a visibly twisting silhouette.
+- `examples/procedural_crystal_cave.star` — 25x7x17 elliptical cavern: an
+  integer distance-formula ellipse test bounds a hollow shell (floor,
+  thin wall ring, ceiling), scattered with stalagmites, stalactites, and
+  amethyst clusters via a hand-rolled deterministic integer hash function
+  standing in for `random()`.
+- `examples/procedural_fractal_tree.star` — 12x22x14 iterative L-system
+  tree: a worklist loop (no recursion, which the host forbids) grows a
+  trunk into branching generations from a fixed table of integer direction
+  vectors, drawn with an integer line-stepper and capped with
+  distance-squared leaf-blob spheres.
 
 ## Errors
 

@@ -375,6 +375,15 @@ def test_build_outputs_write_deterministic_metadata_sidecar(tmp_path):
           "minecraft:polished_blackstone", "minecraft:gilded_blackstone"}),
         ("procedural_spiral_stair.star", Point(9, 23, 9), 805, "ProceduralSpiralStair",
          {"minecraft:deepslate_tiles", "minecraft:polished_deepslate", "minecraft:cobbled_deepslate_stairs"}),
+        ("procedural_rotunda.star", Point(19, 19, 19), 1453, "ProceduralRotunda",
+         {"minecraft:smooth_stone", "minecraft:quartz_block", "minecraft:glass"}),
+        ("procedural_twisting_spire.star", Point(9, 40, 9), 960, "ProceduralTwistingSpire",
+         {"minecraft:purpur_block", "minecraft:end_stone_bricks",
+          "minecraft:purpur_pillar", "minecraft:quartz_block"}),
+        ("procedural_crystal_cave.star", Point(25, 7, 17), 1259, "ProceduralCrystalCave",
+         {"minecraft:tuff", "minecraft:deepslate", "minecraft:dripstone_block", "minecraft:amethyst_block"}),
+        ("procedural_fractal_tree.star", Point(12, 22, 14), 349, "ProceduralFractalTree",
+         {"minecraft:oak_wood", "minecraft:oak_leaves"}),
     ],
 )
 def test_procedural_examples_are_sparse_composed_and_deterministic(
@@ -435,6 +444,59 @@ def test_procedural_spiral_stair_uses_full_blocks_at_walkable_corners():
                for pos in corners)
     assert result.volume.block_at(Point(3, 2, 2)).block_state["facing"] == "east"
     assert result.volume.block_at(Point(5, 10, 6)).block_state["facing"] == "west"
+
+
+def test_procedural_rotunda_shell_is_hollow_with_periodic_windows():
+    result = build_file(EXAMPLES / "procedural_rotunda.star")
+    assert result.volume.block_at(Point(9, 0, 9)).block_type == "minecraft:smooth_stone"
+    assert result.volume.block_at(Point(9, 0, 1)).block_type == "minecraft:smooth_stone"
+    # Interior is hollow, not a solid disk of blocks under the dome.
+    assert result.volume.block_at(Point(9, 4, 9)).block_type == "minecraft:air"
+    # The dome apex is a deliberate open oculus.
+    assert result.volume.block_at(Point(9, 18, 9)).block_type == "minecraft:air"
+    # The dome's base layer is a ring, not a disk: present at the outer edge,
+    # absent at the center of that same height.
+    assert result.volume.block_at(Point(18, 9, 9)).block_type == "minecraft:glass"
+    assert result.volume.block_at(Point(9, 9, 9)).block_type == "minecraft:air"
+    # Both window and plain wall columns exist in the annulus.
+    assert result.volume.block_at(Point(0, 1, 9)).block_type == "minecraft:glass"
+    assert result.volume.block_at(Point(1, 1, 5)).block_type == "minecraft:quartz_block"
+
+
+def test_procedural_twisting_spire_ring_offset_cycles_through_table():
+    result = build_file(EXAMPLES / "procedural_twisting_spire.star")
+    # Level 1's offset table entry [1, 1] shifts the ring's corner to (2, 2).
+    assert result.volume.block_at(Point(2, 2, 2)).block_type == "minecraft:end_stone_bricks"
+    # Level 0's corner position is now vacated at level 1's height.
+    assert result.volume.block_at(Point(0, 2, 0)).block_type == "minecraft:air"
+    # Level 4 wraps back to offset table entry [0, 0], reusing the origin corner.
+    assert result.volume.block_at(Point(0, 8, 0)).block_type == "minecraft:purpur_block"
+    # Ring interior is hollow.
+    assert result.volume.block_at(Point(3, 0, 3)).block_type == "minecraft:air"
+
+
+def test_procedural_crystal_cave_hash_scatter_is_deterministic_and_bounded():
+    result = build_file(EXAMPLES / "procedural_crystal_cave.star")
+    # Bounding-box corner sits outside the ellipse: proves the footprint
+    # isn't a rectangle.
+    assert result.volume.block_at(Point(0, 3, 0)).block_type == "minecraft:air"
+    # A known non-scatter interior cell stays hollow.
+    assert result.volume.block_at(Point(3, 3, 6)).block_type == "minecraft:air"
+    assert any(v.block.block_type == "minecraft:dripstone_block" for v in result.volume.voxels.values())
+    assert any(v.block.block_type == "minecraft:amethyst_block" for v in result.volume.voxels.values())
+
+    first_dripstone = {p for p, v in result.volume.voxels.items() if v.block.block_type == "minecraft:dripstone_block"}
+    second = build_file(EXAMPLES / "procedural_crystal_cave.star")
+    second_dripstone = {p for p, v in second.volume.voxels.items() if v.block.block_type == "minecraft:dripstone_block"}
+    assert first_dripstone == second_dripstone
+
+
+def test_procedural_fractal_tree_terminal_tips_get_leaf_blobs_without_overwriting_wood():
+    result = build_file(EXAMPLES / "procedural_fractal_tree.star")
+    assert result.volume.block_at(Point(4, 0, 6)).block_type == "minecraft:oak_wood"
+    leaf_voxels = [v for v in result.volume.voxels.values() if v.block.block_type == "minecraft:oak_leaves"]
+    assert len(leaf_voxels) > 0
+    assert leaf_voxels[0].block.block_state["persistent"] == "true"
 
 
 def test_claude_pergola_sign_carries_glowing_block_entity_text(tmp_path):
