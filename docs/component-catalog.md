@@ -188,6 +188,7 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `FenceRing(width, length, fence="minecraft:oak_fence", gate="minecraft:oak_fence_gate")` | `[width, 1, length]` | Perimeter fence, gate mid-south; needs >= 3x3. |
 | `Path(length, width=1, material="minecraft:dirt_path")` | `[width, 1, length]` | Runs along +Z. |
 | `Tree(height=5, log="minecraft:oak_log", leaves="minecraft:oak_leaves")` | `[3, height+1, 3]` | Persistent leaves; trunk at center. |
+| `RoundTree(trunk_height=7, log="minecraft:oak_log", leaves="minecraft:oak_leaves")` | `[5, trunk_height+1, 5]` | Fuller 5x5 canopy tapering cross -> diamond -> full square -> diamond -> cross from bottom to cap; requires trunk_height >= 4. |
 | `CropPlot(width, length, crop="minecraft:wheat", age="7", border="minecraft:oak_log")` | `[width, 2, length]` | Bordered moist farmland, central +Z water channel, mature crops; requires at least 5x5. |
 | `FlowerBed(width, length, flower_a="minecraft:poppy", flower_b="minecraft:dandelion", border="minecraft:cobblestone")` | `[width, 2, length]` | Bordered dirt with alternating flowers; requires at least 3x3. |
 | `MarketStall(width=5, depth=3, canopy="minecraft:red_wool", accent="minecraft:white_wool", post="minecraft:oak_fence")` | `[width, 4, depth]` | Faces +Z; four posts, rear counter, striped canopy. |
@@ -209,6 +210,18 @@ or extend toward +Z at rotation zero.
 | `PalisadeWall(length, height=5, log="minecraft:spruce_log")` | `[length, height+1, 1]` | Vertical logs with alternating raised tips; requires length >= 2 and height >= 3. |
 | `PalisadeGate(width=5, height=6, log="minecraft:spruce_log", door="minecraft:dark_oak_door")` | `[width, height+1, 1]` | Atomic double door beneath a timber fighting platform; requires width >= 5 and height >= 4. |
 | `Watchtower(size=5, platform_height=6, post="minecraft:spruce_log", deck="minecraft:spruce_planks", railing="minecraft:spruce_fence")` | `[size, platform_height+2, size]` | Four-post tower with a railed deck and south-facing ladder passing through a deck opening; requires size >= 5 and platform height >= 4. |
+| `RampartWall(length, height=7, stone="minecraft:stone_bricks", core="minecraft:stone", accent="minecraft:infested_stone_bricks", railing="minecraft:oak_fence")` | `[length, height+2, 3]` | Three-thick layered curtain wall (outer/core/inner stone); torch-lit merlon crown in `accent` with a fence walkway rail filling the gaps; requires length >= 3 and height >= 3. |
+| `RampartTower(size=5, height=10, stone="minecraft:stone_bricks", accent="minecraft:infested_stone_bricks", trim="minecraft:chiseled_stone_bricks", door="minecraft:oak_door")` | `[size, height+2, size]` | Hollow tower with chiseled corner quoins, an interior ladder, a south door, and a torch-lit merlon crown matching `RampartWall`; requires size >= 5 and height >= 8. |
+
+### `lib/dwellings.star`
+
+Composite residential buildings assembled from `structural.star` /
+`openings.star` / `roofs.star` / `fixtures.star` primitives. Draw from
+`[0, 0, 0]`; entrance faces +Z (south) at rotation zero.
+
+| Component | Size | Notes |
+|---|---|---|
+| `GuestHouse(width=7, depth=6, wall_height=4, log="minecraft:oak_log", infill="minecraft:cobblestone", door="minecraft:oak_door", roof_stair="minecraft:oak_stairs", roof_ridge="minecraft:oak_log", bed="minecraft:lime_bed")` | `[width, 1+wall_height+(width+1)//2, depth]` | Single-room cottage: log-post/cobblestone walls, south door, north window, gable roof (use an odd `width` for a visible ridge beam), furnished with a bed, chest, bookshelves, and torches; requires width >= 5 and depth >= 5. |
 
 ## Worked examples
 
@@ -232,6 +245,10 @@ or extend toward +Z at rotation zero.
   storage, and lamps. Its foundation and path occupy local Y=0 for embedding.
 - `examples/stone_pass_fortress.star` — 35x16x21 linear stone defense: twin
   towers, battlement walls, gatehouse and portcullis, moat, and drawbridge.
+- `examples/rampart_ward.star` — 27x13x27 walled ward corner with ground
+  level 1, in the style of `training-samples/micmokum-town1.nbt`: a
+  `RampartTower` and two gapped `RampartWall` runs enclosing three
+  differently-bedded `GuestHouse` cottages, a well, and `RoundTree`s.
 - `examples/medieval_manor.star` — 20x18x18 source-inspired medieval manor:
   stone ground floor, birch-and-oak timber upper storey, oversized white-wool
   roof with glazed end gables, two walkable stair flights, and fully furnished

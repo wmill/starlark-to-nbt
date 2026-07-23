@@ -104,6 +104,39 @@ def Tree(height=5, log="minecraft:oak_log", leaves="minecraft:oak_leaves"):
     )
 
 
+def RoundTree(trunk_height=7, log="minecraft:oak_log", leaves="minecraft:oak_leaves"):
+    """Fuller, rounder tree: single trunk with a 5x5 canopy that tapers
+    cross -> diamond -> full square -> diamond -> cross from bottom to cap."""
+    if trunk_height < 4:
+        fail("RoundTree requires trunk_height >= 4")
+    leaf = block(leaves, {"persistent": "true", "waterlogged": "false"})
+    top = trunk_height - 1
+    parts = [fill_region([2, 0, 2], [3, trunk_height, 3], block(log, {"axis": "y"}))]
+    layers = [
+        (top - 3, "cross", False),
+        (top - 2, "diamond", False),
+        (top - 1, "square", False),
+        (top, "diamond", False),
+        (top + 1, "cross", True),
+    ]
+    for y, shape, include_center in layers:
+        for dx in range(-2, 3):
+            for dz in range(-2, 3):
+                if dx == 0 and dz == 0 and not include_center:
+                    continue
+                if shape == "cross" and abs(dx) + abs(dz) > 1:
+                    continue
+                if shape == "diamond" and abs(dx) + abs(dz) > 3:
+                    continue
+                parts.append(place_block([2 + dx, y, 2 + dz], leaf))
+    return component(
+        name="RoundTree",
+        props={"trunk_height": trunk_height, "log": log, "leaves": leaves},
+        min_size=[5, trunk_height + 1, 5],
+        body=group(parts),
+    )
+
+
 def CropPlot(width, length, crop="minecraft:wheat", age="7", border="minecraft:oak_log"):
     """Bordered farmland with a central +Z irrigation channel and mature crops."""
     if width < 5 or length < 5:

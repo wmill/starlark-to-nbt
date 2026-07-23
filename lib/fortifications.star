@@ -1,7 +1,7 @@
 # Reusable stone and timber defenses. Linear components run along +X and
 # gateways face +Z at rotation zero.
 
-load("openings.star", "DoubleDoor")
+load("openings.star", "DoubleDoor", "SingleDoor")
 load("fixtures.star", "Ladder")
 
 
@@ -46,6 +46,66 @@ def SquareTower(size, height, material="minecraft:stone_bricks"):
         name="SquareTower",
         props={"size": size, "height": height, "material": material},
         min_size=[size, height + 1, size],
+        body=group(parts),
+    )
+
+
+def RampartWall(length, height=7, stone="minecraft:stone_bricks", core="minecraft:stone",
+                 accent="minecraft:infested_stone_bricks", railing="minecraft:oak_fence"):
+    """Three-thick layered curtain wall (outer/core/inner stone) with a
+    torch-lit merlon crown and an inner-face walkway railing in the gaps."""
+    if length < 3 or height < 3:
+        fail("RampartWall requires length >= 3 and height >= 3")
+    parts = [
+        fill_region([0, 0, 0], [length, height, 1], block(stone)),
+        fill_region([0, 0, 1], [length, height, 2], block(core)),
+        fill_region([0, 0, 2], [length, height, 3], block(stone)),
+    ]
+    rail = block(railing, {"east": "true", "west": "true"})
+    for x in range(0, length, 2):
+        parts.append(fill_region([x, height, 0], [x + 1, height + 1, 3], block(accent)))
+        if x % 4 == 0:
+            parts.append(place_block([x, height + 1, 1], block("minecraft:torch"), phase="fixture"))
+    for x in range(1, length, 2):
+        parts.append(place_block([x, height, 2], rail, phase="fixture"))
+    return component(
+        name="RampartWall",
+        props={"length": length, "height": height, "stone": stone, "core": core,
+               "accent": accent, "railing": railing},
+        min_size=[length, height + 2, 3],
+        body=group(parts),
+    )
+
+
+def RampartTower(size=5, height=10, stone="minecraft:stone_bricks",
+                  accent="minecraft:infested_stone_bricks", trim="minecraft:chiseled_stone_bricks",
+                  door="minecraft:oak_door"):
+    """Hollow square tower with chiseled corner quoins, a solid base, an
+    interior ladder, and a torch-lit merlon crown matching RampartWall."""
+    if size < 5 or height < 8:
+        fail("RampartTower requires size >= 5 and height >= 8")
+    parts = []
+    for x, z in [(0, 0), (size - 1, 0), (0, size - 1), (size - 1, size - 1)]:
+        parts.append(fill_region([x, 0, z], [x + 1, height, z + 1], block(trim)))
+    parts.append(fill_region([1, 0, 0], [size - 1, height, 1], block(stone)))
+    parts.append(fill_region([1, 0, size - 1], [size - 1, height, size], block(stone)))
+    parts.append(fill_region([0, 0, 1], [1, height, size - 1], block(stone)))
+    parts.append(fill_region([size - 1, 0, 1], [size, height, size - 1], block(stone)))
+    parts.append(transform([size // 2, 0, 1], 0, [1, height, 1], Ladder(height)))
+    parts.append(transform([size // 2, 0, size - 1], 0, [1, 2, 1], SingleDoor(door)))
+    for x in range(0, size, 2):
+        parts.append(place_block([x, height, 0], block(accent)))
+        parts.append(place_block([x, height, size - 1], block(accent)))
+    for z in range(2, size - 2, 2):
+        parts.append(place_block([0, height, z], block(accent)))
+        parts.append(place_block([size - 1, height, z], block(accent)))
+    for x, z in [(0, 0), (size - 1, 0), (0, size - 1), (size - 1, size - 1)]:
+        parts.append(place_block([x, height + 1, z], block("minecraft:torch"), phase="fixture"))
+    return component(
+        name="RampartTower",
+        props={"size": size, "height": height, "stone": stone,
+               "accent": accent, "trim": trim, "door": door},
+        min_size=[size, height + 2, size],
         body=group(parts),
     )
 

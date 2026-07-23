@@ -6,8 +6,9 @@ load("structural.star", "Foundation", "Floor", "SolidWall", "WindowedWall", "Tim
 load("openings.star", "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway")
 load("roofs.star", "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof")
 load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Chest", "Barrel", "Furnace", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter")
-load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse")
-load("fortifications.star", "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower")
+load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "RoundTree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse")
+load("fortifications.star", "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower", "RampartWall", "RampartTower")
+load("dwellings.star", "GuestHouse")
 
 
 def showcase(name):
@@ -90,6 +91,8 @@ def showcase(name):
         return Path(8, 2)
     elif name == "Tree":
         return Tree()
+    elif name == "RoundTree":
+        return RoundTree()
     elif name == "CropPlot":
         return CropPlot(7, 7)
     elif name == "FlowerBed":
@@ -116,6 +119,12 @@ def showcase(name):
         return PalisadeGate()
     elif name == "Watchtower":
         return Watchtower()
+    elif name == "RampartWall":
+        return RampartWall(12)
+    elif name == "RampartTower":
+        return RampartTower()
+    elif name == "GuestHouse":
+        return GuestHouse()
     else:
         fail("unknown component %s" % name)
 
@@ -125,8 +134,9 @@ COMPONENT_NAMES = [
     "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway",
     "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof",
     "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Chest", "Barrel", "Furnace", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter",
-    "Well", "FenceRing", "Path", "Tree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse",
-    "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower",
+    "Well", "FenceRing", "Path", "Tree", "RoundTree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse",
+    "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower", "RampartWall", "RampartTower",
+    "GuestHouse",
 ]
 
 
