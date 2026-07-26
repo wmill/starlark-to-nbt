@@ -198,20 +198,38 @@ them builds standalone. `lib/showcase.star` builds any single component:
 ### `lib/fortifications.star`
 
 Linear walls run along +X. Gates, ladders, portcullises, and drawbridges face
-or extend toward +Z at rotation zero.
+or extend toward +Z at rotation zero. `BattlementWall`, `SquareTower`, and
+`Gatehouse` accept an optional `material_picker(base_material, x, y, z)`
+callback returning a block identifier. Coordinates are local to the component;
+without a picker they retain their compact bulk-fill behavior.
 
 | Component | Size | Notes |
 |---|---|---|
-| `BattlementWall(length, height, material="minecraft:stone_bricks")` | `[length, height+1, 1]` | Solid curtain wall with alternating merlons; requires length >= 3 and height >= 2. |
-| `SquareTower(size, height, material="minecraft:stone_bricks")` | `[size, height+1, size]` | Hollow tower with two levels of arrow slits and a crenellated crown; requires size >= 5 and height >= 10. |
+| `BattlementWall(length, height, material="minecraft:stone_bricks", material_picker=None)` | `[length, height+1, 1]` | Solid curtain wall with alternating merlons; requires length >= 3 and height >= 2. |
+| `SquareTower(size, height, material="minecraft:stone_bricks", material_picker=None)` | `[size, height+1, size]` | Hollow tower with two levels of arrow slits and a crenellated crown; requires size >= 5 and height >= 10. |
 | `Portcullis(width=3, height=4, material="minecraft:iron_bars")` | `[width, height, 1]` | Self-carving closed portcullis; requires width and height >= 2. |
-| `Gatehouse(width=9, height=8, depth=5, opening_width=3, opening_height=4, material=..., bars="minecraft:iron_bars")` | `[width, height+1, depth]` | Centered tunnel, front portcullis, arrow slits, and battlements; leaves at least two blocks per side. |
+| `Gatehouse(width=9, height=8, depth=5, opening_width=3, opening_height=4, material=..., bars="minecraft:iron_bars", material_picker=None)` | `[width, height+1, depth]` | Centered tunnel, front portcullis, arrow slits, and battlements; leaves at least two blocks per side. |
 | `Drawbridge(width=3, length=7, deck="minecraft:dark_oak_planks", chain="minecraft:chain")` | `[width, 2, length]` | Lowered deck extending toward +Z with horizontal side chains. |
 | `PalisadeWall(length, height=5, log="minecraft:spruce_log")` | `[length, height+1, 1]` | Vertical logs with alternating raised tips; requires length >= 2 and height >= 3. |
 | `PalisadeGate(width=5, height=6, log="minecraft:spruce_log", door="minecraft:dark_oak_door")` | `[width, height+1, 1]` | Atomic double door beneath a timber fighting platform; requires width >= 5 and height >= 4. |
 | `Watchtower(size=5, platform_height=6, post="minecraft:spruce_log", deck="minecraft:spruce_planks", railing="minecraft:spruce_fence")` | `[size, platform_height+2, size]` | Four-post tower with a railed deck and south-facing ladder passing through a deck opening; requires size >= 5 and platform height >= 4. |
 | `RampartWall(length, height=7, stone="minecraft:stone_bricks", core="minecraft:stone", accent="minecraft:infested_stone_bricks", railing="minecraft:oak_fence")` | `[length, height+2, 3]` | Three-thick layered curtain wall (outer/core/inner stone); torch-lit merlon crown in `accent` with a fence walkway rail filling the gaps; requires length >= 3 and height >= 3. |
 | `RampartTower(size=5, height=10, stone="minecraft:stone_bricks", accent="minecraft:infested_stone_bricks", trim="minecraft:chiseled_stone_bricks", door="minecraft:oak_door")` | `[size, height+2, size]` | Hollow tower with chiseled corner quoins, an interior ladder, a south door, and a torch-lit merlon crown matching `RampartWall`; requires size >= 5 and height >= 8. |
+
+### `lib/random.star`
+
+Deterministic visual patterning uses a checked-in table of 1,024 independent
+pseudorandom decimals in `[0, 1)`. Create caller-owned state with
+`random_cycle(offset=0)`, then call `random_number(cycle)` to advance and wrap.
+Separate cycles are independent. This utility is reproducible patterning data,
+not security-sensitive randomness.
+
+```python
+load("../lib/random.star", "random_cycle", "random_number")
+
+cycle = random_cycle()
+roll = random_number(cycle)
+```
 
 ### `lib/dwellings.star`
 
@@ -244,7 +262,9 @@ Composite residential buildings assembled from `structural.star` /
   complete palisade, four rotated watchtowers, double gate, furnished barracks,
   storage, and lamps. Its foundation and path occupy local Y=0 for embedding.
 - `examples/stone_pass_fortress.star` — 35x16x21 linear stone defense: twin
-  towers, battlement walls, gatehouse and portcullis, moat, and drawbridge.
+  towers, battlement walls, gatehouse and portcullis, moat, and drawbridge;
+  deterministic weathering defaults to 15% mossy and 7% cracked stone and is
+  configurable through `mossy_percent` / `cracked_percent` build arguments.
 - `examples/rampart_ward.star` — 27x13x27 walled ward corner with ground
   level 1, in the style of `training-samples/micmokum-town1.nbt`: a
   `RampartTower` and two gapped `RampartWall` runs enclosing three

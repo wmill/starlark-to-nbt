@@ -7,7 +7,7 @@ import pytest
 
 from starlark_to_nbt.execute import dense_to_dict
 from starlark_to_nbt.ir import Phase
-from starlark_to_nbt.model import Point
+from starlark_to_nbt.model import BuildError, Point
 from starlark_to_nbt.pipeline import build_file, write_build_outputs
 from starlark_to_nbt.serialize import DATA_VERSION_1_21_7, write_structure_nbt
 
@@ -314,7 +314,8 @@ def test_market_square_contains_rotated_stall_posts_and_benches():
         ("frontier_outpost.star", Point(29, 14, 29), 1405, "Watchtower",
          {"minecraft:spruce_log", "minecraft:dark_oak_door", "minecraft:ladder", "minecraft:hay_block"}),
         ("stone_pass_fortress.star", Point(35, 16, 21), 1597, "Gatehouse",
-         {"minecraft:stone_bricks", "minecraft:iron_bars", "minecraft:chain", "minecraft:water"}),
+         {"minecraft:stone_bricks", "minecraft:mossy_stone_bricks", "minecraft:cracked_stone_bricks",
+          "minecraft:iron_bars", "minecraft:chain", "minecraft:water"}),
     ],
 )
 def test_fortification_examples_are_sparse_composed_and_deterministic(
@@ -352,6 +353,43 @@ def test_frontier_gate_and_stone_pass_defenses_are_aligned():
     assert fortress.volume.block_at(Point(16, 2, 13)).block_state["axis"] == "z"
     assert fortress.volume.block_at(Point(0, 0, 13)).block_type == "minecraft:water"
     assert fortress.volume.block_at(Point(3, 5, 7)).block_type == "minecraft:air"
+
+
+def test_stone_pass_weathering_percentages_are_configurable_and_validated():
+    source = EXAMPLES / "stone_pass_fortress.star"
+    result = build_file(source)
+    names = [voxel.block.block_type for voxel in result.volume.voxels.values()]
+    stone_types = {
+        "minecraft:stone_bricks", "minecraft:mossy_stone_bricks", "minecraft:cracked_stone_bricks",
+    }
+    stone_count = sum(name in stone_types for name in names)
+    mossy_count = names.count("minecraft:mossy_stone_bricks")
+    cracked_count = names.count("minecraft:cracked_stone_bricks")
+    assert stone_count == 1174
+    assert mossy_count == 165
+    assert cracked_count == 74
+    assert abs(mossy_count / stone_count - 0.15) < 0.01
+    assert abs(cracked_count / stone_count - 0.07) < 0.01
+
+    clean = build_file(source, props={"mossy_percent": 0.0, "cracked_percent": 0.0})
+    clean_names = [voxel.block.block_type for voxel in clean.volume.voxels.values()]
+    assert clean_names.count("minecraft:stone_bricks") == stone_count
+    assert "minecraft:mossy_stone_bricks" not in clean_names
+    assert "minecraft:cracked_stone_bricks" not in clean_names
+
+    mossy = build_file(source, props={"mossy_percent": 1.0, "cracked_percent": 0.0})
+    mossy_names = [voxel.block.block_type for voxel in mossy.volume.voxels.values()]
+    assert mossy_names.count("minecraft:mossy_stone_bricks") == stone_count
+    assert "minecraft:stone_bricks" not in mossy_names
+
+    for props in [
+        {"mossy_percent": -0.01},
+        {"cracked_percent": 1.01},
+        {"mossy_percent": 0.8, "cracked_percent": 0.3},
+    ]:
+        with pytest.raises(BuildError) as info:
+            build_file(source, props=props)
+        assert info.value.diagnostics[0].code == "starlark_error"
 
 
 def test_build_outputs_write_deterministic_metadata_sidecar(tmp_path):

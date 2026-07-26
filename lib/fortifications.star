@@ -5,13 +5,27 @@ load("openings.star", "DoubleDoor", "SingleDoor")
 load("fixtures.star", "Ladder")
 
 
-def BattlementWall(length, height, material="minecraft:stone_bricks"):
+def _picked_material(material, material_picker, x, y, z):
+    if material_picker == None:
+        return material
+    return material_picker(material, x, y, z)
+
+
+def BattlementWall(length, height, material="minecraft:stone_bricks", material_picker=None):
     """Solid curtain wall with alternating merlons along its crown."""
     if length < 3 or height < 2:
         fail("BattlementWall requires length >= 3 and height >= 2")
-    parts = [fill_region([0, 0, 0], [length, height, 1], block(material))]
+    parts = []
+    if material_picker == None:
+        parts.append(fill_region([0, 0, 0], [length, height, 1], block(material)))
+    else:
+        for y in range(height):
+            for x in range(length):
+                parts.append(place_block(
+                    [x, y, 0], block(_picked_material(material, material_picker, x, y, 0))))
     for x in range(0, length, 2):
-        parts.append(place_block([x, height, 0], block(material)))
+        parts.append(place_block(
+            [x, height, 0], block(_picked_material(material, material_picker, x, height, 0))))
     return component(
         name="BattlementWall",
         props={"length": length, "height": height, "material": material},
@@ -20,23 +34,42 @@ def BattlementWall(length, height, material="minecraft:stone_bricks"):
     )
 
 
-def SquareTower(size, height, material="minecraft:stone_bricks"):
+def SquareTower(size, height, material="minecraft:stone_bricks", material_picker=None):
     """Hollow square tower with arrow slits and a crenellated crown."""
     if size < 5 or height < 10:
         fail("SquareTower requires size >= 5 and height >= 10")
-    parts = [
-        fill_region([0, 0, 0], [size, height, 1], block(material)),
-        fill_region([0, 0, size - 1], [size, height, size], block(material)),
-        fill_region([0, 0, 1], [1, height, size - 1], block(material)),
-        fill_region([size - 1, 0, 1], [size, height, size - 1], block(material)),
-    ]
-    for x in range(0, size, 2):
-        parts.append(place_block([x, height, 0], block(material)))
-        parts.append(place_block([x, height, size - 1], block(material)))
-    for z in range(2, size - 2, 2):
-        parts.append(place_block([0, height, z], block(material)))
-        parts.append(place_block([size - 1, height, z], block(material)))
+    parts = []
     mid = size // 2
+    slit_levels = [height - 10, height - 9, height - 5, height - 4]
+    if material_picker == None:
+        parts = [
+            fill_region([0, 0, 0], [size, height, 1], block(material)),
+            fill_region([0, 0, size - 1], [size, height, size], block(material)),
+            fill_region([0, 0, 1], [1, height, size - 1], block(material)),
+            fill_region([size - 1, 0, 1], [size, height, size - 1], block(material)),
+        ]
+    else:
+        for y in range(height):
+            for z in range(size):
+                for x in range(size):
+                    boundary = x == 0 or x == size - 1 or z == 0 or z == size - 1
+                    slit = y in slit_levels and ((x == mid and (z == 0 or z == size - 1)) or
+                                                 (z == mid and (x == 0 or x == size - 1)))
+                    if boundary and not slit:
+                        parts.append(place_block(
+                            [x, y, z], block(_picked_material(material, material_picker, x, y, z))))
+    for x in range(0, size, 2):
+        parts.append(place_block(
+            [x, height, 0], block(_picked_material(material, material_picker, x, height, 0))))
+        parts.append(place_block(
+            [x, height, size - 1],
+            block(_picked_material(material, material_picker, x, height, size - 1))))
+    for z in range(2, size - 2, 2):
+        parts.append(place_block(
+            [0, height, z], block(_picked_material(material, material_picker, 0, height, z))))
+        parts.append(place_block(
+            [size - 1, height, z],
+            block(_picked_material(material, material_picker, size - 1, height, z))))
     for y in [height - 10, height - 5]:
         parts.append(carve_region([mid, y, 0], [mid + 1, y + 2, 1]))
         parts.append(carve_region([mid, y, size - 1], [mid + 1, y + 2, size]))
@@ -127,22 +160,38 @@ def Portcullis(width=3, height=4, material="minecraft:iron_bars"):
 
 
 def Gatehouse(width=9, height=8, depth=5, opening_width=3, opening_height=4,
-              material="minecraft:stone_bricks", bars="minecraft:iron_bars"):
+              material="minecraft:stone_bricks", bars="minecraft:iron_bars", material_picker=None):
     """Battlemented gatehouse with a centered tunnel and front portcullis."""
     if width < opening_width + 4 or depth < 3:
         fail("Gatehouse requires side walls >= 2 and depth >= 3")
     if opening_width < 2 or opening_height < 3 or height < opening_height + 2:
         fail("Gatehouse opening is too small or too tall")
     opening_x = (width - opening_width) // 2
-    parts = [
-        fill_region([0, 0, 0], [width, height, depth], block(material)),
+    slit_y = opening_height + 1
+    parts = []
+    if material_picker == None:
+        parts.append(fill_region([0, 0, 0], [width, height, depth], block(material)))
+    else:
+        for y in range(height):
+            for z in range(depth):
+                for x in range(width):
+                    tunnel = opening_x <= x and x < opening_x + opening_width and y < opening_height
+                    slit = z == depth - 1 and (x == 1 or x == width - 2) and (y == slit_y or y == slit_y + 1)
+                    if not tunnel and not slit:
+                        parts.append(place_block(
+                            [x, y, z], block(_picked_material(material, material_picker, x, y, z))))
+    parts += [
         carve_region([opening_x, 0, 0], [opening_x + opening_width, opening_height, depth]),
         transform([opening_x, 0, depth - 1], 0, [opening_width, opening_height, 1],
                   Portcullis(opening_width, opening_height, bars)),
     ]
     for x in range(0, width, 2):
-        parts.append(fill_region([x, height, 0], [x + 1, height + 1, depth], block(material)))
-    slit_y = opening_height + 1
+        if material_picker == None:
+            parts.append(fill_region([x, height, 0], [x + 1, height + 1, depth], block(material)))
+        else:
+            for z in range(depth):
+                parts.append(place_block(
+                    [x, height, z], block(_picked_material(material, material_picker, x, height, z))))
     parts.append(carve_region([1, slit_y, depth - 1], [2, slit_y + 2, depth]))
     parts.append(carve_region([width - 2, slit_y, depth - 1], [width - 1, slit_y + 2, depth]))
     return component(

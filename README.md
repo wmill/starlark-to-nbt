@@ -16,7 +16,9 @@ uv run starlark-to-nbt build examples/keep.star --output keep.nbt
 uv run starlark-to-nbt build examples/riverside_farmstead.star --output riverside_farmstead.nbt
 uv run starlark-to-nbt build examples/market_square.star --output market_square.nbt
 uv run starlark-to-nbt build examples/frontier_outpost.star --output frontier_outpost.nbt
-uv run starlark-to-nbt build examples/stone_pass_fortress.star --output stone_pass_fortress.nbt
+uv run starlark-to-nbt build examples/stone_pass_fortress.star \
+  --arg mossy_percent=0.15 --arg cracked_percent=0.07 \
+  --output stone_pass_fortress.nbt
 uv run starlark-to-nbt build examples/medieval_manor.star --output medieval_manor.nbt
 uv run starlark-to-nbt build examples/mega_castle.star --output mega_castle.nbt
 
