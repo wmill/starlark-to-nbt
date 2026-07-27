@@ -9,6 +9,7 @@ load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Firepl
 load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "RoundTree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse")
 load("fortifications.star", "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower", "RampartWall", "RampartTower")
 load("dwellings.star", "GuestHouse")
+load("redstone.star", "RedstoneTorch", "RedstoneLamp", "RedstoneBlock", "Lever", "Button", "PressurePlate", "Repeater", "Comparator", "Observer", "Piston", "Dispenser", "Dropper", "Hopper", "NoteBlock", "TargetBlock", "DaylightDetector", "RedstoneLine", "VerticalRedstone", "NotGate", "OrGate", "NorGate", "NandGate", "AndGate", "XorGate", "XnorGate", "RedstoneClock", "HopperClock", "TFlipFlop", "PulseExtender", "LampMatrix", "PistonTrapdoor", "PistonDoor", "ItemSorter")
 
 
 def showcase(name):
@@ -125,6 +126,72 @@ def showcase(name):
         return RampartTower()
     elif name == "GuestHouse":
         return GuestHouse()
+    elif name == "RedstoneTorch":
+        return RedstoneTorch()
+    elif name == "RedstoneLamp":
+        return RedstoneLamp()
+    elif name == "RedstoneBlock":
+        return RedstoneBlock()
+    elif name == "Lever":
+        return Lever()
+    elif name == "Button":
+        return Button()
+    elif name == "PressurePlate":
+        return PressurePlate()
+    elif name == "Repeater":
+        return Repeater(3)
+    elif name == "Comparator":
+        return Comparator("subtract")
+    elif name == "Observer":
+        return Observer()
+    elif name == "Piston":
+        return Piston(sticky=True, extended=True)
+    elif name == "Dispenser":
+        return Dispenser(["minecraft:arrow"])
+    elif name == "Dropper":
+        return Dropper(["minecraft:cobblestone"])
+    elif name == "Hopper":
+        return Hopper(["minecraft:redstone"])
+    elif name == "NoteBlock":
+        return NoteBlock("bell", 12)
+    elif name == "TargetBlock":
+        return TargetBlock()
+    elif name == "DaylightDetector":
+        return DaylightDetector()
+    elif name == "RedstoneLine":
+        return RedstoneLine(5)
+    elif name == "VerticalRedstone":
+        return VerticalRedstone(4)
+    elif name == "NotGate":
+        return NotGate()
+    elif name == "OrGate":
+        return OrGate()
+    elif name == "NorGate":
+        return NorGate()
+    elif name == "NandGate":
+        return NandGate()
+    elif name == "AndGate":
+        return AndGate()
+    elif name == "XorGate":
+        return XorGate()
+    elif name == "XnorGate":
+        return XnorGate()
+    elif name == "RedstoneClock":
+        return RedstoneClock(3)
+    elif name == "HopperClock":
+        return HopperClock()
+    elif name == "TFlipFlop":
+        return TFlipFlop()
+    elif name == "PulseExtender":
+        return PulseExtender(4)
+    elif name == "LampMatrix":
+        return LampMatrix(4, 3)
+    elif name == "PistonTrapdoor":
+        return PistonTrapdoor(2)
+    elif name == "PistonDoor":
+        return PistonDoor()
+    elif name == "ItemSorter":
+        return ItemSorter()
     else:
         fail("unknown component %s" % name)
 
@@ -137,6 +204,11 @@ COMPONENT_NAMES = [
     "Well", "FenceRing", "Path", "Tree", "RoundTree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse",
     "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower", "RampartWall", "RampartTower",
     "GuestHouse",
+    "RedstoneTorch", "RedstoneLamp", "RedstoneBlock", "Lever", "Button", "PressurePlate", "Repeater", "Comparator", "Observer", "Piston", "Dispenser", "Dropper", "Hopper", "NoteBlock", "TargetBlock", "DaylightDetector",
+    "RedstoneLine", "VerticalRedstone",
+    "NotGate", "OrGate", "NorGate", "NandGate", "AndGate", "XorGate", "XnorGate",
+    "RedstoneClock", "HopperClock", "TFlipFlop", "PulseExtender",
+    "LampMatrix", "PistonTrapdoor", "PistonDoor", "ItemSorter",
 ]
 
 
