@@ -253,46 +253,49 @@ standalone and drop onto any floor. State values are strings (`delay="3"`,
 `north/east/south/west` connection keys, and `axis` all rotate; `up`/`down`
 facings and lever/button `face` are left alone).
 
-Note: the components' *structure* is tested, but redstone *timing/behavior* is
-only verified in-game. `XorGate`, `XnorGate`, `TFlipFlop`, `PistonTrapdoor`,
-`PistonDoor`, and `ItemSorter` are first-draft schematics — build them into a
-1.21.7 world and confirm the mechanics.
+Gate inputs are isolated and their port coordinates are described below.
+Timing, piston, and inventory mechanisms use Java 1.21.7 behavior; their
+standalone layouts and rotations are covered by the library test harness.
 
 | Component | Size (X,Y,Z) | Notes |
 |---|---|---|
 | `RedstoneTorch(lit=True)` | `[1, 1, 1]` | Standing torch (place on a block). |
+| `RedstoneWallTorch(facing="south", lit=True)` | `[1, 1, 1]` | Wall torch; requires a support behind the visible face. |
+| `RedstoneWire(power=0)` | `[1, 1, 1]` | One dust cell; connections update in-world, `power` is 0-15. |
 | `RedstoneLamp(lit=False)` | `[1, 1, 1]` | Redstone lamp block. |
 | `RedstoneBlock()` | `[1, 1, 1]` | Always-on power source. |
 | `Lever(face="floor", facing="south", powered=False)` | `[1, 1, 1]` | `face` is floor/wall/ceiling. |
 | `Button(material="minecraft:stone_button", face="floor", facing="south", powered=False)` | `[1, 1, 1]` | Any button material. |
 | `PressurePlate(material="minecraft:stone_pressure_plate", powered=False)` | `[1, 1, 1]` | Lay one Y above the floor. |
+| `WeightedPressurePlate(material="minecraft:light_weighted_pressure_plate", power=0)` | `[1, 1, 1]` | Analog light/heavy plate; `power` is 0-15. |
 | `Repeater(delay=1, facing="south", locked=False, powered=False)` | `[1, 1, 1]` | Output points toward `facing`; `delay` 1-4. |
 | `Comparator(mode="compare", facing="south", powered=False)` | `[1, 1, 1]` | `mode` compare/subtract. |
 | `Observer(facing="south", powered=False)` | `[1, 1, 1]` | Sensing face is `facing`; pulse leaves the back. |
-| `Piston(sticky=False, facing="south", extended=False)` | `[1,1,1]` or `[1,1,2]` | `extended` adds the head one block ahead (assumes south; rotate the whole component). |
+| `Piston(sticky=False, facing="south", extended=False)` | Direction-dependent | `extended` atomically places a body/head pair for all six facings. |
 | `Dispenser(items=None, facing="south")` | `[1, 1, 1]` | `items` preloads slots (see `container_nbt`). |
 | `Dropper(items=None, facing="south")` | `[1, 1, 1]` | Same item model as Dispenser. |
 | `Hopper(items=None, facing="down")` | `[1, 1, 1]` | `facing` is down or a cardinal (never up). |
 | `NoteBlock(instrument="harp", note=0, powered=False)` | `[1, 1, 1]` | `note` 0-24. |
 | `TargetBlock()` | `[1, 1, 1]` | Emits redstone when hit. |
 | `DaylightDetector(inverted=False)` | `[1, 1, 1]` | `inverted` makes it a night sensor. |
+| `CopperBulb(material="minecraft:copper_bulb", lit=False, powered=False)` | `[1, 1, 1]` | Pulse-toggle memory/light; material selects oxidation and wax state. |
 | `RedstoneLine(length, base="minecraft:smooth_stone")` | `[1, 2, length]` | Base row + dust line along +Z. |
 | `VerticalRedstone(height, base=...)` | `[1, height+1, height]` | Block staircase carrying signal up one level per step along +Z. |
 | `NotGate(base=...)` | `[1, 2, 4]` | Inverter; input z=0, output z=3. |
-| `OrGate(base=...)` | `[3, 2, 3]` | Inputs at x=0/x=2 (north), output centered south. |
-| `NorGate(base=...)` | `[3, 2, 5]` | OR then invert. |
+| `OrGate(base=...)` | `[3, 2, 4]` | Isolated inputs at x=0/x=2 north; centered south output. |
+| `NorGate(base=...)` | `[3, 2, 7]` | Isolated OR followed by an inverter. |
 | `NandGate(base=...)` | `[3, 2, 5]` | Invert each input, then OR. |
 | `AndGate(base=...)` | `[3, 2, 8]` | NAND then invert. |
-| `XorGate(base=...)` | `[3, 2, 5]` | Comparator differencer; on iff inputs differ. |
-| `XnorGate(base=...)` | `[3, 2, 8]` | XOR core then invert. |
-| `RedstoneClock(period=2, base=...)` | `[3, 2, 3]` | Dust ring with one repeater setting the `period` (1-4). |
-| `HopperClock(items=None, base=...)` | `[2, 2, 2]` | Two hoppers + comparators; more `items` = longer period. |
-| `TFlipFlop(base=...)` | `[3, 2, 3]` | Toggle memory (sticky piston + redstone block). |
-| `PulseExtender(ticks=4, base=...)` | `[1, 2, 4]` | Stretches a short input pulse to `ticks`. |
+| `XorGate(base=...)` | `[5, 2, 7]` | Isolated torch XOR; inputs x=0/x=4, output x=2. |
+| `XnorGate(base=...)` | `[5, 2, 10]` | XOR core followed by an inverter. |
+| `RedstoneClock(period=2, base=...)` | `[5, 2, 8]` | Four-repeater pulse loop; north pulse starts it, center lever locks/pauses a stage, south-east repeater is output. |
+| `HopperClock(items=None, base=...)` | `[7, 2, 3]` | Alternating comparator outputs; more hopper items produce a longer period. |
+| `TFlipFlop(base=...)` | `[1, 2, 5]` | Copper-bulb toggle memory with north pulse input and south comparator output. |
+| `PulseExtender(ticks=4, base=...)` | `[4, 2, (ticks+3)//4+5]` | Direct/delayed copper-bulb one-shot; input pulse must be shorter than positive `ticks`. |
 | `LampMatrix(width, height, lamp="minecraft:redstone_lamp", base=...)` | `[width, height, 2]` | Lamp wall on a backing panel — a drivable display. |
-| `PistonTrapdoor(width=2, base=...)` | `[width, 3, 3]` | Row of upward sticky pistons holding flush floor blocks. |
-| `PistonDoor(base=..., door="minecraft:smooth_stone")` | `[4, 3, 3]` | Flush 2x2 double piston door facing +Z. |
-| `ItemSorter(target="minecraft:redstone", base=...)` | `[3, 3, 2]` | Comparator/hopper single-item sorter; fill the filter hopper in-game to tune. |
+| `PistonTrapdoor(width=2, base=...)` | `[width, 3, 4]` | Retracting floor bridge; integrated top lever, powered = closed. |
+| `PistonDoor(base=..., door="minecraft:smooth_stone")` | `[6, 4, 3]` | 2x2 side-piston door; integrated top lever, powered = closed. |
+| `ItemSorter(target="minecraft:redstone", filler="minecraft:light_gray_stained_glass_pane", base=...)` | `[3, 5, 6]` | Overflow-safe 41+4 hopper filter; north feed, south pass-through and filtered output. |
 
 ## Worked examples
 
@@ -329,10 +332,11 @@ only verified in-game. `XorGate`, `XnorGate`, `TFlipFlop`, `PistonTrapdoor`,
 - `examples/claude_pergola.star` — 11x7x13 garden nook with ground level 1: an
   open pergola sheltering a bench and a standing sign with glowing orange
   block-entity text, plus an entrance path, flower beds, and lantern posts.
-- `examples/redstone_showcase.star` — 14x3x13 logic bench: a row of AND/OR/XOR/NOT
-  gates on their own base slabs, a signal line, a repeater, a lamp, and a lever,
-  all `load()`-composed from `lib/redstone.star` with no overlaps. Redstone
-  mechanics should be confirmed in-game.
+- `examples/redstone_showcase.star` — 52x7x45 interactive redstone lab with
+  independently controlled truth-table stations for all seven gates, labeled
+  timing/memory circuits, and signed piston, sorting, display, and analog-input
+  demonstrations. Blue/green controls are A/B, orange controls are pulses, and
+  south-edge lamps are outputs.
 - `examples/procedural_facade.star` — 29x8x1 pattern wall gallery: checkerboard,
   gradient, diagonal-stripe, and triangular-wave-crenellation panels, each a
   different index-driven material formula.

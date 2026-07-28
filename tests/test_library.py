@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from starlark_to_nbt.pipeline import build_file
-from starlark_to_nbt.model import Point
+from starlark_to_nbt.model import BuildError, Point
 
 SHOWCASE = Path(__file__).parents[1] / "lib" / "showcase.star"
 
@@ -152,13 +152,14 @@ def test_timber_fortifications_have_tips_atomic_gate_and_rotating_ladder():
 
 
 def test_repeater_carries_delay_and_rotates_facing():
-    rep = build_file(SHOWCASE, props={"name": "Repeater"})   # Repeater(3), faces south
+    rep = build_file(SHOWCASE, props={"name": "Repeater"})   # output faces south
     south = rep.volume.block_at(Point(0, 0, 0))
     assert south.block_type == "minecraft:repeater"
     assert south.block_state["delay"] == "3"
-    assert south.block_state["facing"] == "south"
+    # Java's stored diode facing points from output toward input.
+    assert south.block_state["facing"] == "north"
     turned = build_file(SHOWCASE, entry="rotated", props={"name": "Repeater", "rotation": 90})
-    assert turned.volume.block_at(Point(0, 0, 0)).block_state["facing"] == "west"
+    assert turned.volume.block_at(Point(0, 0, 0)).block_state["facing"] == "east"
 
 
 def test_gate_has_solid_base_with_dust_on_top_and_inverting_torch():
@@ -188,3 +189,100 @@ def test_dispenser_carries_container_nbt_and_extended_piston_is_atomic():
     assert len(assemblies) == 1 and len(assemblies[0].writes) == 2
     head = piston.volume.block_at(Point(0, 0, 1))
     assert head.block_type == "minecraft:piston_head" and head.block_state["type"] == "sticky"
+
+
+def test_redstone_analog_primitives_and_copper_memory_have_valid_states():
+    plate = build_file(SHOWCASE, props={"name": "WeightedPressurePlate"})
+    assert plate.volume.block_at(Point(0, 0, 0)).block_state == {"power": "7"}
+
+    wire = build_file(SHOWCASE, props={"name": "RedstoneWire"})
+    assert wire.volume.block_at(Point(0, 0, 0)).block_state == {"power": "0"}
+
+    bulb = build_file(SHOWCASE, props={"name": "CopperBulb"})
+    assert bulb.volume.block_at(Point(0, 0, 0)).block_state == {
+        "lit": "false", "powered": "false",
+    }
+
+
+def test_xor_has_isolated_inputs_product_torches_and_centered_output():
+    xor = build_file(SHOWCASE, props={"name": "XorGate"})
+    assert xor.volume.bounds.size == Point(5, 2, 7)
+    assert xor.volume.block_at(Point(0, 1, 2)).block_state["facing"] == "north"
+    assert xor.volume.block_at(Point(4, 1, 2)).block_state["facing"] == "north"
+    assert xor.volume.block_at(Point(2, 1, 3)).block_type == "minecraft:redstone_wall_torch"
+    assert xor.volume.block_at(Point(1, 1, 3)).block_state["facing"] == "east"
+    assert xor.volume.block_at(Point(3, 1, 3)).block_state["facing"] == "west"
+    assert xor.volume.block_at(Point(0, 1, 4)).block_type == "minecraft:redstone_wall_torch"
+    assert xor.volume.block_at(Point(4, 1, 4)).block_type == "minecraft:redstone_wall_torch"
+    output = xor.volume.block_at(Point(2, 1, 6))
+    assert output.block_type == "minecraft:repeater"
+    assert output.block_state["facing"] == "north"
+
+
+def test_pulse_extender_delayed_branch_reaches_bulb_side_input():
+    extender = build_file(SHOWCASE, props={"name": "PulseExtender"})
+    assert extender.volume.block_at(Point(3, 1, 3)).block_type == "minecraft:redstone_wire"
+    delayed_output = extender.volume.block_at(Point(2, 1, 3))
+    assert delayed_output.block_type == "minecraft:repeater"
+    assert delayed_output.block_state["facing"] == "east"
+    assert extender.volume.block_at(Point(1, 1, 3)).block_type == "minecraft:copper_bulb"
+
+
+def test_redstone_clock_has_diode_input_lock_and_explicit_output():
+    clock = build_file(SHOWCASE, props={"name": "RedstoneClock"})
+    assert clock.volume.bounds.size == Point(5, 2, 8)
+    assert clock.volume.block_at(Point(1, 1, 1)).block_state["facing"] == "north"
+    assert clock.volume.block_at(Point(2, 1, 3)).block_state["facing"] == "south"
+    assert clock.volume.block_at(Point(2, 1, 4)).block_type == "minecraft:lever"
+    assert clock.volume.block_at(Point(4, 1, 7)).block_state["facing"] == "north"
+
+
+def test_item_sorter_has_overflow_safe_filter_inventory_and_locked_extractor():
+    sorter = build_file(SHOWCASE, props={"name": "ItemSorter"})
+    filter_hopper = sorter.volume.block_at(Point(1, 3, 1))
+    assert filter_hopper.block_type == "minecraft:hopper"
+    assert [item["count"] for item in filter_hopper.block_nbt["Items"]] == [41, 1, 1, 1, 1]
+    assert filter_hopper.block_nbt["Items"][0]["id"] == "minecraft:redstone"
+    assert {item["id"] for item in filter_hopper.block_nbt["Items"][1:]} == {
+        "minecraft:light_gray_stained_glass_pane",
+    }
+    extractor = sorter.volume.block_at(Point(1, 2, 1))
+    assert extractor.block_state == {"facing": "south", "enabled": "false"}
+
+
+def test_extended_pistons_cover_all_six_facings_atomically(tmp_path):
+    redstone = SHOWCASE.parent / "redstone.star"
+    source = tmp_path / "pistons.star"
+    source.write_text(
+        f'load("{redstone}", "Piston")\n'
+        'def build(facing="up"):\n'
+        '    return Piston(sticky=True, facing=facing, extended=True)\n',
+        encoding="utf-8",
+    )
+    expected = {
+        "down": (Point(1, 2, 1), Point(0, 0, 0)),
+        "up": (Point(1, 2, 1), Point(0, 1, 0)),
+        "north": (Point(1, 1, 2), Point(0, 0, 0)),
+        "south": (Point(1, 1, 2), Point(0, 0, 1)),
+        "west": (Point(2, 1, 1), Point(0, 0, 0)),
+        "east": (Point(2, 1, 1), Point(1, 0, 0)),
+    }
+    for facing, (size, head_pos) in expected.items():
+        result = build_file(source, props={"facing": facing})
+        assert result.volume.bounds.size == size
+        assert result.volume.block_at(head_pos).block_type == "minecraft:piston_head"
+        assemblies = [op for op in result.operations if op.assembly_name == "piston"]
+        assert len(assemblies) == 1 and len(assemblies[0].writes) == 2
+
+
+def test_redstone_argument_ranges_fail_in_starlark(tmp_path):
+    redstone = SHOWCASE.parent / "redstone.star"
+    source = tmp_path / "invalid.star"
+    source.write_text(
+        f'load("{redstone}", "Repeater")\n'
+        'def build():\n'
+        '    return Repeater(delay=5)\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(BuildError, match="delay must be between 1 and 4"):
+        build_file(source)

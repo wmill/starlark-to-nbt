@@ -392,12 +392,17 @@ def test_stone_pass_weathering_percentages_are_configurable_and_validated():
         assert info.value.diagnostics[0].code == "starlark_error"
 
 
-def test_build_outputs_write_deterministic_metadata_sidecar(tmp_path):
+def test_build_outputs_replace_existing_nbt_and_metadata_sidecar(tmp_path):
     result = build_file(EXAMPLES / "frontier_outpost.star")
     output = tmp_path / "frontier.nbt"
+    metadata = output.with_suffix(".meta.json")
+    output.write_bytes(b"stale nbt")
+    metadata.write_text("stale metadata\n", encoding="utf-8")
+
     write_build_outputs(result, output)
 
-    metadata = output.with_suffix(".meta.json")
+    decoded = nbtlib.load(output)
+    assert list(map(int, decoded["size"])) == [29, 14, 29]
     assert metadata.read_text(encoding="utf-8") == '{\n  "ground_level": 1,\n  "y_offset": -1\n}\n'
 
 
@@ -560,6 +565,43 @@ def test_claude_pergola_sign_carries_glowing_block_entity_text(tmp_path):
     assert str(front["color"]) == "orange"
     assert int(front["has_glowing_text"]) == 1
     assert int(sign["nbt"]["is_waxed"]) == 1
+
+
+def test_redstone_showcase_is_labeled_interactive_and_deterministic(tmp_path):
+    source = EXAMPLES / "redstone_showcase.star"
+    result = build_file(source)
+    assert result.volume.bounds.size == Point(52, 7, 45)
+    assert result.metadata.to_dict() == {"ground_level": 1, "y_offset": -1}
+
+    first = tmp_path / "redstone-1.nbt"
+    second = tmp_path / "redstone-2.nbt"
+    write_structure_nbt(result.volume, first)
+    write_structure_nbt(build_file(source).volume, second)
+    assert first.read_bytes() == second.read_bytes()
+
+    decoded = nbtlib.load(first)
+    signs = [
+        entry for entry in decoded["blocks"]
+        if "nbt" in entry and "front_text" in entry["nbt"]
+    ]
+    assert len(signs) == 18
+    headings = {
+        str(entry["nbt"]["front_text"]["messages"][0])
+        for entry in signs
+    }
+    assert {
+        "REDSTONE LAB", "NOT", "OR", "NOR", "NAND", "AND", "XOR", "XNOR",
+        "T FLIP-FLOP", "PULSE EXTENDER", "REPEATER CLOCK", "MEMORY DEMOS",
+        "HOPPER CLOCK", "PISTON BRIDGE", "2x2 PISTON DOOR", "ITEM SORTER",
+        "LAMP MATRIX", "ANALOG INPUT",
+    } == headings
+
+    palette_names = {str(entry["Name"]) for entry in decoded["palette"]}
+    assert {
+        "minecraft:lever", "minecraft:stone_button", "minecraft:redstone_lamp",
+        "minecraft:copper_bulb", "minecraft:comparator", "minecraft:hopper",
+        "minecraft:sticky_piston",
+    } <= palette_names
 
 
 def test_container_helpers_pack_items_and_loot():

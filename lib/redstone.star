@@ -13,9 +13,9 @@
 #     connection keys north/east/south/west, and `axis` all rotate correctly;
 #     up/down facings and lever/button `face` are left alone.
 #
-# The gates' *structure* (block types, states, positions) is asserted by tests,
-# but redstone *timing/behavior* can only be confirmed in-game. XOR/XNOR and the
-# big contraptions in particular are best double-checked in a 1.21.7 world.
+# Public circuits expose inputs on their north edge and outputs on their south
+# edge.  They deliberately favor clear, isolated, rotation-safe layouts over
+# minimum block count.
 
 _BASE = "minecraft:smooth_stone"
 _DUST = "minecraft:redstone_wire"
@@ -28,6 +28,36 @@ def _b(value):
     if value:
         return "true"
     return "false"
+
+
+def _require_range(name, value, low, high):
+    if value < low or value > high:
+        fail("%s must be between %s and %s" % (name, low, high))
+
+
+def _require_positive(name, value):
+    if value < 1:
+        fail("%s must be at least 1" % name)
+
+
+def _require_cardinal(name, value):
+    if value not in ["north", "east", "south", "west"]:
+        fail("%s must be north, east, south, or west" % name)
+
+
+def _require_facing(name, value):
+    if value not in ["down", "up", "north", "east", "south", "west"]:
+        fail("%s must be down, up, north, east, south, or west" % name)
+
+
+def _diode_state_facing(output_facing):
+    """Java diode states point from output toward input."""
+    return {
+        "north": "south",
+        "east": "west",
+        "south": "north",
+        "west": "east",
+    }[output_facing]
 
 
 def _slab(width, length, material):
@@ -71,6 +101,32 @@ def RedstoneTorch(lit=True):
     )
 
 
+def RedstoneWallTorch(facing="south", lit=True):
+    """Wall torch whose visible/output side points toward `facing`."""
+    _require_cardinal("facing", facing)
+    return component(
+        name="RedstoneWallTorch",
+        props={"facing": facing, "lit": lit},
+        min_size=[1, 1, 1],
+        body=place_block([0, 0, 0],
+                         block(_WALL_TORCH, {"facing": facing, "lit": _b(lit)}),
+                         phase="fixture"),
+    )
+
+
+def RedstoneWire(power=0):
+    """One redstone-wire cell. Connections are recalculated in-world."""
+    _require_range("power", power, 0, 15)
+    return component(
+        name="RedstoneWire",
+        props={"power": power},
+        min_size=[1, 1, 1],
+        body=place_block([0, 0, 0],
+                         block(_DUST, {"power": str(power)}),
+                         phase="fixture"),
+    )
+
+
 def RedstoneLamp(lit=False):
     """Redstone lamp block."""
     return component(
@@ -93,6 +149,9 @@ def RedstoneBlock():
 
 def Lever(face="floor", facing="south", powered=False):
     """Lever. `face` is floor/wall/ceiling; `facing` is the cardinal it points."""
+    if face not in ["floor", "wall", "ceiling"]:
+        fail("face must be floor, wall, or ceiling")
+    _require_cardinal("facing", facing)
     return component(
         name="Lever",
         props={"face": face, "facing": facing, "powered": powered},
@@ -106,6 +165,9 @@ def Lever(face="floor", facing="south", powered=False):
 
 def Button(material="minecraft:stone_button", face="floor", facing="south", powered=False):
     """Button of any button material; same face/facing model as Lever."""
+    if face not in ["floor", "wall", "ceiling"]:
+        fail("face must be floor, wall, or ceiling")
+    _require_cardinal("facing", facing)
     return component(
         name="Button",
         props={"material": material, "face": face, "facing": facing, "powered": powered},
@@ -118,6 +180,8 @@ def Button(material="minecraft:stone_button", face="floor", facing="south", powe
 
 def PressurePlate(material="minecraft:stone_pressure_plate", powered=False):
     """Pressure plate; lay one Y above the floor."""
+    if material in ["minecraft:light_weighted_pressure_plate", "minecraft:heavy_weighted_pressure_plate"]:
+        fail("weighted plates must use WeightedPressurePlate")
     return component(
         name="PressurePlate",
         props={"material": material, "powered": powered},
@@ -126,15 +190,30 @@ def PressurePlate(material="minecraft:stone_pressure_plate", powered=False):
     )
 
 
+def WeightedPressurePlate(material="minecraft:light_weighted_pressure_plate", power=0):
+    """Light/heavy weighted plate with an analog power level from 0 to 15."""
+    if material not in ["minecraft:light_weighted_pressure_plate", "minecraft:heavy_weighted_pressure_plate"]:
+        fail("material must be a light or heavy weighted pressure plate")
+    _require_range("power", power, 0, 15)
+    return component(
+        name="WeightedPressurePlate",
+        props={"material": material, "power": power},
+        min_size=[1, 1, 1],
+        body=place_block([0, 0, 0], block(material, {"power": str(power)}), phase="fixture"),
+    )
+
+
 def Repeater(delay=1, facing="south", locked=False, powered=False):
     """Repeater; output points toward `facing`. `delay` is 1-4 ticks."""
+    _require_range("delay", delay, 1, 4)
+    _require_cardinal("facing", facing)
     return component(
         name="Repeater",
         props={"delay": delay, "facing": facing, "locked": locked, "powered": powered},
         min_size=[1, 1, 1],
         body=place_block([0, 0, 0],
                          block("minecraft:repeater",
-                               {"delay": str(delay), "facing": facing,
+                               {"delay": str(delay), "facing": _diode_state_facing(facing),
                                 "locked": _b(locked), "powered": _b(powered)}),
                          phase="fixture"),
     )
@@ -142,19 +221,24 @@ def Repeater(delay=1, facing="south", locked=False, powered=False):
 
 def Comparator(mode="compare", facing="south", powered=False):
     """Comparator; `mode` is compare/subtract, output points toward `facing`."""
+    if mode not in ["compare", "subtract"]:
+        fail("mode must be compare or subtract")
+    _require_cardinal("facing", facing)
     return component(
         name="Comparator",
         props={"mode": mode, "facing": facing, "powered": powered},
         min_size=[1, 1, 1],
         body=place_block([0, 0, 0],
                          block("minecraft:comparator",
-                               {"mode": mode, "facing": facing, "powered": _b(powered)}),
+                               {"mode": mode, "facing": _diode_state_facing(facing),
+                                "powered": _b(powered)}),
                          phase="fixture"),
     )
 
 
 def Observer(facing="south", powered=False):
     """Observer; the sensing face points toward `facing`, pulse leaves the back."""
+    _require_facing("facing", facing)
     return component(
         name="Observer",
         props={"facing": facing, "powered": powered},
@@ -165,24 +249,32 @@ def Observer(facing="south", powered=False):
 
 
 def Piston(sticky=False, facing="south", extended=False):
-    """Piston facing `facing`. When `extended`, the head is placed one block
-    ahead (assumes facing="south" for standalone; rotate the whole component
-    for other directions)."""
+    """Piston facing `facing`; extended body/head pairs are atomic."""
+    _require_facing("facing", facing)
     body_type = "minecraft:sticky_piston" if sticky else "minecraft:piston"
     head_variant = "sticky" if sticky else "normal"
     if extended:
+        offsets = {
+            "down": [[0, 1, 0], [0, 0, 0], [1, 2, 1]],
+            "up": [[0, 0, 0], [0, 1, 0], [1, 2, 1]],
+            "north": [[0, 0, 1], [0, 0, 0], [1, 1, 2]],
+            "south": [[0, 0, 0], [0, 0, 1], [1, 1, 2]],
+            "west": [[1, 0, 0], [0, 0, 0], [2, 1, 1]],
+            "east": [[0, 0, 0], [1, 0, 0], [2, 1, 1]],
+        }
+        body_pos, head_pos, size = offsets[facing]
         return component(
             name="Piston",
             props={"sticky": sticky, "facing": facing, "extended": extended},
-            min_size=[1, 1, 2],
+            min_size=size,
             body=place_assembly(
                 pos=[0, 0, 0],
                 name="piston",
-                size=[1, 1, 2],
+                size=size,
                 blocks=[
-                    {"pos": [0, 0, 0], "block": block(body_type, {"facing": facing, "extended": "true"})},
-                    {"pos": [0, 0, 1], "block": block("minecraft:piston_head",
-                                                      {"facing": facing, "type": head_variant, "short": "false"})},
+                    {"pos": body_pos, "block": block(body_type, {"facing": facing, "extended": "true"})},
+                    {"pos": head_pos, "block": block("minecraft:piston_head",
+                                                     {"facing": facing, "type": head_variant, "short": "false"})},
                 ],
             ),
         )
@@ -196,6 +288,7 @@ def Piston(sticky=False, facing="south", extended=False):
 
 def Dispenser(items=None, facing="south"):
     """Dispenser facing `facing`; `items` preloads its 9 slots (see container_nbt)."""
+    _require_facing("facing", facing)
     return component(
         name="Dispenser",
         props={"items": items or [], "facing": facing},
@@ -208,6 +301,7 @@ def Dispenser(items=None, facing="south"):
 
 def Dropper(items=None, facing="south"):
     """Dropper facing `facing`; same item model as Dispenser."""
+    _require_facing("facing", facing)
     return component(
         name="Dropper",
         props={"items": items or [], "facing": facing},
@@ -220,6 +314,8 @@ def Dropper(items=None, facing="south"):
 
 def Hopper(items=None, facing="down"):
     """Hopper feeding toward `facing` (down or a cardinal, never up)."""
+    if facing not in ["down", "north", "east", "south", "west"]:
+        fail("hopper facing must be down or cardinal")
     return component(
         name="Hopper",
         props={"items": items or [], "facing": facing},
@@ -232,6 +328,7 @@ def Hopper(items=None, facing="down"):
 
 def NoteBlock(instrument="harp", note=0, powered=False):
     """Note block. `note` is 0-24 (pitch); `instrument` sets the timbre."""
+    _require_range("note", note, 0, 24)
     return component(
         name="NoteBlock",
         props={"instrument": instrument, "note": note, "powered": powered},
@@ -263,6 +360,29 @@ def DaylightDetector(inverted=False):
     )
 
 
+def CopperBulb(material="minecraft:copper_bulb", lit=False, powered=False):
+    """Pulse-toggle memory/light block; oxidation is selected by `material`."""
+    valid = [
+        "minecraft:copper_bulb",
+        "minecraft:exposed_copper_bulb",
+        "minecraft:weathered_copper_bulb",
+        "minecraft:oxidized_copper_bulb",
+        "minecraft:waxed_copper_bulb",
+        "minecraft:waxed_exposed_copper_bulb",
+        "minecraft:waxed_weathered_copper_bulb",
+        "minecraft:waxed_oxidized_copper_bulb",
+    ]
+    if material not in valid:
+        fail("material must be a copper bulb block")
+    return component(
+        name="CopperBulb",
+        props={"material": material, "lit": lit, "powered": powered},
+        min_size=[1, 1, 1],
+        body=place_block([0, 0, 0],
+                         block(material, {"lit": _b(lit), "powered": _b(powered)})),
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Wiring: carry a signal across distance or up a level.
 # --------------------------------------------------------------------------- #
@@ -270,6 +390,7 @@ def DaylightDetector(inverted=False):
 
 def RedstoneLine(length, base=_BASE):
     """Base row along +Z with a dust line on top."""
+    _require_positive("length", length)
     return component(
         name="RedstoneLine",
         props={"length": length, "base": base},
@@ -283,6 +404,7 @@ def RedstoneLine(length, base=_BASE):
 
 def VerticalRedstone(height, base=_BASE):
     """Staircase of blocks rising one level per step along +Z, dust on each."""
+    _require_positive("height", height)
     parts = []
     for i in range(height):
         parts.append(place_block([0, i, i], block(base)))
@@ -326,16 +448,25 @@ def NotGate(base=_BASE):
 
 
 def OrGate(base=_BASE):
-    """Output = A OR B. Inputs at (0,z0) and (2,z0); output at (1,z2)."""
+    """Output = A OR B. Repeaters keep the two north inputs isolated."""
     return component(
         name="OrGate",
         props={"base": base},
-        min_size=[3, 2, 3],
+        min_size=[3, 2, 4],
         body=group([
-            _slab(3, 3, base),
-            _dust_run_x(0, 3, 0),       # north bus links both inputs
-            _dust(1, 1),                # merge
-            _dust(1, 2),                # output
+            _slab(3, 4, base),
+            _dust(0, 0),
+            _dust(2, 0),
+            place_block([0, 1, 1],
+                        block("minecraft:repeater",
+                              {"delay": "1", "facing": "north", "locked": "false", "powered": "false"}),
+                        phase="fixture"),
+            place_block([2, 1, 1],
+                        block("minecraft:repeater",
+                              {"delay": "1", "facing": "north", "locked": "false", "powered": "false"}),
+                        phase="fixture"),
+            _dust_run_x(0, 3, 2),
+            _dust(1, 3),
         ]),
     )
 
@@ -345,15 +476,25 @@ def NorGate(base=_BASE):
     return component(
         name="NorGate",
         props={"base": base},
-        min_size=[3, 2, 5],
+        min_size=[3, 2, 7],
         body=group(
             [
-                _slab(3, 5, base),
-                _dust_run_x(0, 3, 0),   # inputs A (x=0) and B (x=2)
-                _dust(1, 1),            # merge -> points into inverter block
+                _slab(3, 7, base),
+                _dust(0, 0),
+                _dust(2, 0),
+                place_block([0, 1, 1],
+                            block("minecraft:repeater",
+                                  {"delay": "1", "facing": "north", "locked": "false", "powered": "false"}),
+                            phase="fixture"),
+                place_block([2, 1, 1],
+                            block("minecraft:repeater",
+                                  {"delay": "1", "facing": "north", "locked": "false", "powered": "false"}),
+                            phase="fixture"),
+                _dust_run_x(0, 3, 2),
+                _dust(1, 3),
             ]
-            + _inverter(1, 2, base)     # block (1,1,2) + torch (1,1,3)
-            + [_dust(1, 4)]             # output
+            + _inverter(1, 4, base)
+            + [_dust(1, 6)]
         ),
     )
 
@@ -396,51 +537,90 @@ def AndGate(base=_BASE):
     )
 
 
-def _differencer(base):
-    """Two subtract-comparators reading opposite input rails: the parts that
-    turn |A - B| into an XOR core. Inputs at (0,0)/(2,0); XOR core out at (1,4).
-
-    NOTE: comparator-based first draft — verify/tune the crossover in-game."""
+def _xor_core(base):
+    """Torch XOR: NOT(A OR NOR(A,B)) OR NOT(B OR NOR(A,B))."""
     return [
-        _dust(0, 0), _dust(2, 0),
-        _dust(0, 1), _dust(2, 1),
+        _dust(0, 0), _dust(4, 0),
+        _dust(0, 1), _dust(4, 1),
+        # Isolated direct A/B feeds drive their blocks without an intervening
+        # dust cell that can turn sideways toward the NOR branch.
         place_block([0, 1, 2],
-                    block("minecraft:comparator", {"mode": "subtract", "facing": "south", "powered": "false"}),
+                    block("minecraft:repeater",
+                          {"delay": "1", "facing": "north",
+                           "locked": "false", "powered": "false"}),
                     phase="fixture"),
-        place_block([2, 1, 2],
-                    block("minecraft:comparator", {"mode": "subtract", "facing": "south", "powered": "false"}),
+        place_block([4, 1, 2],
+                    block("minecraft:repeater",
+                          {"delay": "1", "facing": "north",
+                           "locked": "false", "powered": "false"}),
                     phase="fixture"),
-        _dust(1, 2),                    # side coupling between the two comparators
-        _dust_run_x(0, 3, 3),           # merge the two differences
-        _dust(1, 4),
+        # A/B also merge through inward-facing repeaters to make NOR.
+        place_block([1, 1, 0],
+                    block("minecraft:repeater",
+                          {"delay": "1", "facing": "west",
+                           "locked": "false", "powered": "false"}),
+                    phase="fixture"),
+        place_block([3, 1, 0],
+                    block("minecraft:repeater",
+                          {"delay": "1", "facing": "east",
+                           "locked": "false", "powered": "false"}),
+                    phase="fixture"),
+        _dust(2, 0), _dust(2, 1),
+        place_block([2, 1, 2], block(base)),
+        _wall_torch(2, 3, "south"),
+        # The center torch drives each side block through an outward repeater;
+        # unlike dust, this cannot turn away from the block it must power.
+        place_block([1, 1, 3],
+                    block("minecraft:repeater",
+                          {"delay": "1", "facing": "east",
+                           "locked": "false", "powered": "false"}),
+                    phase="fixture"),
+        place_block([3, 1, 3],
+                    block("minecraft:repeater",
+                          {"delay": "1", "facing": "west",
+                           "locked": "false", "powered": "false"}),
+                    phase="fixture"),
+        place_block([0, 1, 3], block(base)),
+        place_block([4, 1, 3], block(base)),
+        _wall_torch(0, 4, "south"),
+        _wall_torch(4, 4, "south"),
+        # OR the two product terms.
+        _dust_run_x(0, 5, 5),
+        place_block([2, 1, 6],
+                    block("minecraft:repeater",
+                          {"delay": "1", "facing": "north",
+                           "locked": "false", "powered": "false"}),
+                    phase="fixture"),
     ]
 
 
 def XorGate(base=_BASE):
-    """Output = A XOR B (on iff inputs differ). Comparator differencer.
-
-    NOTE: first-draft schematic — confirm behavior in a 1.21.7 world."""
+    """Output = A XOR B (on iff inputs differ)."""
     return component(
         name="XorGate",
         props={"base": base},
-        min_size=[3, 2, 5],
-        body=group([_slab(3, 5, base)] + _differencer(base)),
+        min_size=[5, 2, 7],
+        body=group([_slab(5, 7, base)] + _xor_core(base)),
     )
 
 
 def XnorGate(base=_BASE):
-    """Output = A XNOR B (on iff inputs match) = NOT (A XOR B).
-
-    NOTE: XorGate core followed by an inverter; confirm behavior in-game."""
+    """Output = A XNOR B (on iff inputs match) = NOT (A XOR B)."""
     return component(
         name="XnorGate",
         props={"base": base},
-        min_size=[3, 2, 8],
+        min_size=[5, 2, 10],
         body=group(
-            [_slab(3, 8, base)]
-            + _differencer(base)        # XOR core out at (1,4)
-            + _inverter(1, 5, base)     # invert -> XNOR  (block z=5, torch z=6)
-            + [_dust(1, 7)]
+            [_slab(5, 10, base)]
+            + _xor_core(base)
+            + _inverter(2, 7, base)
+            + [
+                place_block([2, 1, 9],
+                            block("minecraft:repeater",
+                                  {"delay": "1", "facing": "north",
+                                   "locked": "false", "powered": "false"}),
+                            phase="fixture"),
+            ]
         ),
     )
 
@@ -451,110 +631,173 @@ def XnorGate(base=_BASE):
 
 
 def RedstoneClock(period=2, base=_BASE):
-    """Repeater loop clock: a dust ring with a repeater setting the `period`
-    (1-4 ticks per side). Toggle by breaking a dust cell."""
+    """Four-repeater pulse loop with a one-way north input.
+
+    The center lever locks the north ring repeater, pausing its current state.
+    `period` is the delay of each ring repeater (1-4 ticks)."""
+    _require_range("period", period, 1, 4)
     return component(
         name="RedstoneClock",
         props={"period": period, "base": base},
-        min_size=[3, 2, 3],
+        min_size=[5, 2, 8],
         body=group([
-            _slab(3, 3, base),
-            # Square dust loop around the perimeter...
-            _dust_run_x(0, 3, 0),
-            _dust_run_x(0, 3, 2),
-            _dust(0, 1),
-            # ...with one repeater in the ring to keep it oscillating.
-            place_block([2, 1, 1],
+            _slab(5, 8, base),
+            # Start pulse enters through a diode, then travels clockwise.
+            _dust(1, 0),
+            place_block([1, 1, 1], block("minecraft:repeater",
+                                         {"delay": "1", "facing": "north",
+                                          "locked": "false", "powered": "false"}), phase="fixture"),
+            _dust(0, 2), _dust(1, 2), _dust(3, 2), _dust(4, 2),
+            _dust(4, 3), _dust(4, 5),
+            _dust(4, 6), _dust(3, 6), _dust(1, 6), _dust(0, 6),
+            _dust(0, 5), _dust(0, 3),
+            place_block([2, 1, 2], block("minecraft:repeater",
+                                         {"delay": str(period), "facing": "west",
+                                          "locked": "false", "powered": "false"}), phase="fixture"),
+            place_block([4, 1, 4], block("minecraft:repeater",
+                                         {"delay": str(period), "facing": "north",
+                                          "locked": "false", "powered": "false"}), phase="fixture"),
+            place_block([2, 1, 6], block("minecraft:repeater",
+                                         {"delay": str(period), "facing": "east",
+                                          "locked": "false", "powered": "false"}), phase="fixture"),
+            place_block([0, 1, 4], block("minecraft:repeater",
+                                         {"delay": str(period), "facing": "south",
+                                          "locked": "false", "powered": "false"}), phase="fixture"),
+            # Center lever drives a repeater into the side of the north ring
+            # repeater, freezing that stage.
+            place_block([2, 1, 4],
+                        block("minecraft:lever",
+                              {"face": "floor", "facing": "south", "powered": "false"}),
+                        phase="fixture"),
+            place_block([2, 1, 3],
                         block("minecraft:repeater",
-                              {"delay": str(period), "facing": "north", "locked": "false", "powered": "false"}),
+                              {"delay": "1", "facing": "south", "locked": "false", "powered": "false"}),
+                        phase="fixture"),
+            # Explicit output avoids relying on dust's connection shape.
+            place_block([4, 1, 7],
+                        block("minecraft:repeater",
+                              {"delay": "1", "facing": "north",
+                               "locked": "false", "powered": "false"}),
                         phase="fixture"),
         ]),
     )
 
 
 def HopperClock(items=None, base=_BASE):
-    """Two hoppers passing an item back and forth, each read by a comparator —
-    a slow, adjustable clock. `items` seeds one hopper (more items = longer
-    period)."""
+    """Adjustable hopper clock with alternating comparator outputs."""
     if items == None:
-        items = ["minecraft:redstone"]
+        items = [{"id": "minecraft:redstone", "count": 16}]
     return component(
         name="HopperClock",
         props={"items": items, "base": base},
-        min_size=[2, 2, 2],
+        min_size=[7, 2, 3],
         body=group([
-            _slab(2, 2, base),
-            place_block([0, 1, 0],
+            _slab(7, 3, base),
+            place_block([2, 1, 1],
                         block("minecraft:hopper", {"facing": "east", "enabled": "true"},
                               nbt=container_nbt(items, id="minecraft:hopper"))),
-            place_block([1, 1, 0],
+            place_block([3, 1, 1],
                         block("minecraft:hopper", {"facing": "west", "enabled": "true"},
                               nbt=container_nbt(None, id="minecraft:hopper"))),
-            place_block([0, 1, 1],
-                        block("minecraft:comparator",
-                              {"mode": "compare", "facing": "south", "powered": "false"}),
-                        phase="fixture"),
             place_block([1, 1, 1],
                         block("minecraft:comparator",
-                              {"mode": "compare", "facing": "south", "powered": "false"}),
+                              {"mode": "compare", "facing": "east", "powered": "false"}),
                         phase="fixture"),
+            place_block([4, 1, 1],
+                        block("minecraft:comparator",
+                              {"mode": "compare", "facing": "west", "powered": "false"}),
+                        phase="fixture"),
+            _dust(0, 1), _dust(5, 1),
+            place_block([1, 1, 0],
+                        block("minecraft:sticky_piston", {"facing": "east", "extended": "false"})),
+            place_block([4, 1, 0],
+                        block("minecraft:sticky_piston", {"facing": "west", "extended": "false"})),
+            place_block([3, 1, 0], block("minecraft:redstone_block")),
+            _dust(0, 2), _dust(6, 2),
         ]),
     )
 
 
 def TFlipFlop(base=_BASE):
-    """Toggle memory: each input pulse flips the stored output. Built around a
-    sticky piston holding a redstone block against a read block.
-
-    NOTE: a compact known layout; verify latch behavior in-game."""
+    """Copper-bulb toggle memory. Input is north; comparator output is south."""
     return component(
         name="TFlipFlop",
         props={"base": base},
-        min_size=[3, 2, 3],
+        min_size=[1, 2, 5],
         body=group([
-            _slab(3, 3, base),
-            _dust(1, 0),                # trigger input
-            place_block([1, 1, 1], block("minecraft:sticky_piston", {"facing": "up", "extended": "false"})),
-            place_block([0, 1, 1], block("minecraft:redstone_block")),
-            place_block([2, 1, 1], block("minecraft:redstone_lamp", {"lit": "false"})),
-            _dust(1, 2),                # output tap
+            _slab(1, 5, base),
+            _dust(0, 0),
+            place_block([0, 1, 1],
+                        block("minecraft:repeater",
+                              {"delay": "1", "facing": "north", "locked": "false", "powered": "false"}),
+                        phase="fixture"),
+            place_block([0, 1, 2],
+                        block("minecraft:copper_bulb", {"lit": "false", "powered": "false"})),
+            place_block([0, 1, 3],
+                        block("minecraft:comparator",
+                              {"mode": "compare", "facing": "north", "powered": "false"}),
+                        phase="fixture"),
+            _dust(0, 4),
         ]),
     )
 
 
 def PulseExtender(ticks=4, base=_BASE):
-    """Monostable: a short input pulse is stretched to `ticks`. A repeater chain
-    feeds an inverter loop; longer `ticks` = longer output pulse."""
+    """One-shot: direct and delayed rising edges toggle a copper bulb.
+
+    The output stays on for `ticks` repeater ticks. The input pulse must be
+    shorter than `ticks` so the bulb is unpowered before the delayed edge."""
+    _require_positive("ticks", ticks)
+    stages = (ticks + 3) // 4
+    parts = [_slab(4, stages + 5, base), _dust_run_x(1, 4, 0)]
+    parts.append(_dust_run_z(1, 1, stages + 1))
+    remaining = ticks
+    for i in range(stages):
+        delay = min(remaining, 4)
+        parts.append(place_block([3, 1, i + 1],
+                                 block("minecraft:repeater",
+                                       {"delay": str(delay), "facing": "north",
+                                        "locked": "false", "powered": "false"}),
+                                 phase="fixture"))
+        remaining -= delay
+    bulb_z = stages + 2
+    parts.extend([
+        place_block([1, 1, bulb_z - 1],
+                    block("minecraft:repeater",
+                          {"delay": "1", "facing": "north", "locked": "false", "powered": "false"}),
+                    phase="fixture"),
+        _dust(3, bulb_z - 1),
+        _dust(3, bulb_z),
+        place_block([2, 1, bulb_z],
+                    block("minecraft:repeater",
+                          {"delay": "1", "facing": "east", "locked": "false", "powered": "false"}),
+                    phase="fixture"),
+        place_block([1, 1, bulb_z],
+                    block("minecraft:copper_bulb", {"lit": "false", "powered": "false"})),
+        place_block([1, 1, bulb_z + 1],
+                    block("minecraft:comparator",
+                          {"mode": "compare", "facing": "north", "powered": "false"}),
+                    phase="fixture"),
+        _dust(1, bulb_z + 2),
+    ])
     return component(
         name="PulseExtender",
         props={"ticks": ticks, "base": base},
-        min_size=[1, 2, 4],
-        body=group([
-            _slab(1, 4, base),
-            _dust(0, 0),                # input
-            place_block([0, 1, 1],
-                        block("minecraft:repeater",
-                              {"delay": str(min(ticks, 4)), "facing": "south",
-                               "locked": "false", "powered": "false"}),
-                        phase="fixture"),
-            place_block([0, 1, 2],
-                        block("minecraft:comparator",
-                              {"mode": "subtract", "facing": "south", "powered": "false"}),
-                        phase="fixture"),
-            _dust(0, 3),                # stretched output
-        ]),
+        min_size=[4, 2, stages + 5],
+        body=group(parts),
     )
 
 
 # --------------------------------------------------------------------------- #
-# Big contraptions. These place a plausible, rotation-safe structure; their
-# mechanics should be verified (and likely fine-tuned) in a 1.21.7 world.
+# Practical assemblies.
 # --------------------------------------------------------------------------- #
 
 
 def LampMatrix(width, height, lamp="minecraft:redstone_lamp", base=_BASE):
     """A `width` x `height` wall of lamps on a one-block backing — a display
-    panel you can drive per-column/row with redstone."""
+    panel whose backing is driven by wiring supplied by the caller."""
+    _require_positive("width", width)
+    _require_positive("height", height)
     return component(
         name="LampMatrix",
         props={"width": width, "height": height, "lamp": lamp, "base": base},
@@ -567,67 +810,98 @@ def LampMatrix(width, height, lamp="minecraft:redstone_lamp", base=_BASE):
 
 
 def PistonTrapdoor(width=2, base=_BASE):
-    """Flush floor trapdoor: a row of upward sticky pistons holding floor blocks,
-    dropped when the input is powered. Draw at floor level; input dust at z=0.
-
-    NOTE: verify piston timing/retraction in-game."""
-    parts = [fill_region([0, 0, 0], [width, 1, 3], block(base))]   # frame base
+    """Retracting floor bridge. Power the dust above the piston row to close."""
+    _require_positive("width", width)
+    parts = [fill_region([0, 0, 0], [width, 1, 4], block(base))]
     for x in range(width):
-        parts.append(place_block([x, 1, 1], block("minecraft:sticky_piston", {"facing": "up", "extended": "false"})))
-        parts.append(place_block([x, 2, 1], block(base)))          # flush lid block
-    parts.append(_dust_run_x(0, width, 0))                          # control line
+        parts.append(place_block([x, 1, 0],
+                                 block("minecraft:sticky_piston",
+                                       {"facing": "south", "extended": "false"})))
+        parts.append(place_block([x, 1, 1], block(base)))
+        if x == 0:
+            parts.append(place_block([x, 2, 0],
+                                     block("minecraft:lever",
+                                           {"face": "floor", "facing": "south", "powered": "false"}),
+                                     phase="fixture"))
+        else:
+            parts.append(_dust(x, 0, y=2))
     return component(
         name="PistonTrapdoor",
         props={"width": width, "base": base},
-        min_size=[width, 3, 3],
+        min_size=[width, 3, 4],
         body=group(parts),
     )
 
 
 def PistonDoor(base=_BASE, door="minecraft:smooth_stone"):
-    """Flush 2x2 double piston door: two sticky pistons per side push a stack of
-    `door` blocks into the central 2x2 gap, retracting when the control line is
-    powered. Faces +Z; the walkway is at x=[1,3), y=[1,3), z=1.
-
-    NOTE: a compact schematic — verify the open/close cycle and control wiring
-    in a 1.21.7 world."""
-    parts = [fill_region([0, 0, 0], [4, 1, 3], block(base))]    # base pad under the mechanism
+    """2x2 side-piston door. Power the raised north control line to close."""
+    parts = [
+        fill_region([0, 0, 0], [6, 1, 3], block(base)),
+        fill_region([0, 1, 0], [6, 3, 1], block(base)),
+        place_block([0, 3, 0],
+                    block("minecraft:lever",
+                          {"face": "floor", "facing": "south", "powered": "false"}),
+                    phase="fixture"),
+        _dust_run_x(1, 6, 0, y=3),
+    ]
     for y in range(1, 3):
-        # Left side pushes east into x=1; right side pushes west into x=2.
-        parts.append(place_block([0, y, 1], block("minecraft:sticky_piston", {"facing": "east", "extended": "false"})))
-        parts.append(place_block([1, y, 1], block(door)))       # left door block (closed position)
-        parts.append(place_block([3, y, 1], block("minecraft:sticky_piston", {"facing": "west", "extended": "false"})))
-        parts.append(place_block([2, y, 1], block(door)))       # right door block
-    parts.append(_dust_run_x(0, 4, 0))                          # control line on the base top (z=0)
+        parts.append(place_block([0, y, 1],
+                                 block("minecraft:sticky_piston",
+                                       {"facing": "east", "extended": "false"})))
+        parts.append(place_block([1, y, 1], block(door)))
+        parts.append(place_block([5, y, 1],
+                                 block("minecraft:sticky_piston",
+                                       {"facing": "west", "extended": "false"})))
+        parts.append(place_block([4, y, 1], block(door)))
     return component(
         name="PistonDoor",
         props={"base": base, "door": door},
-        min_size=[4, 3, 3],
+        min_size=[6, 4, 3],
         body=group(parts),
     )
 
 
-def ItemSorter(target="minecraft:redstone", base=_BASE):
-    """Single-item sorter: a hopper chain with a comparator reading a filtered
-    hopper, ejecting the `target` item into an output dropper.
+def ItemSorter(target="minecraft:redstone",
+               filler="minecraft:light_gray_stained_glass_pane",
+               base=_BASE):
+    """Overflow-safe single-item filter.
 
-    NOTE: fill the filter hopper with 18 non-target + 1 target items in-game to
-    tune; this places the structure only."""
+    Feed enters the top hopper at north. Matching items leave the lower hopper
+    to the south; non-matching items continue through the upper hopper."""
+    if target == filler:
+        fail("item sorter target and filler must differ")
+    filter_items = [
+        {"id": target, "count": 41, "slot": 0},
+        {"id": filler, "count": 1, "slot": 1},
+        {"id": filler, "count": 1, "slot": 2},
+        {"id": filler, "count": 1, "slot": 3},
+        {"id": filler, "count": 1, "slot": 4},
+    ]
     return component(
         name="ItemSorter",
-        props={"target": target, "base": base},
-        min_size=[3, 3, 2],
+        props={"target": target, "filler": filler, "base": base},
+        min_size=[3, 5, 6],
         body=group([
-            fill_region([0, 0, 0], [3, 1, 2], block(base)),
-            # Feed hopper -> filter hopper -> output dropper.
-            place_block([0, 2, 0], block("minecraft:hopper", {"facing": "south", "enabled": "true"},
+            fill_region([0, 0, 0], [3, 1, 6], block(base)),
+            # Transport stream and filter inventory.
+            place_block([1, 4, 1], block("minecraft:hopper", {"facing": "south", "enabled": "true"},
                                          nbt=container_nbt(None, id="minecraft:hopper"))),
-            place_block([0, 1, 1], block("minecraft:hopper", {"facing": "east", "enabled": "true"},
-                                         nbt=container_nbt([target], id="minecraft:hopper"))),
-            place_block([1, 1, 1], block("minecraft:comparator",
-                                         {"mode": "subtract", "facing": "east", "powered": "false"}),
+            place_block([1, 3, 1], block("minecraft:hopper", {"facing": "north", "enabled": "true"},
+                                         nbt=container_nbt(filter_items, id="minecraft:hopper"))),
+            # Locked extraction hopper; its south face is the filtered output.
+            place_block([1, 2, 1], block("minecraft:hopper", {"facing": "south", "enabled": "false"},
+                                         nbt=container_nbt(None, id="minecraft:hopper"))),
+            place_block([1, 3, 2], block("minecraft:comparator",
+                                         {"mode": "compare", "facing": "north", "powered": "false"}),
                         phase="fixture"),
-            place_block([2, 1, 1], block("minecraft:dropper", {"facing": "down", "triggered": "false"},
-                                         nbt=container_nbt(None, id="minecraft:dropper"))),
+            place_block([1, 3, 3], block(_DUST), phase="fixture"),
+            place_block([1, 2, 4], block(_DUST), phase="fixture"),
+            place_block([1, 1, 4],
+                        block("minecraft:repeater",
+                              {"delay": "1", "facing": "south",
+                               "locked": "false", "powered": "false"}),
+                        phase="fixture"),
+            place_block([1, 1, 3], block(base)),
+            _wall_torch(1, 2, "north", y=2),
         ]),
     )

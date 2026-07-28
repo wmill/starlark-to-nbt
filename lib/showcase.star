@@ -9,7 +9,7 @@ load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Firepl
 load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "RoundTree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse")
 load("fortifications.star", "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower", "RampartWall", "RampartTower")
 load("dwellings.star", "GuestHouse")
-load("redstone.star", "RedstoneTorch", "RedstoneLamp", "RedstoneBlock", "Lever", "Button", "PressurePlate", "Repeater", "Comparator", "Observer", "Piston", "Dispenser", "Dropper", "Hopper", "NoteBlock", "TargetBlock", "DaylightDetector", "RedstoneLine", "VerticalRedstone", "NotGate", "OrGate", "NorGate", "NandGate", "AndGate", "XorGate", "XnorGate", "RedstoneClock", "HopperClock", "TFlipFlop", "PulseExtender", "LampMatrix", "PistonTrapdoor", "PistonDoor", "ItemSorter")
+load("redstone.star", "RedstoneTorch", "RedstoneWallTorch", "RedstoneWire", "RedstoneLamp", "RedstoneBlock", "Lever", "Button", "PressurePlate", "WeightedPressurePlate", "Repeater", "Comparator", "Observer", "Piston", "Dispenser", "Dropper", "Hopper", "NoteBlock", "TargetBlock", "DaylightDetector", "CopperBulb", "RedstoneLine", "VerticalRedstone", "NotGate", "OrGate", "NorGate", "NandGate", "AndGate", "XorGate", "XnorGate", "RedstoneClock", "HopperClock", "TFlipFlop", "PulseExtender", "LampMatrix", "PistonTrapdoor", "PistonDoor", "ItemSorter")
 
 
 def showcase(name):
@@ -128,6 +128,10 @@ def showcase(name):
         return GuestHouse()
     elif name == "RedstoneTorch":
         return RedstoneTorch()
+    elif name == "RedstoneWallTorch":
+        return RedstoneWallTorch()
+    elif name == "RedstoneWire":
+        return RedstoneWire()
     elif name == "RedstoneLamp":
         return RedstoneLamp()
     elif name == "RedstoneBlock":
@@ -138,6 +142,8 @@ def showcase(name):
         return Button()
     elif name == "PressurePlate":
         return PressurePlate()
+    elif name == "WeightedPressurePlate":
+        return WeightedPressurePlate(power=7)
     elif name == "Repeater":
         return Repeater(3)
     elif name == "Comparator":
@@ -158,6 +164,8 @@ def showcase(name):
         return TargetBlock()
     elif name == "DaylightDetector":
         return DaylightDetector()
+    elif name == "CopperBulb":
+        return CopperBulb()
     elif name == "RedstoneLine":
         return RedstoneLine(5)
     elif name == "VerticalRedstone":
@@ -204,7 +212,7 @@ COMPONENT_NAMES = [
     "Well", "FenceRing", "Path", "Tree", "RoundTree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse",
     "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower", "RampartWall", "RampartTower",
     "GuestHouse",
-    "RedstoneTorch", "RedstoneLamp", "RedstoneBlock", "Lever", "Button", "PressurePlate", "Repeater", "Comparator", "Observer", "Piston", "Dispenser", "Dropper", "Hopper", "NoteBlock", "TargetBlock", "DaylightDetector",
+    "RedstoneTorch", "RedstoneWallTorch", "RedstoneWire", "RedstoneLamp", "RedstoneBlock", "Lever", "Button", "PressurePlate", "WeightedPressurePlate", "Repeater", "Comparator", "Observer", "Piston", "Dispenser", "Dropper", "Hopper", "NoteBlock", "TargetBlock", "DaylightDetector", "CopperBulb",
     "RedstoneLine", "VerticalRedstone",
     "NotGate", "OrGate", "NorGate", "NandGate", "AndGate", "XorGate", "XnorGate",
     "RedstoneClock", "HopperClock", "TFlipFlop", "PulseExtender",
