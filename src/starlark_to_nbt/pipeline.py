@@ -12,6 +12,7 @@ from .lowering import entities_to_dict, lower_all, operations_to_dict
 from .model import Box, Point
 from .serialize import write_json, write_structure_nbt
 from .starlark_runtime import evaluate_file
+from .support import validate_support
 
 
 @dataclass(slots=True)
@@ -40,6 +41,7 @@ def build_file(path: str | Path, entry: str = "build", props: dict[str, Any] | N
         if isinstance(component_ir, Component) and component_ir.metadata
         else BuildMetadata()
     )
+    validate_support(volume, root_box, metadata)
     return BuildResult(component_ir, resolved, operations, lowered.entities, volume, metadata)
 
 

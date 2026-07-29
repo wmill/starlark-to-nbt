@@ -247,7 +247,39 @@ def test_item_sorter_has_overflow_safe_filter_inventory_and_locked_extractor():
         "minecraft:light_gray_stained_glass_pane",
     }
     extractor = sorter.volume.block_at(Point(1, 2, 1))
-    assert extractor.block_state == {"facing": "south", "enabled": "false"}
+    assert extractor.block_state == {"facing": "down", "enabled": "false"}
+    assert sorter.volume.block_at(Point(1, 1, 1)).block_type == "minecraft:barrel"
+    # Lock chain: the torch hangs on the repeater's target block and strongly
+    # powers the block above it, which sits beside the extraction hopper.
+    torch = sorter.volume.block_at(Point(1, 1, 2))
+    assert torch.block_type == "minecraft:redstone_wall_torch"
+    assert torch.block_state["facing"] == "north"
+    assert sorter.volume.block_at(Point(1, 2, 2)).block_type == "minecraft:smooth_stone"
+    comparator = sorter.volume.block_at(Point(1, 3, 2))
+    assert comparator.block_type == "minecraft:comparator"
+    assert comparator.block_state["facing"] == "north"
+
+
+ATTACHABLE_PARTS = [
+    "RedstoneWire", "RedstoneTorch", "RedstoneWallTorch", "Lever", "Button",
+    "PressurePlate", "WeightedPressurePlate", "Repeater", "Comparator",
+]
+
+
+@pytest.mark.parametrize("name", ATTACHABLE_PARTS)
+def test_attachable_parts_build_self_supporting_with_base(tmp_path, name):
+    redstone = SHOWCASE.parent / "redstone.star"
+    source = tmp_path / "based.star"
+    source.write_text(
+        f'load("{redstone}", "{name}")\n'
+        'def build():\n'
+        f'    return {name}(base="minecraft:smooth_stone")\n',
+        encoding="utf-8",
+    )
+    result = build_file(source)  # build_file runs the support validator
+    part_pos = Point(0, 0, 1) if name == "RedstoneWallTorch" else Point(0, 1, 0)
+    assert result.volume.block_at(Point(0, 0, 0)).block_type == "minecraft:smooth_stone"
+    assert result.volume.block_at(part_pos).block_type != "minecraft:air"
 
 
 def test_extended_pistons_cover_all_six_facings_atomically(tmp_path):

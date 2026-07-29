@@ -28,16 +28,20 @@ def _standing_sign(pos, lines, color="white"):
 
 
 def _lever_input(x, z, color):
+    # Lever and bridging dust each bring their own colored pad so the wire
+    # never floats: pad at y=1, control/dust at y=2, meeting the gate's dust.
     return group([
-        place_block([x, 1, z], block(color)),
-        transform([x, 2, z], 0, [1, 1, 1], Lever()),
-        transform([x, 2, z + 1], 0, [1, 1, 1], RedstoneWire()),
+        transform([x, 1, z], 0, [1, 2, 1], Lever(base=color)),
+        transform([x, 1, z + 1], 0, [1, 2, 1], RedstoneWire(base=color)),
     ])
 
 
 def _gate_station(x, z, size, gate, inputs, output_x, lines):
     parts = [
         transform([x, 1, z], 0, size, gate),
+        # Output lamp on a walkway-colored pedestal, driven by the gate's
+        # south-edge dust.
+        place_block([x + output_x, 1, z + size[2]], block("minecraft:deepslate_tiles")),
         transform([x + output_x, 2, z + size[2]], 0, [1, 1, 1], RedstoneLamp()),
         _standing_sign([x + output_x, 1, z - 4], lines, color="yellow"),
     ]
@@ -50,9 +54,10 @@ def _gate_station(x, z, size, gate, inputs, output_x, lines):
 
 def _pulse_input(x, z):
     return group([
-        place_block([x, 1, z], block("minecraft:orange_concrete")),
-        transform([x, 2, z], 0, [1, 1, 1], Button()),
-        transform([x, 2, z + 1], 0, [1, 1, 1], RedstoneWire()),
+        transform([x, 1, z], 0, [1, 2, 1],
+                  Button(base="minecraft:orange_concrete")),
+        transform([x, 1, z + 1], 0, [1, 2, 1],
+                  RedstoneWire(base="minecraft:orange_concrete")),
     ])
 
 
@@ -81,26 +86,31 @@ def InteractiveGallery():
         # Logic classroom, row two.
         _gate_station(4, 20, [5, 2, 7], XorGate(), [0, 4], 2,
                       ["XOR", "A B | OUT", "00=0  01=1", "10=1  11=0"]),
-        _gate_station(14, 17, [5, 2, 10], XnorGate(), [0, 4], 2,
+        # z=19 keeps the XNOR sign south of the NOR station's lamp column.
+        _gate_station(14, 19, [5, 2, 10], XnorGate(), [0, 4], 2,
                       ["XNOR", "A B | OUT", "00=1  01=0", "10=0  11=1"]),
 
         # Timing and memory stations.
         transform([24, 1, 17], 0, [1, 2, 5], TFlipFlop()),
         _pulse_input(24, 15),
+        place_block([24, 1, 22], block("minecraft:deepslate_tiles")),
         transform([24, 2, 22], 0, [1, 1, 1], RedstoneLamp()),
         _standing_sign([24, 1, 28],
                        ["T FLIP-FLOP", "Press to toggle", "Bulb remembers", "Lamp = Q"],
                        color="light_blue"),
 
-        transform([29, 1, 17], 0, [4, 2, 9], PulseExtender(16)),
-        _pulse_input(30, 15),
-        transform([30, 2, 26], 0, [1, 1, 1], RedstoneLamp()),
-        _standing_sign([30, 1, 28],
+        # x=32 keeps the pulse button clear of the AND station's output lamp.
+        transform([32, 1, 17], 0, [4, 2, 9], PulseExtender(16)),
+        _pulse_input(33, 15),
+        place_block([33, 1, 26], block("minecraft:deepslate_tiles")),
+        transform([33, 2, 26], 0, [1, 1, 1], RedstoneLamp()),
+        _standing_sign([33, 1, 28],
                        ["PULSE EXTENDER", "Press orange", "Output stays on", "for 16 ticks"],
                        color="light_blue"),
 
         transform([37, 1, 17], 0, [5, 2, 8], RedstoneClock(4)),
         _pulse_input(38, 15),
+        place_block([41, 1, 25], block("minecraft:deepslate_tiles")),
         transform([41, 2, 25], 0, [1, 1, 1], RedstoneLamp()),
         _standing_sign([39, 1, 28],
                        ["REPEATER CLOCK", "Button starts", "Center lever", "locks/pauses"],
@@ -138,6 +148,7 @@ def InteractiveGallery():
 
         transform([47, 1, 34], 0, [1, 1, 1],
                   WeightedPressurePlate(power=0)),
+        transform([47, 1, 35], 0, [1, 1, 1], RedstoneWire()),
         place_block([47, 1, 36], block("minecraft:redstone_lamp", {"lit": "false"})),
         _standing_sign([47, 1, 32],
                        ["ANALOG INPUT", "Weighted plate", "Power is 0-15", "Lamp is output"],

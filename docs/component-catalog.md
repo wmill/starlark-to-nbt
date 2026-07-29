@@ -253,23 +253,35 @@ standalone and drop onto any floor. State values are strings (`delay="3"`,
 `north/east/south/west` connection keys, and `axis` all rotate; `up`/`down`
 facings and lever/button `face` are left alone).
 
+**Support contract:** dust, repeaters, comparators, torches, levers, buttons,
+and pressure plates pop off in-game unless a solid block sits on their
+attachment side (below, or behind a wall-mounted part). The build pipeline
+enforces this and fails with an `unsupported_block` error naming the offending
+block, its position, and the cell that needs a solid block. Bare parts default
+to `base=None` and must land on existing solid blocks; pass
+`base="minecraft:..."` and the part brings its own supporting block — the part
+moves to `y=1` over the base at `y=0` and `min_size` becomes `[1, 2, 1]`
+(`RedstoneWallTorch` instead grows to `[1, 1, 2]`: base at `z=0`, torch at
+`z=1`). When wiring across a gap, prefer `RedstoneWire(base=...)` per cell or a
+`RedstoneLine`, which is already self-supporting.
+
 Gate inputs are isolated and their port coordinates are described below.
 Timing, piston, and inventory mechanisms use Java 1.21.7 behavior; their
 standalone layouts and rotations are covered by the library test harness.
 
 | Component | Size (X,Y,Z) | Notes |
 |---|---|---|
-| `RedstoneTorch(lit=True)` | `[1, 1, 1]` | Standing torch (place on a block). |
-| `RedstoneWallTorch(facing="south", lit=True)` | `[1, 1, 1]` | Wall torch; requires a support behind the visible face. |
-| `RedstoneWire(power=0)` | `[1, 1, 1]` | One dust cell; connections update in-world, `power` is 0-15. |
+| `RedstoneTorch(lit=True, base=None)` | `[1, 1, 1]` (`[1, 2, 1]` with base) | Standing torch (place on a block, or pass `base`). |
+| `RedstoneWallTorch(facing="south", lit=True, base=None)` | `[1, 1, 1]` (`[1, 1, 2]` with base) | Wall torch; needs a support behind the visible face. With `base`, only `facing="south"` (rotate via `transform`). |
+| `RedstoneWire(power=0, base=None)` | `[1, 1, 1]` (`[1, 2, 1]` with base) | One dust cell; connections update in-world, `power` is 0-15. |
 | `RedstoneLamp(lit=False)` | `[1, 1, 1]` | Redstone lamp block. |
 | `RedstoneBlock()` | `[1, 1, 1]` | Always-on power source. |
-| `Lever(face="floor", facing="south", powered=False)` | `[1, 1, 1]` | `face` is floor/wall/ceiling. |
-| `Button(material="minecraft:stone_button", face="floor", facing="south", powered=False)` | `[1, 1, 1]` | Any button material. |
-| `PressurePlate(material="minecraft:stone_pressure_plate", powered=False)` | `[1, 1, 1]` | Lay one Y above the floor. |
-| `WeightedPressurePlate(material="minecraft:light_weighted_pressure_plate", power=0)` | `[1, 1, 1]` | Analog light/heavy plate; `power` is 0-15. |
-| `Repeater(delay=1, facing="south", locked=False, powered=False)` | `[1, 1, 1]` | Output points toward `facing`; `delay` 1-4. |
-| `Comparator(mode="compare", facing="south", powered=False)` | `[1, 1, 1]` | `mode` compare/subtract. |
+| `Lever(face="floor", facing="south", powered=False, base=None)` | `[1, 1, 1]` (`[1, 2, 1]` with base) | `face` is floor/wall/ceiling; `base` only with `face="floor"`. |
+| `Button(material="minecraft:stone_button", face="floor", facing="south", powered=False, base=None)` | `[1, 1, 1]` (`[1, 2, 1]` with base) | Any button material; `base` only with `face="floor"`. |
+| `PressurePlate(material="minecraft:stone_pressure_plate", powered=False, base=None)` | `[1, 1, 1]` (`[1, 2, 1]` with base) | Sits on the block below (solid, fence, wall, or hopper). |
+| `WeightedPressurePlate(material="minecraft:light_weighted_pressure_plate", power=0, base=None)` | `[1, 1, 1]` (`[1, 2, 1]` with base) | Analog light/heavy plate; `power` is 0-15. |
+| `Repeater(delay=1, facing="south", locked=False, powered=False, base=None)` | `[1, 1, 1]` (`[1, 2, 1]` with base) | Output points toward `facing`; `delay` 1-4. |
+| `Comparator(mode="compare", facing="south", powered=False, base=None)` | `[1, 1, 1]` (`[1, 2, 1]` with base) | `mode` compare/subtract. |
 | `Observer(facing="south", powered=False)` | `[1, 1, 1]` | Sensing face is `facing`; pulse leaves the back. |
 | `Piston(sticky=False, facing="south", extended=False)` | Direction-dependent | `extended` atomically places a body/head pair for all six facings. |
 | `Dispenser(items=None, facing="south")` | `[1, 1, 1]` | `items` preloads slots (see `container_nbt`). |
@@ -293,9 +305,9 @@ standalone layouts and rotations are covered by the library test harness.
 | `TFlipFlop(base=...)` | `[1, 2, 5]` | Copper-bulb toggle memory with north pulse input and south comparator output. |
 | `PulseExtender(ticks=4, base=...)` | `[4, 2, (ticks+3)//4+5]` | Direct/delayed copper-bulb one-shot; input pulse must be shorter than positive `ticks`. |
 | `LampMatrix(width, height, lamp="minecraft:redstone_lamp", base=...)` | `[width, height, 2]` | Lamp wall on a backing panel — a drivable display. |
-| `PistonTrapdoor(width=2, base=...)` | `[width, 3, 4]` | Retracting floor bridge; integrated top lever, powered = closed. |
+| `PistonTrapdoor(width=2, base=...)` | `[width, 3, 4]` | Retracting floor bridge; lever/dust on a raised control row at z=0 drive the piston row at z=1, powered = closed. |
 | `PistonDoor(base=..., door="minecraft:smooth_stone")` | `[6, 4, 3]` | 2x2 side-piston door; integrated top lever, powered = closed. |
-| `ItemSorter(target="minecraft:redstone", filler="minecraft:light_gray_stained_glass_pane", base=...)` | `[3, 5, 6]` | Overflow-safe 41+4 hopper filter; north feed, south pass-through and filtered output. |
+| `ItemSorter(target="minecraft:redstone", filler="minecraft:light_gray_stained_glass_pane", base=...)` | `[3, 5, 6]` | Wiki-standard overflow-safe 41+4 hopper filter; feed the top hopper, sorted items collect in the bottom barrel, non-matching items stay on top for transport. |
 
 ## Worked examples
 

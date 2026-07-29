@@ -17,6 +17,10 @@ The pipeline is deliberately staged, with `pipeline.py` orchestrating:
    including rotation of directional block states.
 5. `execute.py` applies `STRUCTURE`, `CARVE`, then `FIXTURE` operations to a
    sparse volume and enforces overlap rules and assembly atomicity.
+   `support.py` then validates the finished volume: redstone attachables
+   (dust, repeaters, comparators, torches, levers, buttons, pressure plates)
+   must have a solid block on their attachment side or the build fails with
+   `unsupported_block`.
 6. `serialize.py` writes debug JSON and sparse structure NBT, including
    per-block block-entity NBT. Untouched cells are omitted; deliberately carved
    cells remain explicit air.
