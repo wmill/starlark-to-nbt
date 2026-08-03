@@ -9,6 +9,7 @@ load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Firepl
 load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "RoundTree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse")
 load("fortifications.star", "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower", "RampartWall", "RampartTower")
 load("dwellings.star", "GuestHouse")
+load("dungeons.star", "BspDungeon")
 load("redstone.star", "RedstoneTorch", "RedstoneWallTorch", "RedstoneWire", "RedstoneLamp", "RedstoneBlock", "Lever", "Button", "PressurePlate", "WeightedPressurePlate", "Repeater", "Comparator", "Observer", "Piston", "Dispenser", "Dropper", "Hopper", "NoteBlock", "TargetBlock", "DaylightDetector", "CopperBulb", "RedstoneLine", "VerticalRedstone", "NotGate", "OrGate", "NorGate", "NandGate", "AndGate", "XorGate", "XnorGate", "RedstoneClock", "HopperClock", "TFlipFlop", "PulseExtender", "LampMatrix", "PistonTrapdoor", "PistonDoor", "ItemSorter")
 
 
@@ -126,6 +127,11 @@ def showcase(name):
         return RampartTower()
     elif name == "GuestHouse":
         return GuestHouse()
+    elif name == "BspDungeon":
+        return BspDungeon(width=30, length=30, room_height=3, min_room_size=5,
+                          target_leaf_size=13, max_depth=5, seed=17,
+                          wide_corridor_chance=0.50,
+                          burial_depth=0, surface_entrance=False)
     elif name == "RedstoneTorch":
         return RedstoneTorch()
     elif name == "RedstoneWallTorch":
@@ -211,7 +217,7 @@ COMPONENT_NAMES = [
     "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Chest", "Barrel", "Furnace", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter",
     "Well", "FenceRing", "Path", "Tree", "RoundTree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse",
     "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower", "RampartWall", "RampartTower",
-    "GuestHouse",
+    "GuestHouse", "BspDungeon",
     "RedstoneTorch", "RedstoneWallTorch", "RedstoneWire", "RedstoneLamp", "RedstoneBlock", "Lever", "Button", "PressurePlate", "WeightedPressurePlate", "Repeater", "Comparator", "Observer", "Piston", "Dispenser", "Dropper", "Hopper", "NoteBlock", "TargetBlock", "DaylightDetector", "CopperBulb",
     "RedstoneLine", "VerticalRedstone",
     "NotGate", "OrGate", "NorGate", "NandGate", "AndGate", "XorGate", "XnorGate",

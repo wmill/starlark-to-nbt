@@ -195,6 +195,19 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `HayBaleStack(width=3, height=2, depth=2, material="minecraft:hay_block")` | `[width, height, depth]` | Tapered layers with alternating horizontal X/Z axes. |
 | `Pergola(width=5, depth=5, height=4, post="minecraft:oak_log", beam="minecraft:stripped_oak_log", slat="minecraft:oak_slab")` | `[width, height+1, depth]` | Corner posts, perimeter top beams, and an open slatted lattice roof; requires at least 3x3. |
 
+### `lib/dungeons.star`
+
+| Component | Size | Notes |
+|---|---|---|
+| `BspDungeon(width=48, length=48, room_height=4, min_room_size=5, target_leaf_size=18, max_depth=8, seed=0, wide_corridor_chance=0.30, light_spacing=8, burial_depth=4, surface_entrance=True, wall=..., floor=..., stair=..., door=..., torch=..., lantern=...)` | Exact `[width, generated height, length]` | Deterministic underground BSP rooms and connected tunnels. Links are one-block atomic-door passages or three-block stone arches. Every room is lit by standing torches and corridors by hanging lanterns. With an entrance, a north-edge hut and descending stair reach surface level `room_height + burial_depth + 2`; without one, height is `room_height + 2` and callers choose placement metadata. Requires enough space for inset rooms; probabilities and split controls are validated. |
+
+The component props include `room_count`, `connection_count`,
+`wide_connection_count`, and `surface_level`, making a generated topology easy
+to inspect without embedding custom data in structure NBT. Its leaf-room and
+bottom-up sibling-connection strategy follows the approaches described by
+[RogueBasin](https://www.roguebasin.com/index.php/Basic_BSP_Dungeon_generation)
+and [Gonzalo Uribe](https://medium.com/@guribemontero/dungeon-generation-using-binary-space-trees-47d4a668e2d0).
+
 ### `lib/fortifications.star`
 
 Linear walls run along +X. Gates, ladders, portcullises, and drawbridges face
@@ -381,6 +394,10 @@ standalone layouts and rotations are covered by the library test harness.
   trunk into branching generations from a fixed table of integer direction
   vectors, drawn with an integer line-stepper and capped with
   distance-squared leaf-blob spheres.
+- `examples/bsp_dungeon.star` — 96x15x96 deterministic underground dungeon:
+  iteratively subdivided BSP rooms, door and arch corridors, supported room and
+  tunnel lighting, and a north-edge surface hut with a carved descending stair.
+  Root metadata places its surface walking plane at local Y=10.
 
 ## Errors
 
