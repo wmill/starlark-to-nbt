@@ -93,8 +93,8 @@ def Archway(width, height, stair="minecraft:stone_brick_stairs"):
         body=group([
             carve_region([0, 0, 0], [width, height, 1]),
             place_block([0, height - 1, 0],
-                        block(stair, {"facing": "east", "half": "top", "shape": "straight"}), phase="fixture"),
-            place_block([width - 1, height - 1, 0],
                         block(stair, {"facing": "west", "half": "top", "shape": "straight"}), phase="fixture"),
+            place_block([width - 1, height - 1, 0],
+                        block(stair, {"facing": "east", "half": "top", "shape": "straight"}), phase="fixture"),
         ]),
     )

@@ -79,10 +79,10 @@ def _arch(parts, fixture_cells, x, z, axis, room_height, stair):
     # the perpendicular axis and is capped by two upside-down stair corners.
     if axis == "x":
         parts.append(carve_region([x, 1, z - 1], [x + 1, room_height + 1, z + 2]))
-        positions = [[x, room_height, z - 1, "south"], [x, room_height, z + 1, "north"]]
+        positions = [[x, room_height, z - 1, "north"], [x, room_height, z + 1, "south"]]
     else:
         parts.append(carve_region([x - 1, 1, z], [x + 2, room_height + 1, z + 1]))
-        positions = [[x - 1, room_height, z, "east"], [x + 1, room_height, z, "west"]]
+        positions = [[x - 1, room_height, z, "west"], [x + 1, room_height, z, "east"]]
     for item in positions:
         key = _key(item[0], item[2])
         if key not in fixture_cells:
