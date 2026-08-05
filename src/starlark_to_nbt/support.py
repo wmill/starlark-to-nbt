@@ -95,7 +95,7 @@ _NON_SUPPORTING_SUFFIXES = (
 )
 
 
-def _is_supporting(block_type: str) -> bool:
+def is_supporting_block(block_type: str) -> bool:
     if block_type in _NON_SUPPORTING_TYPES:
         return False
     return not block_type.endswith(_NON_SUPPORTING_SUFFIXES)
@@ -108,7 +108,7 @@ def _can_support(support_type: str, attachable_type: str) -> bool:
         # Pressure plates are special-cased in vanilla: they may sit on fence
         # posts, walls, and hoppers (tables, hopper timers).
         return True
-    return _is_supporting(support_type)
+    return is_supporting_block(support_type)
 
 
 def _support_offset(block: BlockSpec) -> Point | None:
@@ -129,6 +129,13 @@ def _support_offset(block: BlockSpec) -> Point | None:
 
 
 def validate_support(volume: SparseVolume, root_box: Box, metadata: BuildMetadata) -> None:
+    errors = support_diagnostics(volume, root_box, metadata)
+    if errors:
+        raise BuildError(errors)
+
+
+def support_diagnostics(volume: SparseVolume, root_box: Box,
+                        metadata: BuildMetadata) -> list[Diagnostic]:
     errors: list[Diagnostic] = []
     for pos in sorted(volume.voxels, key=lambda p: (p.y, p.z, p.x)):
         voxel = volume.voxels[pos]
@@ -139,8 +146,7 @@ def validate_support(volume: SparseVolume, root_box: Box, metadata: BuildMetadat
         diagnostic = _check_support(volume, root_box, metadata, pos, voxel, support)
         if diagnostic is not None:
             errors.append(diagnostic)
-    if errors:
-        raise BuildError(errors)
+    return errors
 
 
 def _check_support(volume: SparseVolume, root_box: Box, metadata: BuildMetadata,

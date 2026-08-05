@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import deque
 from pathlib import Path
 
+import nbtlib
 import pytest
 
 from starlark_to_nbt.model import BuildError, Point
@@ -88,6 +89,26 @@ def test_reference_is_sparse_connected_and_has_surface_metadata(tmp_path):
     write_structure_nbt(result.volume, first)
     write_structure_nbt(build_file(EXAMPLE).volume, second)
     assert first.read_bytes() == second.read_bytes()
+
+    # The validated door geometry survives sparse structure serialization.
+    decoded = nbtlib.load(first)
+    palette = [str(entry["Name"]) for entry in decoded["palette"]]
+    blocks = {
+        Point(*map(int, entry["pos"])): palette[int(entry["state"])]
+        for entry in decoded["blocks"]
+    }
+    door = next(op for op in result.operations
+                if op.assembly_name == "bsp_dungeon_door" and op.writes[0].pos.y == 1)
+    lower = door.writes[0]
+    front = {
+        "north": Point(0, 0, -1), "south": Point(0, 0, 1),
+        "east": Point(1, 0, 0), "west": Point(-1, 0, 0),
+    }[lower.block.block_state["facing"]]
+    side = Point(front.z, 0, -front.x)
+    for height in (0, 1):
+        anchor = lower.pos + Point(0, height, 0)
+        assert blocks[anchor + side] == blocks[anchor - side] == "minecraft:stone_bricks"
+        assert blocks[anchor + front] == blocks[anchor - front] == "minecraft:air"
 
 
 def test_seed_changes_geometry_without_changing_reference_bounds():

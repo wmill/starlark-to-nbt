@@ -15,8 +15,15 @@ def _tag(kind: str, **values: Any) -> dict[str, Any]:
     return {"kind": kind, **{key: value for key, value in values.items() if value is not None}}
 
 
-def component(name, props, body, min_size=None, metadata=None):
-    return _tag("component", name=name, props=props, body=body, min_size=min_size, metadata=metadata)
+def component(name, props, body, min_size=None, metadata=None, validators=None):
+    return _tag(
+        "component", name=name, props=props, body=body, min_size=min_size,
+        metadata=metadata, validators=validators,
+    )
+
+
+def validator(name, assembly=None):
+    return _tag(name, assembly=assembly)
 
 
 def group(children):
@@ -127,7 +134,7 @@ def place_assembly(pos, name, size, blocks):
 
 
 BOUND_FUNCTIONS: dict[str, Callable[..., Any]] = {
-    "component": component, "group": group, "fixed": fixed, "fill": fill,
+    "component": component, "validator": validator, "group": group, "fixed": fixed, "fill": fill,
     "split": split, "inset": inset, "repeat": repeat, "transform": transform,
     "block": block, "sign_nbt": sign_nbt, "container_nbt": container_nbt, "loot_nbt": loot_nbt,
     "place_block": place_block, "fill_region": fill_region, "carve_region": carve_region,

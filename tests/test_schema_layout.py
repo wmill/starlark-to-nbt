@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from starlark_to_nbt.ir import BuildMetadata, Fill, Fixed, Group, Inset, PlaceBlock, Repeat, Split
+from starlark_to_nbt.ir import (
+    BuildMetadata, DoorSupportedOnBothSides, Fill, Fixed, Group, Inset, PlaceBlock,
+    Repeat, Split,
+)
 from starlark_to_nbt.layout import resolve
 from starlark_to_nbt.model import Axis, BlockSpec, Box, BuildError, Point
 from starlark_to_nbt.schema import parse_node
@@ -55,6 +58,31 @@ def test_schema_rejects_metadata_on_nested_components():
                 "metadata": {"ground_level": 1},
                 "body": {"kind": "group", "children": []},
             },
+        })
+
+
+def test_component_parses_typed_validators():
+    node = parse_node({
+        "kind": "component", "name": "Validated", "props": {},
+        "validators": [{
+            "kind": "door_supported_on_both_sides", "assembly": "entrance_door",
+        }],
+        "body": {"kind": "group", "children": []},
+    })
+    assert node.validators == (DoorSupportedOnBothSides("entrance_door"),)
+
+
+@pytest.mark.parametrize("validators", [
+    {"kind": "door_supported_on_both_sides", "assembly": "door"},
+    [{"kind": "unknown", "assembly": "door"}],
+    [{"kind": "door_supported_on_both_sides", "assembly": ""}],
+])
+def test_schema_rejects_invalid_validators(validators):
+    with pytest.raises(BuildError, match="invalid_validator"):
+        parse_node({
+            "kind": "component", "name": "Invalid", "props": {},
+            "validators": validators,
+            "body": {"kind": "group", "children": []},
         })
 
 

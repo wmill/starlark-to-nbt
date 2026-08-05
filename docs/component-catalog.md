@@ -69,7 +69,8 @@ Multi-block objects that must be placed all-or-nothing (doors, beds) use
 
 | Constructor | Semantics |
 |---|---|
-| `component(name, props, body, min_size=None, metadata=None)` | Named subtree; `min_size=[x,y,z]` is validated against the assigned region and used as the natural size when built standalone. The root may set typed placement metadata such as `metadata={"ground_level": 1}`. |
+| `component(name, props, body, min_size=None, metadata=None, validators=None)` | Named subtree; `min_size=[x,y,z]` is validated against the assigned region and used as the natural size when built standalone. The root may set typed placement metadata such as `metadata={"ground_level": 1}`. Optional validators apply to matching operations in this component subtree. |
+| `validator("door_supported_on_both_sides", assembly="name")` | Post-execution check for matching named door assemblies. Both door halves need solid left/right jambs and clear front/back cells. |
 | `group(children)` | Children share the parent's region unchanged. |
 | `split(axis, sizes, children)` | Partition the region along `axis` (`"x"`/`"y"`/`"z"`). `sizes` entries are `fixed(n)` or `fill()`; fills share the remainder deterministically. Overflow/underflow are errors. |
 | `inset(child, amount=n)` or `inset(child, x=[lo,hi], y=[...], z=[...])` | Shrink the region by per-axis margins. |
@@ -199,7 +200,7 @@ them builds standalone. `lib/showcase.star` builds any single component:
 
 | Component | Size | Notes |
 |---|---|---|
-| `BspDungeon(width=48, length=48, room_height=4, min_room_size=5, target_leaf_size=18, max_depth=8, seed=0, wide_corridor_chance=0.30, light_spacing=8, burial_depth=4, surface_entrance=True, wall=..., floor=..., stair=..., door=..., torch=..., lantern=...)` | Exact `[width, generated height, length]` | Deterministic underground BSP rooms and connected tunnels. Links are one-block atomic-door passages or three-block stone arches. Every room is lit by standing torches and corridors by hanging lanterns. With an entrance, a north-edge hut and descending stair reach surface level `room_height + burial_depth + 2`; without one, height is `room_height + 2` and callers choose placement metadata. Requires enough space for inset rooms; probabilities and split controls are validated. |
+| `BspDungeon(width=48, length=48, room_height=4, min_room_size=5, target_leaf_size=18, max_depth=8, seed=0, wide_corridor_chance=0.30, light_spacing=8, burial_depth=4, surface_entrance=True, wall=..., floor=..., stair=..., door=..., torch=..., lantern=...)` | Exact `[width, generated height, length]` | Deterministic underground BSP rooms and connected tunnels. Narrow links use atomic doors when both jambs remain intact, otherwise they remain open; wide links use three-block stone arches. Every room is lit by standing torches and corridors by hanging lanterns. With an entrance, a north-edge hut and descending stair reach surface level `room_height + burial_depth + 2`; without one, height is `room_height + 2` and callers choose placement metadata. Requires enough space for inset rooms; probabilities and split controls are validated. |
 
 The component props include `room_count`, `connection_count`,
 `wide_connection_count`, and `surface_level`, making a generated topology easy
@@ -397,7 +398,8 @@ standalone layouts and rotations are covered by the library test harness.
 - `examples/bsp_dungeon.star` — 96x15x96 deterministic underground dungeon:
   iteratively subdivided BSP rooms, door and arch corridors, supported room and
   tunnel lighting, and a north-edge surface hut with a carved descending stair.
-  Root metadata places its surface walking plane at local Y=10.
+  Root metadata places its surface walking plane at local Y=10. An opt-in
+  validator checks every `bsp_dungeon_door` assembly after execution.
 
 ## Errors
 
@@ -406,5 +408,6 @@ offending coordinates/region: `component_too_small`, `split_overflow`,
 `split_underflow`, `repeat_overflow`, `inset_collapsed`, `transform_overflow`,
 `component_overflow`, `root_overflow`, `block_conflict`, `assembly_overflow`,
 `invalid_metadata`, `metadata_not_root`, `load_error`, `load_cycle`,
-`starlark_error`. Starlark syntax/eval errors include file:line spans;
+`invalid_validator`, `validator_no_targets`, `invalid_validator_target`,
+`door_not_supported`, `doorway_obstructed`, `starlark_error`. Starlark syntax/eval errors include file:line spans;
 build-rule errors identify the component path instead.

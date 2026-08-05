@@ -6,8 +6,8 @@ from typing import Any
 
 from .ir import (
     AssemblyBlock, BuildMetadata, CarveRegion, Component, Fill, FillRegion, Fixed,
-    EntitySpec, Group, Inset, Node, PlaceAssembly, PlaceBlock, PlaceEntity, Repeat, SizeExpr, Split,
-    TransformNode,
+    DoorSupportedOnBothSides, EntitySpec, Group, Inset, Node, PlaceAssembly, PlaceBlock,
+    PlaceEntity, Repeat, SizeExpr, Split, TransformNode, ValidatorSpec,
 )
 from .model import Axis, BlockSpec, Box, BuildError, Diagnostic, Point, SourceRef
 
@@ -159,6 +159,18 @@ def _metadata(value: Any, path: str) -> BuildMetadata:
     return BuildMetadata(ground_level)
 
 
+def _validator(value: Any, path: str) -> ValidatorSpec:
+    obj = _dict(value, path)
+    kind = obj.get("kind")
+    if kind == "door_supported_on_both_sides":
+        _keys(obj, {"kind", "assembly"}, set(), path)
+        assembly = obj["assembly"]
+        if not isinstance(assembly, str) or not assembly:
+            raise _error(f"{path}.assembly", "expected a non-empty string", "invalid_validator")
+        return DoorSupportedOnBothSides(assembly)
+    raise _error(path, f"unknown validator kind {kind!r}", "invalid_validator")
+
+
 def parse_size(value: Any, path: str) -> SizeExpr:
     obj = _dict(value, path)
     kind = obj.get("kind")
@@ -178,7 +190,10 @@ def parse_node(value: Any, path: str = "$", source_file: str | None = None) -> N
         raise _error(path, "missing string field 'kind'")
 
     if kind == "component":
-        _keys(obj, {"kind", "name", "props", "body"}, {"min_size", "source", "metadata"}, path)
+        _keys(
+            obj, {"kind", "name", "props", "body"},
+            {"min_size", "source", "metadata", "validators"}, path,
+        )
         if not isinstance(obj["name"], str) or not obj["name"]:
             raise _error(f"{path}.name", "expected a non-empty string")
         props_obj = _dict(obj["props"], f"{path}.props")
@@ -192,6 +207,13 @@ def parse_node(value: Any, path: str = "$", source_file: str | None = None) -> N
                 f"{path}.metadata", "metadata is only allowed on the root component",
                 "metadata_not_root",
             )
+        raw_validators = obj.get("validators", [])
+        if not isinstance(raw_validators, list):
+            raise _error(f"{path}.validators", "expected a list", "invalid_validator")
+        validators = tuple(
+            _validator(item, f"{path}.validators[{i}]")
+            for i, item in enumerate(raw_validators)
+        )
         return Component(
             obj["name"], _json_value(props_obj, f"{path}.props"),
             parse_node(obj["body"], f"{path}.body", source_file),
@@ -199,6 +221,7 @@ def parse_node(value: Any, path: str = "$", source_file: str | None = None) -> N
             source,
             _metadata(obj["metadata"], f"{path}.metadata")
             if obj.get("metadata") is not None else None,
+            validators,
         )
     if kind == "group":
         _keys(obj, {"kind", "children"}, set(), path)

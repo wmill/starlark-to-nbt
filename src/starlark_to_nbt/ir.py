@@ -33,6 +33,14 @@ class BuildMetadata:
 
 
 @dataclass(frozen=True, slots=True)
+class DoorSupportedOnBothSides:
+    assembly: str
+
+
+ValidatorSpec: TypeAlias = DoorSupportedOnBothSides
+
+
+@dataclass(frozen=True, slots=True)
 class Component:
     name: str
     props: dict[str, Any]
@@ -40,6 +48,7 @@ class Component:
     min_size: Point | None = None
     source: SourceRef | None = None
     metadata: BuildMetadata | None = None
+    validators: tuple[ValidatorSpec, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,6 +176,14 @@ class EntityPlacement:
 
 
 @dataclass(frozen=True, slots=True)
+class ValidatorPlacement:
+    validator: ValidatorSpec
+    provenance: Provenance
+    sequence: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class LoweringResult:
     operations: list[BlockOperation]
     entities: list[EntityPlacement]
+    validators: list[ValidatorPlacement]

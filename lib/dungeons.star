@@ -56,11 +56,19 @@ def _inside_room(x, z, rooms):
     return False
 
 
-def _door(parts, fixture_cells, x, z, facing, door, y=1):
+def _door(door_candidates, fixture_cells, x, z, facing, door, y=1):
     key = _key(x, z)
     if key in fixture_cells:
         return
     fixture_cells[key] = True
+    door_candidates.append({
+        "x": x, "y": y, "z": z, "facing": facing, "door": door,
+    })
+
+
+def _emit_door(parts, candidate):
+    x, y, z = candidate["x"], candidate["y"], candidate["z"]
+    facing, door = candidate["facing"], candidate["door"]
     state = {"facing": facing, "hinge": "left", "open": "false", "powered": "false"}
     parts.append(carve_region([x, y, z], [x + 1, y + 2, z + 1]))
     parts.append(place_assembly(
@@ -72,6 +80,22 @@ def _door(parts, fixture_cells, x, z, facing, door, y=1):
             {"pos": [0, 1, 0], "block": block(door, dict(state, half="upper"))},
         ],
     ))
+
+
+def _door_has_jambs(candidate, corridor_cells, room_height):
+    # Dungeon corridors carve from y=1 through room_height. Surface doors are
+    # above that range and retain the hut wall on each side.
+    if candidate["y"] > room_height:
+        return True
+    facing = candidate["facing"]
+    if facing == "north" or facing == "south":
+        offsets = [[-1, 0], [1, 0]]
+    else:
+        offsets = [[0, -1], [0, 1]]
+    for offset in offsets:
+        if _key(candidate["x"] + offset[0], candidate["z"] + offset[1]) in corridor_cells:
+            return False
+    return True
 
 
 def _arch(parts, fixture_cells, x, z, axis, room_height, stair):
@@ -229,6 +253,7 @@ def BspDungeon(
     ordered_corridor_cells = []
     stair_cells = {}
     fixture_cells = {}
+    door_candidates = []
     connection_count = 0
     wide_connection_count = 0
     chance_threshold = int(wide_corridor_chance * 10000)
@@ -259,8 +284,8 @@ def BspDungeon(
                 _arch(parts, fixture_cells, a["x1"] - 1, za, "x", room_height, stair)
                 _arch(parts, fixture_cells, b["x0"], zb, "x", room_height, stair)
             else:
-                _door(parts, fixture_cells, a["x1"] - 1, za, "east", door)
-                _door(parts, fixture_cells, b["x0"], zb, "west", door)
+                _door(door_candidates, fixture_cells, a["x1"] - 1, za, "east", door)
+                _door(door_candidates, fixture_cells, b["x0"], zb, "west", door)
         else:
             overlap_lo = max(a["x0"] + 2, b["x0"] + 2)
             overlap_hi = min(a["x1"] - 3, b["x1"] - 3)
@@ -277,8 +302,8 @@ def BspDungeon(
                 _arch(parts, fixture_cells, xa, a["z1"] - 1, "z", room_height, stair)
                 _arch(parts, fixture_cells, xb, b["z0"], "z", room_height, stair)
             else:
-                _door(parts, fixture_cells, xa, a["z1"] - 1, "south", door)
-                _door(parts, fixture_cells, xb, b["z0"], "north", door)
+                _door(door_candidates, fixture_cells, xa, a["z1"] - 1, "south", door)
+                _door(door_candidates, fixture_cells, xb, b["z0"], "north", door)
 
     # Entrance hut, descending stair tunnel, and its dungeon-level landing.
     if surface_entrance:
@@ -297,7 +322,7 @@ def BspDungeon(
             fill_region([hx0, surface_level + 4, 0], [hx1, surface_level + 5, 5], block(wall)),
             carve_region([hx0 + 1, surface_level + 1, 1], [hx1 - 1, surface_level + 4, 4]),
         ])
-        _door(parts, fixture_cells, center, 0, "north", door, y=surface_level + 1)
+        _door(door_candidates, fixture_cells, center, 0, "north", door, y=surface_level + 1)
         for step in range(surface_level):
             y = surface_level - step
             z = 3 + step
@@ -334,6 +359,10 @@ def BspDungeon(
             parts.append(fill_region([x, 1, z - 1], [x + 1, room_height + 2, z], block(wall)))
         if _key(x, z + 1) not in corridor_cells and _key(x, z + 1) not in stair_cells:
             parts.append(fill_region([x, 1, z + 1], [x + 1, room_height + 2, z + 2], block(wall)))
+
+    for candidate in door_candidates:
+        if _door_has_jambs(candidate, corridor_cells, room_height):
+            _emit_door(parts, candidate)
 
     light_cells = {}
     for index in range(0, len(ordered_corridor_cells), light_spacing):

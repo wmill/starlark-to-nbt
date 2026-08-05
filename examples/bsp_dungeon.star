@@ -23,5 +23,9 @@ def build(width=96, length=96, room_height=4, min_room_size=6,
         props=dict(dungeon["props"]),
         min_size=dungeon["min_size"],
         metadata={"ground_level": surface_level},
+        validators=[validator(
+            "door_supported_on_both_sides",
+            assembly="bsp_dungeon_door",
+        )],
         body=dungeon,
     )

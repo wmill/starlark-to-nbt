@@ -5,6 +5,7 @@ from itertools import product
 from .ir import (
     BlockOperation, BlockWrite, CarveRegion, Component, EntityPlacement, EntitySpec,
     FillRegion, Group, LoweringResult, Phase, PlaceAssembly, PlaceBlock, PlaceEntity, ResolvedNode,
+    ValidatorPlacement,
 )
 from .model import AIR, Box, BuildError, Diagnostic, Point, Provenance, Transform
 
@@ -45,19 +46,26 @@ def lower(root: ResolvedNode) -> list[BlockOperation]:
 def lower_all(root: ResolvedNode) -> LoweringResult:
     operations: list[BlockOperation] = []
     entities: list[EntityPlacement] = []
-    _lower(root, operations, entities, None)
+    validators: list[ValidatorPlacement] = []
+    _lower(root, operations, entities, validators, None)
     sequenced_ops = [BlockOperation(op.phase, op.kind, op.writes, op.provenance, op.assembly_name, i)
                      for i, op in enumerate(operations)]
     sequenced_entities = [EntityPlacement(item.pos, item.entity, item.provenance, i)
                           for i, item in enumerate(entities)]
-    return LoweringResult(sequenced_ops, sequenced_entities)
+    sequenced_validators = [ValidatorPlacement(item.validator, item.provenance, i)
+                            for i, item in enumerate(validators)]
+    return LoweringResult(sequenced_ops, sequenced_entities, sequenced_validators)
 
 
-def _lower(node: ResolvedNode, operations: list[BlockOperation], entities: list[EntityPlacement], owner: ResolvedNode | None) -> None:
+def _lower(node: ResolvedNode, operations: list[BlockOperation], entities: list[EntityPlacement],
+           validators: list[ValidatorPlacement], owner: ResolvedNode | None) -> None:
     if isinstance(node.node, Component):
         owner = node
+        region = _world_box(node.region, node.world_transforms)
+        provenance = Provenance(node.path, region, node.node.source)
+        validators.extend(ValidatorPlacement(item, provenance) for item in node.node.validators)
     for child in node.children:
-        _lower(child, operations, entities, owner)
+        _lower(child, operations, entities, validators, owner)
     if node.children:
         return
 

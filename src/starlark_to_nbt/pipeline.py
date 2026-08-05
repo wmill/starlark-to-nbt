@@ -9,10 +9,11 @@ from .execute import SparseVolume, dense_to_dict, execute
 from .ir import BlockOperation, BuildMetadata, Component, EntityPlacement, Node, ResolvedNode
 from .layout import resolve, resolved_to_dict
 from .lowering import entities_to_dict, lower_all, operations_to_dict
-from .model import Box, Point
+from .model import Box, BuildError, Point
 from .serialize import write_json, write_structure_nbt
 from .starlark_runtime import evaluate_file
-from .support import validate_support
+from .support import support_diagnostics
+from .validators import validator_diagnostics
 
 
 @dataclass(slots=True)
@@ -41,7 +42,12 @@ def build_file(path: str | Path, entry: str = "build", props: dict[str, Any] | N
         if isinstance(component_ir, Component) and component_ir.metadata
         else BuildMetadata()
     )
-    validate_support(volume, root_box, metadata)
+    diagnostics = support_diagnostics(volume, root_box, metadata)
+    diagnostics.extend(validator_diagnostics(
+        lowered.validators, operations, volume, root_box, metadata,
+    ))
+    if diagnostics:
+        raise BuildError(diagnostics)
     return BuildResult(component_ir, resolved, operations, lowered.entities, volume, metadata)
 
 
