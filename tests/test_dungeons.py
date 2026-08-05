@@ -13,6 +13,11 @@ from starlark_to_nbt.serialize import write_structure_nbt
 ROOT = Path(__file__).parents[1]
 SHOWCASE = ROOT / "lib" / "showcase.star"
 EXAMPLE = ROOT / "examples" / "bsp_dungeon.star"
+STONE_BRICKS = {
+    "minecraft:stone_bricks",
+    "minecraft:mossy_stone_bricks",
+    "minecraft:cracked_stone_bricks",
+}
 
 
 def test_compact_dungeon_has_topology_stats_atomic_doors_and_supported_lights():
@@ -33,6 +38,30 @@ def test_compact_dungeon_has_topology_stats_atomic_doors_and_supported_lights():
     assert lanterns
     assert all(result.volume.block_at(p + Point(0, 1, 0)).block_type == "minecraft:stone_bricks"
                for p in lanterns)
+
+
+def test_dungeon_wall_picker_is_cached_by_coordinate(tmp_path):
+    source = tmp_path / "picked_walls.star"
+    source.write_text(
+        f'load("{ROOT / "lib" / "dungeons.star"}", "BspDungeon")\n'
+        'SEEN = {}\n'
+        'def pick_wall(material, x, y, z):\n'
+        '    key = "%s,%s,%s" % (x, y, z)\n'
+        '    if key in SEEN:\n'
+        '        fail("wall picker called twice for one coordinate")\n'
+        '    SEEN[key] = True\n'
+        '    if (x + y + z) % 2 == 0:\n'
+        '        return "minecraft:mossy_stone_bricks"\n'
+        '    return material\n'
+        'def build():\n'
+        '    return BspDungeon(width=20, length=20, room_height=4, '
+        'min_room_size=5, target_leaf_size=12, max_depth=2, '
+        'surface_entrance=False, wall_picker=pick_wall)\n',
+        encoding="utf-8",
+    )
+    result = build_file(source)
+    names = {voxel.block.block_type for voxel in result.volume.voxels.values()}
+    assert {"minecraft:stone_bricks", "minecraft:mossy_stone_bricks"} <= names
 
 
 @pytest.mark.parametrize("rotation", [0, 90, 180, 270])
@@ -107,8 +136,41 @@ def test_reference_is_sparse_connected_and_has_surface_metadata(tmp_path):
     side = Point(front.z, 0, -front.x)
     for height in (0, 1):
         anchor = lower.pos + Point(0, height, 0)
-        assert blocks[anchor + side] == blocks[anchor - side] == "minecraft:stone_bricks"
+        assert blocks[anchor + side] in STONE_BRICKS
+        assert blocks[anchor - side] in STONE_BRICKS
         assert blocks[anchor + front] == blocks[anchor - front] == "minecraft:air"
+
+
+def test_reference_dungeon_has_seeded_height_biased_weathering():
+    result = build_file(EXAMPLE)
+    assert result.component_ir.props["mossy_percent"] == 0.15
+    assert result.component_ir.props["cracked_percent"] == 0.07
+
+    by_height = {}
+    names = []
+    for point, voxel in result.volume.voxels.items():
+        name = voxel.block.block_type
+        if name not in STONE_BRICKS:
+            continue
+        names.append(name)
+        by_height.setdefault(point.y, []).append(name)
+
+    def ratio(height, material):
+        layer = by_height[height]
+        return layer.count(material) / len(layer)
+
+    assert ratio(1, "minecraft:mossy_stone_bricks") > ratio(
+        3, "minecraft:mossy_stone_bricks")
+    assert ratio(3, "minecraft:mossy_stone_bricks") > ratio(
+        5, "minecraft:mossy_stone_bricks")
+    cracked_ratio = names.count("minecraft:cracked_stone_bricks") / len(names)
+    assert abs(cracked_ratio - 0.07) < 0.02
+
+    clean = build_file(EXAMPLE, props={"mossy_percent": 0.0, "cracked_percent": 0.0})
+    clean_names = [voxel.block.block_type for voxel in clean.volume.voxels.values()]
+    assert clean_names.count("minecraft:stone_bricks") == len(names)
+    assert "minecraft:mossy_stone_bricks" not in clean_names
+    assert "minecraft:cracked_stone_bricks" not in clean_names
 
 
 def test_seed_changes_geometry_without_changing_reference_bounds():
@@ -146,6 +208,9 @@ def test_entrance_disabled_uses_exact_low_footprint(tmp_path):
     {"wide_corridor_chance": 1.1},
     {"light_spacing": 0},
     {"burial_depth": -1},
+    {"mossy_percent": -0.01},
+    {"cracked_percent": 1.01},
+    {"mossy_percent": 0.8, "cracked_percent": 0.3},
 ])
 def test_invalid_dungeon_controls_fail_through_starlark_diagnostics(props):
     with pytest.raises(BuildError, match="starlark_error"):
