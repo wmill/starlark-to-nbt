@@ -25,7 +25,7 @@ def Chair(stair="minecraft:oak_stairs"):
         props={"stair": stair},
         min_size=[1, 1, 1],
         body=place_block([0, 0, 0],
-                         block(stair, {"facing": "south", "half": "bottom", "shape": "straight"}),
+                         block(stair, {"facing": "north", "half": "bottom", "shape": "straight"}),
                          phase="fixture"),
     )
 
