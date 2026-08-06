@@ -1,3 +1,6 @@
+load("../lib/roofs.star", "GableRoof")
+
+
 def Door(material="minecraft:oak_door"):
     return component(
         name="Door",
@@ -39,10 +42,37 @@ def PewBank(pew_count):
     )
 
 
+def Lectern():
+    return component(
+        name="Lectern",
+        props={},
+        min_size=[1, 1, 1],
+        body=place_block(
+            pos=[0, 0, 0],
+            block=block("minecraft:lectern", {"facing": "south", "has_book": "false", "powered": "false"}),
+            phase="fixture",
+        ),
+    )
+
+
+def LecternRow():
+    return component(
+        name="LecternRow",
+        props={},
+        min_size=[3, 1, 1],
+        body=split(
+            axis="x",
+            sizes=[fill(), fixed(1), fill()],
+            children=[group([]), Lectern(), group([])],
+        ),
+    )
+
+
 def Church(width, length, height):
     door_x = width // 2
     interior_length = length - 3
-    pew_count = (interior_length + 1) // 2
+    pew_count = (interior_length - 1) // 2
+    roof_height = (width + 1) // 2
     shell = group([
         fill_region([0, 0, 0], [width, 1, length], block("minecraft:stone_bricks")),
         fill_region([0, 1, 0], [1, height, length], block("minecraft:stone_bricks")),
@@ -55,16 +85,27 @@ def Church(width, length, height):
     interior = inset(
         x=[1, 1], y=[1, height - 2], z=[2, 1],
         child=split(
-            axis="x",
-            sizes=[fill(), fixed(3), fill()],
-            children=[PewBank(pew_count), group([]), PewBank(pew_count)],
+            axis="z",
+            sizes=[fixed(interior_length - 2), fixed(1), fixed(1)],
+            children=[
+                split(
+                    axis="x",
+                    sizes=[fill(), fixed(3), fill()],
+                    children=[PewBank(pew_count), group([]), PewBank(pew_count)],
+                ),
+                LecternRow(),
+                group([]),
+            ],
         ),
     )
     return component(
         name="Church",
         props={"width": width, "length": length, "height": height},
-        min_size=[width, height, length],
-        body=group([shell, interior]),
+        min_size=[width, height + roof_height, length],
+        body=group([
+            transform([0, 0, 0], 0, [width, height, length], group([shell, interior])),
+            transform([0, height, 0], 0, [width, roof_height, length], GableRoof(width, length)),
+        ]),
     )
 
 

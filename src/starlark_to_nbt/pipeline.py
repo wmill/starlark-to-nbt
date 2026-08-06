@@ -67,7 +67,15 @@ def write_build_outputs(result: BuildResult, nbt_path: str | Path, debug_dir: st
 
 def _root_size(node: Node, props: dict[str, Any]) -> Point:
     if all(key in props for key in ("width", "height", "length")):
-        return Point(int(props["width"]), int(props["height"]), int(props["length"]))
+        requested = Point(int(props["width"]), int(props["height"]), int(props["length"]))
+        min_size = getattr(node, "min_size", None)
+        if min_size is not None:
+            return Point(
+                max(requested.x, min_size.x),
+                max(requested.y, min_size.y),
+                max(requested.z, min_size.z),
+            )
+        return requested
     min_size = getattr(node, "min_size", None)
     if min_size is not None:
         return min_size

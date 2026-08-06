@@ -6,7 +6,6 @@ import nbtlib
 import pytest
 
 from starlark_to_nbt.execute import dense_to_dict
-from starlark_to_nbt.ir import Phase
 from starlark_to_nbt.model import BuildError, Point
 from starlark_to_nbt.pipeline import build_file, write_build_outputs
 from starlark_to_nbt.serialize import DATA_VERSION_1_21_7, write_structure_nbt
@@ -19,7 +18,7 @@ EXAMPLE = EXAMPLES / "church.star"
 def test_church_vertical_slice_and_deterministic_nbt(tmp_path):
     result = build_file(EXAMPLE, props={"width": 11, "length": 19, "height": 4})
 
-    assert result.volume.bounds.size == Point(11, 4, 19)
+    assert result.volume.bounds.size == Point(11, 10, 19)
     lower = result.volume.block_at(Point(5, 1, 0))
     upper = result.volume.block_at(Point(5, 2, 0))
     assert lower.block_type == upper.block_type == "minecraft:oak_door"
@@ -28,17 +27,28 @@ def test_church_vertical_slice_and_deterministic_nbt(tmp_path):
     assert lower.block_state["facing"] == upper.block_state["facing"] == "north"
 
     assemblies = [op for op in result.operations if op.assembly_name == "door"]
-    pew_writes = [write for op in result.operations if op.phase == Phase.FIXTURE and op.assembly_name is None for write in op.writes]
+    pew_writes = [write for op in result.operations if "/Pew[" in op.provenance.component_path for write in op.writes]
     pew_paths = {op.provenance.component_path for op in result.operations if "/Pew[" in op.provenance.component_path}
     assert len(assemblies) == 1
     assert len(assemblies[0].writes) == 2
-    assert len(pew_writes) == 2 * 8 * 3
-    assert len(pew_paths) == 16
+    assert len(pew_writes) == 2 * 7 * 3
+    assert len(pew_paths) == 14
+    lectern = result.volume.block_at(Point(5, 1, 16))
+    assert lectern.block_type == "minecraft:lectern"
+    assert lectern.block_state["facing"] == "south"
+    assert all(
+        result.volume.block_at(Point(x, 1, 17)).block_type == "minecraft:air"
+        for x in range(1, 10)
+    )
+    roof_edge = result.volume.block_at(Point(0, 4, 9))
+    assert roof_edge.block_type == "minecraft:oak_stairs"
+    assert roof_edge.block_state["facing"] == "east"
+    assert result.volume.block_at(Point(5, 9, 9)).block_type == "minecraft:oak_planks"
     assert all(result.volume.bounds.contains_point(write.pos) for op in result.operations for write in op.writes)
 
     dense = dense_to_dict(result.volume)
     assert dense["order"] == "y,z,x"
-    assert dense["size"] == [11, 4, 19]
+    assert dense["size"] == [11, 10, 19]
 
     first = tmp_path / "first.nbt"
     second = tmp_path / "second.nbt"
@@ -48,16 +58,19 @@ def test_church_vertical_slice_and_deterministic_nbt(tmp_path):
 
     decoded = nbtlib.load(first)
     assert int(decoded["DataVersion"]) == DATA_VERSION_1_21_7
-    assert list(map(int, decoded["size"])) == [11, 4, 19]
+    assert list(map(int, decoded["size"])) == [11, 10, 19]
     # Sparse template: only written voxels are listed; untouched cells are
     # absent so pasting preserves terrain.
     assert len(decoded["blocks"]) == len(result.volume.voxels)
-    assert len(decoded["blocks"]) < 11 * 4 * 19
+    assert len(decoded["blocks"]) < 11 * 10 * 19
     assert len(decoded["entities"]) == 0
     palette_names = {str(entry["Name"]) for entry in decoded["palette"]}
     # The carved doorway is fully refilled by the door assembly, so no air
     # voxels survive into the palette.
-    assert palette_names == {"minecraft:oak_door", "minecraft:oak_stairs", "minecraft:stone_bricks"}
+    assert palette_names == {
+        "minecraft:lectern", "minecraft:oak_door", "minecraft:oak_planks", "minecraft:oak_stairs",
+        "minecraft:stone_bricks",
+    }
 
 
 def test_cottage_composes_library_components_via_load(tmp_path):
