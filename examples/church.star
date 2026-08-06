@@ -23,7 +23,7 @@ def Pew(length, material="minecraft:oak_stairs"):
         body=group([
             place_block(
                 pos=[x, 0, 0],
-                block=block(material, {"facing": "south", "half": "bottom", "shape": "straight", "waterlogged": "false"}),
+                block=block(material, {"facing": "north", "half": "bottom", "shape": "straight", "waterlogged": "false"}),
                 phase="fixture",
             )
             for x in range(length)
