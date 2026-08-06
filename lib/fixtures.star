@@ -11,7 +11,7 @@ def Bench(length, stair="minecraft:oak_stairs"):
         min_size=[length, 1, 1],
         body=group([
             place_block([x, 0, 0],
-                        block(stair, {"facing": "south", "half": "bottom", "shape": "straight"}),
+                        block(stair, {"facing": "north", "half": "bottom", "shape": "straight"}),
                         phase="fixture")
             for x in range(length)
         ]),
