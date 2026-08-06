@@ -7,9 +7,9 @@ air is silently broken in-game. This pass walks the final world-space voxels
 and raises ``unsupported_block`` diagnostics for any redstone attachable whose
 support cell cannot hold it.
 
-Scope is deliberately limited to redstone blocks: decorative attachables
-(lanterns, ladders, banners, carpets, flowers, ...) have their own rules and
-are not checked. The solidity test is a conservative approximation — a support
+Scope is deliberately limited to redstone blocks plus plain/soul torches
+(floor and wall variants): other decorative attachables (lanterns, ladders,
+banners, carpets, flowers, ...) have their own rules and are not checked. The solidity test is a conservative approximation — a support
 cell counts as solid unless its block type is a known non-supporting block.
 
 Support-cell semantics for the sparse output format:
@@ -46,6 +46,14 @@ _NEEDS_BELOW = frozenset({
     "minecraft:repeater",
     "minecraft:comparator",
     "minecraft:redstone_torch",
+    "minecraft:torch",
+    "minecraft:soul_torch",
+})
+
+_WALL_TORCHES = frozenset({
+    "minecraft:redstone_wall_torch",
+    "minecraft:wall_torch",
+    "minecraft:soul_wall_torch",
 })
 
 _FACE_ATTACHED = frozenset({"minecraft:lever"})
@@ -116,7 +124,7 @@ def _support_offset(block: BlockSpec) -> Point | None:
     block_type = block.block_type
     if block_type in _NEEDS_BELOW or block_type.endswith("_pressure_plate"):
         return _DOWN
-    if block_type == "minecraft:redstone_wall_torch":
+    if block_type in _WALL_TORCHES:
         return _BEHIND.get(block.block_state.get("facing", "north"))
     if block_type in _FACE_ATTACHED or block_type.endswith("_button"):
         face = block.block_state.get("face", "wall")

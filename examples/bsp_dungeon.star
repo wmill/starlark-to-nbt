@@ -7,7 +7,7 @@ CRACKED_STONE = "minecraft:cracked_stone_bricks"
 DEFAULT_MOSSY_PERCENT = 0.15
 DEFAULT_CRACKED_PERCENT = 0.07
 WEATHERING = {
-    "cycle": random_cycle(),
+    "cycle": None,  # re-seeded in build() before any use
     "mossy_percent": DEFAULT_MOSSY_PERCENT,
     "cracked_percent": DEFAULT_CRACKED_PERCENT,
     "room_height": 4,
@@ -19,7 +19,7 @@ def _moss_factor(y):
     surface_level = WEATHERING["surface_level"]
     if surface_level > 0 and y > surface_level:
         local_y = y - surface_level
-        top_y = 4
+        top_y = 4  # entrance hut: walls at local y 1..3, ceiling at 4
     else:
         local_y = y
         top_y = WEATHERING["room_height"] + 1

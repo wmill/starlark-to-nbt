@@ -80,6 +80,26 @@ def test_wall_torch_needs_block_behind_facing():
         check((Phase.FIXTURE, (1, 1, 2), torch))
 
 
+def test_plain_wall_torch_needs_block_behind_facing():
+    torch = BlockSpec("minecraft:wall_torch", {"facing": "east"})
+    check(
+        (Phase.STRUCTURE, (1, 1, 1), STONE),
+        (Phase.FIXTURE, (2, 1, 1), torch),
+    )
+    with pytest.raises(BuildError, match="unsupported_block"):
+        check((Phase.FIXTURE, (2, 1, 1), torch))
+
+
+def test_plain_torch_needs_block_below():
+    torch = BlockSpec("minecraft:torch")
+    check(
+        (Phase.STRUCTURE, (1, 0, 1), STONE),
+        (Phase.FIXTURE, (1, 1, 1), torch),
+    )
+    with pytest.raises(BuildError, match="unsupported_block"):
+        check((Phase.FIXTURE, (1, 2, 1), torch))
+
+
 def test_lever_face_determines_support_cell():
     floor_lever = BlockSpec("minecraft:lever", {"face": "floor", "facing": "south"})
     check(

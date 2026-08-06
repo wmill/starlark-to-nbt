@@ -30,9 +30,13 @@ def test_compact_dungeon_has_topology_stats_atomic_doors_and_supported_lights():
     assert props["wide_connection_count"] > 0
     assert any(v.block.block_type == "minecraft:stone_brick_stairs"
                for v in result.volume.voxels.values())
-    torches = [p for p, v in result.volume.voxels.items()
-               if v.block.block_type == "minecraft:torch"]
-    assert len(torches) == 2 * props["room_count"]
+    assert not any(v.block.block_type == "minecraft:torch"
+                   for v in result.volume.voxels.values())
+    wall_torches = [p for p, v in result.volume.voxels.items()
+                    if v.block.block_type in {"minecraft:wall_torch",
+                                              "minecraft:soul_wall_torch"}]
+    assert len(wall_torches) == props["wall_torch_count"]
+    assert len(wall_torches) == 2 * (props["room_count"] - props["mob_room_count"])
     lanterns = [p for p, v in result.volume.voxels.items()
                 if v.block.block_type == "minecraft:lantern"]
     assert lanterns
@@ -78,6 +82,10 @@ def test_dungeon_rotations_preserve_voxels_and_rotate_directional_states(rotatio
                           if v.block.block_type == "minecraft:stone_brick_stairs"}
     stair_facings = {v.block.block_state["facing"] for v in turned.volume.voxels.values()
                      if v.block.block_type == "minecraft:stone_brick_stairs"}
+    base_torch_facings = {v.block.block_state["facing"] for v in base.volume.voxels.values()
+                          if v.block.block_type == "minecraft:wall_torch"}
+    torch_facings = {v.block.block_state["facing"] for v in turned.volume.voxels.values()
+                     if v.block.block_type == "minecraft:wall_torch"}
     turns = {
         0: {"north": "north", "east": "east", "south": "south", "west": "west"},
         90: {"north": "east", "east": "south", "south": "west", "west": "north"},
@@ -86,6 +94,7 @@ def test_dungeon_rotations_preserve_voxels_and_rotate_directional_states(rotatio
     }
     assert door_facings == {turns[rotation][facing] for facing in base_door_facings}
     assert stair_facings == {turns[rotation][facing] for facing in base_stair_facings}
+    assert torch_facings == {turns[rotation][facing] for facing in base_torch_facings}
 
 
 def test_reference_is_sparse_connected_and_has_surface_metadata(tmp_path):
@@ -139,6 +148,44 @@ def test_reference_is_sparse_connected_and_has_surface_metadata(tmp_path):
         assert blocks[anchor + side] in STONE_BRICKS
         assert blocks[anchor - side] in STONE_BRICKS
         assert blocks[anchor + front] == blocks[anchor - front] == "minecraft:air"
+    # The lintel refills the carved corridor column above every door.
+    for height in (2, 3):
+        assert blocks[lower.pos + Point(0, height, 0)] in STONE_BRICKS
+
+
+def test_reference_rooms_are_furnished_by_type():
+    result = build_file(EXAMPLE)
+    props = result.component_ir.props
+    assert props["mob_room_count"] > 0
+    assert props["furnished_room_count"] > props["mob_room_count"]
+
+    by_type = {}
+    for voxel in result.volume.voxels.values():
+        by_type.setdefault(voxel.block.block_type, []).append(voxel)
+
+    # All room lighting is wall-mounted; the count prop matches the voxels.
+    assert "minecraft:torch" not in by_type
+    torches = (by_type["minecraft:wall_torch"]
+               + by_type.get("minecraft:soul_wall_torch", []))
+    assert len(torches) == props["wall_torch_count"]
+
+    # Mob rooms each carry exactly one spawner with a known mob, and no light.
+    spawners = by_type["minecraft:spawner"]
+    assert len(spawners) == props["mob_room_count"]
+    assert all(v.block.block_nbt["SpawnData"]["entity"]["id"]
+               in {"minecraft:zombie", "minecraft:skeleton", "minecraft:spider"}
+               for v in spawners)
+
+    # Treasure chests roll the dungeon loot table; armoury chests hold gear.
+    chests = by_type["minecraft:chest"]
+    assert any(v.block.block_nbt.get("LootTable") == "minecraft:chests/simple_dungeon"
+               for v in chests)
+    assert any(v.block.block_nbt.get("Items") for v in chests)
+
+    assert "minecraft:bookshelf" in by_type
+    assert "minecraft:skeleton_skull" in by_type
+    assert any(e.entity.entity_type == "minecraft:armor_stand"
+               for e in result.entities)
 
 
 def test_reference_dungeon_has_seeded_height_biased_weathering():
