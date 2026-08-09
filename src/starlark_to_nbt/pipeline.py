@@ -9,9 +9,9 @@ from .execute import SparseVolume, dense_to_dict, execute
 from .ir import BlockOperation, BuildMetadata, Component, EntityPlacement, Node, ResolvedNode
 from .layout import resolve, resolved_to_dict
 from .lowering import entities_to_dict, lower_all, operations_to_dict
-from .model import Box, BuildError, Point
+from .model import Box, BuildError, Point, fail
 from .serialize import write_json, write_structure_nbt
-from .starlark_runtime import evaluate_file
+from .starlark_runtime import evaluate_file, evaluate_source
 from .support import support_diagnostics
 from .validators import validator_diagnostics
 
@@ -30,9 +30,26 @@ def build_file(path: str | Path, entry: str = "build", props: dict[str, Any] | N
                root_size: Point | None = None) -> BuildResult:
     props = props or {}
     component_ir = evaluate_file(path, entry, props)
+    return _finish_build(component_ir, props, root_size)
+
+
+def build_source(source: str, entry: str = "build", props: dict[str, Any] | None = None,
+                 root_size: Point | None = None, filename: str = "<input>",
+                 base_dir: str | Path | None = None,
+                 loader_root: str | Path | None = None) -> BuildResult:
+    props = props or {}
+    component_ir = evaluate_source(source, filename, entry, props,
+                                   base_dir=base_dir, loader_root=loader_root)
+    return _finish_build(component_ir, props, root_size)
+
+
+def _finish_build(component_ir: Node, props: dict[str, Any], root_size: Point | None) -> BuildResult:
     if root_size is None:
         root_size = _root_size(component_ir, props)
-    root_box = Box.from_size(root_size)
+    try:
+        root_box = Box.from_size(root_size)
+    except ValueError as exc:
+        raise fail("invalid_box", str(exc)) from exc
     resolved = resolve(component_ir, root_box)
     lowered = lower_all(resolved)
     operations = lowered.operations
@@ -79,7 +96,8 @@ def _root_size(node: Node, props: dict[str, Any]) -> Point:
     min_size = getattr(node, "min_size", None)
     if min_size is not None:
         return min_size
-    raise ValueError("root_size is required when width, height, and length props are not all supplied")
+    raise fail("missing_root_size",
+               "root_size is required when width, height, and length props are not all supplied")
 
 
 def _jsonable(value: Any) -> Any:

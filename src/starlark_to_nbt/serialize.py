@@ -9,7 +9,7 @@ import nbtlib
 from nbtlib import Byte, Compound, Double, File, Float, Int, List, String
 
 from .execute import SparseVolume, dense_to_dict
-from .model import BlockSpec, Point
+from .model import BlockSpec, Point, fail
 
 
 DATA_VERSION_1_21_7 = 4438
@@ -28,27 +28,30 @@ def write_structure_nbt(volume: SparseVolume, path: str | Path) -> None:
     ordered_specs = sorted(specs.values(), key=lambda block: (block.block_type != "minecraft:air", block.key()))
     palette_index = {block.key(): index for index, block in enumerate(ordered_specs)}
 
-    palette = List[Compound]([_palette_entry(block) for block in ordered_specs])
-    blocks = List[Compound]()
-    origin = volume.bounds.min
-    for point, block in written:
-        relative = point - origin
-        entry = Compound({
-            "state": Int(palette_index[block.key()]),
-            "pos": List[Int]([Int(relative.x), Int(relative.y), Int(relative.z)]),
-        })
-        if block.block_nbt:
-            # Block-entity data rides on the block instance, never the palette.
-            entry["nbt"] = _to_nbt(block.block_nbt)
-        blocks.append(entry)
+    try:
+        palette = List[Compound]([_palette_entry(block) for block in ordered_specs])
+        blocks = List[Compound]()
+        origin = volume.bounds.min
+        for point, block in written:
+            relative = point - origin
+            entry = Compound({
+                "state": Int(palette_index[block.key()]),
+                "pos": List[Int]([Int(relative.x), Int(relative.y), Int(relative.z)]),
+            })
+            if block.block_nbt:
+                # Block-entity data rides on the block instance, never the palette.
+                entry["nbt"] = _to_nbt(block.block_nbt)
+            blocks.append(entry)
 
-    root = Compound({
-        "DataVersion": Int(DATA_VERSION_1_21_7),
-        "size": List[Int]([Int(v) for v in volume.bounds.size.to_list()]),
-        "palette": palette,
-        "blocks": blocks,
-        "entities": List[Compound]([_entity_entry(item, origin) for item in sorted(volume.entities, key=lambda e: e.sequence)]),
-    })
+        root = Compound({
+            "DataVersion": Int(DATA_VERSION_1_21_7),
+            "size": List[Int]([Int(v) for v in volume.bounds.size.to_list()]),
+            "palette": palette,
+            "blocks": blocks,
+            "entities": List[Compound]([_entity_entry(item, origin) for item in sorted(volume.entities, key=lambda e: e.sequence)]),
+        })
+    except ValueError as exc:
+        raise fail("serialize_error", str(exc)) from exc
     # Avoid gzip's current-time header so identical builds are byte-for-byte stable.
     with Path(path).open("wb") as raw_file:
         with gzip.GzipFile(filename="", mode="wb", fileobj=raw_file, mtime=0) as gzipped_file:

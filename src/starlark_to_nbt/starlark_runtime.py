@@ -150,10 +150,18 @@ def _new_module() -> sl.Module:
 
 
 class _Loader:
-    """Resolves load() statements relative to the file issuing the load."""
+    """Resolves load() statements relative to the file issuing the load.
 
-    def __init__(self, base_dir: Path):
+    With a ``root``, the loader is confined: absolute paths are rejected and
+    every resolved path must land inside ``root`` under one of the ``allowed``
+    top-level directories. Confined failures all use the same "module not
+    found" message so load() cannot probe the filesystem."""
+
+    def __init__(self, base_dir: Path, root: str | Path | None = None,
+                 allowed: tuple[str, ...] = ("lib",)):
         self._dir_stack = [base_dir]
+        self._root = Path(root).resolve() if root is not None else None
+        self._allowed = allowed
         self._cache: dict[str, sl.FrozenModule] = {}
         self._in_progress: set[str] = set()
         # The Rust eval layer wraps Python exceptions raised by the load
@@ -163,8 +171,12 @@ class _Loader:
 
     def _load(self, path: str) -> sl.FrozenModule:
         raw = Path(path)
+        if self._root is not None and raw.is_absolute():
+            raise self._fail("load_error", f"module not found: {path}", path)
         resolved = raw if raw.is_absolute() else self._dir_stack[-1] / raw
         resolved = resolved.resolve()
+        if self._root is not None and not self._permitted(resolved):
+            raise self._fail("load_error", f"module not found: {path}", path)
         key = str(resolved)
         if key in self._cache:
             return self._cache[key]
@@ -173,6 +185,8 @@ class _Loader:
         try:
             source = resolved.read_text(encoding="utf-8")
         except OSError as exc:
+            if self._root is not None:
+                raise self._fail("load_error", f"module not found: {path}", path) from exc
             raise self._fail("load_error", f"cannot load {path}: {exc}", key) from exc
         self._in_progress.add(key)
         self._dir_stack.append(resolved.parent)
@@ -187,6 +201,12 @@ class _Loader:
         self._cache[key] = frozen
         return frozen
 
+    def _permitted(self, resolved: Path) -> bool:
+        if not resolved.is_relative_to(self._root):
+            return False
+        relative = resolved.relative_to(self._root)
+        return bool(relative.parts) and relative.parts[0] in self._allowed
+
     def _fail(self, code: str, message: str, file: str) -> BuildError:
         error = BuildError(Diagnostic(code, message, "<load>", SourceRef(file)))
         if self.error is None:
@@ -198,11 +218,14 @@ _ENTRY_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def evaluate_source(source: str, filename: str, entry: str, props: dict[str, Any],
-                    base_dir: str | Path | None = None) -> Node:
+                    base_dir: str | Path | None = None,
+                    loader_root: str | Path | None = None) -> Node:
     if not _ENTRY_NAME.fullmatch(entry):
         raise BuildError(Diagnostic("invalid_entry", f"entry {entry!r} is not a valid identifier", entry,
                                     SourceRef(filename)))
-    loader = _Loader(Path(base_dir)) if base_dir is not None else None
+    if base_dir is None and loader_root is not None:
+        base_dir = loader_root
+    loader = _Loader(Path(base_dir), root=loader_root) if base_dir is not None else None
     file_loader = loader.file_loader if loader else None
     try:
         module = _new_module()

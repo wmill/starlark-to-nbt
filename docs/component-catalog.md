@@ -420,5 +420,9 @@ offending coordinates/region: `component_too_small`, `split_overflow`,
 `component_overflow`, `root_overflow`, `block_conflict`, `assembly_overflow`,
 `invalid_metadata`, `metadata_not_root`, `load_error`, `load_cycle`,
 `invalid_validator`, `validator_no_targets`, `invalid_validator_target`,
-`door_not_supported`, `doorway_obstructed`, `starlark_error`. Starlark syntax/eval errors include file:line spans;
+`door_not_supported`, `doorway_obstructed`, `starlark_error`,
+`missing_root_size` (root component has no `min_size` and width/height/length
+props were not all supplied), `invalid_box` (root size has a non-positive
+dimension), `serialize_error` (block-entity NBT holds an unserializable
+value). Starlark syntax/eval errors include file:line spans;
 build-rule errors identify the component path instead.
