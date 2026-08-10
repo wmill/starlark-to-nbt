@@ -135,6 +135,18 @@ def test_stone_fortifications_have_openings_battlements_and_rotating_hardware():
     assert chains and {chain.block_state["axis"] for chain in chains} == {"x"}
 
 
+def test_rampart_tower_has_foundation_and_ladder_accessible_roof_deck():
+    tower = build_file(SHOWCASE, props={"name": "RampartTower"})
+
+    assert tower.volume.block_at(Point(1, 0, 1)).block_type == "minecraft:stone_bricks"
+    assert tower.volume.block_at(Point(2, 0, 1)).block_type == "minecraft:stone_bricks"
+    assert tower.volume.block_at(Point(1, 9, 1)).block_type == "minecraft:stone_bricks"
+    assert tower.volume.block_at(Point(2, 9, 2)).block_type == "minecraft:stone_bricks"
+    assert tower.volume.block_at(Point(2, 9, 1)).block_type == "minecraft:ladder"
+    assert tower.volume.block_at(Point(2, 0, 4)).block_type == "minecraft:stone_bricks"
+    assert tower.volume.block_at(Point(2, 1, 4)).block_type == "minecraft:oak_door"
+
+
 def test_timber_fortifications_have_tips_atomic_gate_and_rotating_ladder():
     wall = build_file(SHOWCASE, props={"name": "PalisadeWall"})
     assert wall.volume.block_at(Point(0, 5, 0)).block_type == "minecraft:spruce_log"

@@ -113,8 +113,8 @@ def RampartWall(length, height=7, stone="minecraft:stone_bricks", core="minecraf
 def RampartTower(size=5, height=10, stone="minecraft:stone_bricks",
                   accent="minecraft:infested_stone_bricks", trim="minecraft:chiseled_stone_bricks",
                   door="minecraft:oak_door"):
-    """Hollow square tower with chiseled corner quoins, a solid base, an
-    interior ladder, and a torch-lit merlon crown matching RampartWall."""
+    """Hollow square tower with chiseled corner quoins, a solid foundation,
+    ladder-accessed roof deck, and a torch-lit merlon crown matching RampartWall."""
     if size < 5 or height < 8:
         fail("RampartTower requires size >= 5 and height >= 8")
     parts = []
@@ -124,8 +124,14 @@ def RampartTower(size=5, height=10, stone="minecraft:stone_bricks",
     parts.append(fill_region([1, 0, size - 1], [size - 1, height, size], block(stone)))
     parts.append(fill_region([0, 0, 1], [1, height, size - 1], block(stone)))
     parts.append(fill_region([size - 1, 0, 1], [size, height, size - 1], block(stone)))
-    parts.append(transform([size // 2, 0, 1], 0, [1, height, 1], Ladder(height)))
-    parts.append(transform([size // 2, 0, size - 1], 0, [1, 2, 1], SingleDoor(door)))
+    # Close the tower at ground level and at the crown. The ladder begins on
+    # top of the foundation and passes through a carved cell in the roof deck.
+    ladder_x = size // 2
+    parts.append(fill_region([1, 0, 1], [size - 1, 1, size - 1], block(stone)))
+    parts.append(fill_region([1, height - 1, 1], [size - 1, height, size - 1], block(stone)))
+    parts.append(carve_region([ladder_x, height - 1, 1], [ladder_x + 1, height, 2]))
+    parts.append(transform([ladder_x, 1, 1], 0, [1, height - 1, 1], Ladder(height - 1)))
+    parts.append(transform([size // 2, 1, size - 1], 0, [1, 2, 1], SingleDoor(door)))
     for x in range(0, size, 2):
         parts.append(place_block([x, height, 0], block(accent)))
         parts.append(place_block([x, height, size - 1], block(accent)))

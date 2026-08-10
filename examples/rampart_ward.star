@@ -13,7 +13,7 @@ load("../lib/outdoor.star", "RoundTree", "Well", "Path")
 
 SIZE = 27
 TOWER = 5
-TOWER_HEIGHT = 10
+TOWER_HEIGHT = 11
 WALL_HEIGHT = 7
 # The tower's door faces south into the west wall's run; gapping the wall's
 # start by two blocks leaves the door somewhere to open onto instead of
@@ -26,7 +26,7 @@ def build():
     north_length = SIZE - TOWER
     west_length = SIZE - WEST_WALL_Z
     parts = [
-        transform([0, 1, 0], 0, [TOWER, TOWER_HEIGHT + 2, TOWER], RampartTower(TOWER, TOWER_HEIGHT)),
+        transform([0, 0, 0], 0, [TOWER, TOWER_HEIGHT + 2, TOWER], RampartTower(TOWER, TOWER_HEIGHT)),
         transform([TOWER, 1, 0], 180, [north_length, WALL_HEIGHT + 2, 3], RampartWall(north_length, WALL_HEIGHT)),
         transform([0, 1, WEST_WALL_Z], 90, [west_length, WALL_HEIGHT + 2, 3], RampartWall(west_length, WALL_HEIGHT)),
         # Guest houses, each a different bed color like the source sample.
