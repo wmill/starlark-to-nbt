@@ -140,9 +140,10 @@ def test_rampart_tower_has_foundation_and_ladder_accessible_roof_deck():
 
     assert tower.volume.block_at(Point(1, 0, 1)).block_type == "minecraft:stone_bricks"
     assert tower.volume.block_at(Point(2, 0, 1)).block_type == "minecraft:stone_bricks"
-    assert tower.volume.block_at(Point(1, 9, 1)).block_type == "minecraft:stone_bricks"
-    assert tower.volume.block_at(Point(2, 9, 2)).block_type == "minecraft:stone_bricks"
-    assert tower.volume.block_at(Point(2, 9, 1)).block_type == "minecraft:ladder"
+    assert tower.volume.block_at(Point(1, 8, 1)).block_type == "minecraft:stone_bricks"
+    assert tower.volume.block_at(Point(2, 8, 2)).block_type == "minecraft:stone_bricks"
+    assert tower.volume.block_at(Point(2, 8, 1)).block_type == "minecraft:ladder"
+    assert Point(2, 9, 1) not in tower.volume.voxels
     assert tower.volume.block_at(Point(2, 0, 4)).block_type == "minecraft:stone_bricks"
     assert tower.volume.block_at(Point(2, 1, 4)).block_type == "minecraft:oak_door"
 

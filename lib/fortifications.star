@@ -128,9 +128,9 @@ def RampartTower(size=5, height=10, stone="minecraft:stone_bricks",
     # top of the foundation and passes through a carved cell in the roof deck.
     ladder_x = size // 2
     parts.append(fill_region([1, 0, 1], [size - 1, 1, size - 1], block(stone)))
-    parts.append(fill_region([1, height - 1, 1], [size - 1, height, size - 1], block(stone)))
-    parts.append(carve_region([ladder_x, height - 1, 1], [ladder_x + 1, height, 2]))
-    parts.append(transform([ladder_x, 1, 1], 0, [1, height - 1, 1], Ladder(height - 1)))
+    parts.append(fill_region([1, height - 2, 1], [size - 1, height - 1, size - 1], block(stone)))
+    parts.append(carve_region([ladder_x, height - 2, 1], [ladder_x + 1, height - 1, 2]))
+    parts.append(transform([ladder_x, 1, 1], 0, [1, height - 2, 1], Ladder(height - 2)))
     parts.append(transform([size // 2, 1, size - 1], 0, [1, 2, 1], SingleDoor(door)))
     for x in range(0, size, 2):
         parts.append(place_block([x, height, 0], block(accent)))
