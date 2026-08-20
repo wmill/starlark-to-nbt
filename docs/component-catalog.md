@@ -381,6 +381,10 @@ standalone layouts and rotations are covered by the library test harness.
   staircase built by a hand-rolled per-step loop, since `repeat()` cannot vary
   rotation or position between copies; full-block corner landings keep every
   90-degree turn walkable under Minecraft movement rules.
+- `examples/procedural_slab_spiral.star` — 25x16x25 freestanding smooth-stone
+  slab corkscrew: an integer distance-squared annulus creates the round outer
+  edge and hollow centre, while 16 radial wedge sectors alternate bottom and
+  top slabs for half-block rises across two full turns.
 - `examples/procedural_rotunda.star` — 19x19x19 round glass rotunda: a
   thin cylindrical wall shell and true hemispherical dome shell, both
   voxelized with integer distance-squared circle tests (no `sqrt()`

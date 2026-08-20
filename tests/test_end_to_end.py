@@ -431,6 +431,8 @@ def test_build_outputs_replace_existing_nbt_and_metadata_sidecar(tmp_path):
           "minecraft:polished_blackstone", "minecraft:gilded_blackstone"}),
         ("procedural_spiral_stair.star", Point(9, 23, 9), 805, "ProceduralSpiralStair",
          {"minecraft:deepslate_tiles", "minecraft:polished_deepslate", "minecraft:cobbled_deepslate_stairs"}),
+        ("procedural_slab_spiral.star", Point(25, 16, 25), 784, "ProceduralSlabSpiral",
+         {"minecraft:smooth_stone_slab"}),
         ("procedural_rotunda.star", Point(19, 19, 19), 1453, "ProceduralRotunda",
          {"minecraft:smooth_stone", "minecraft:quartz_block", "minecraft:glass"}),
         ("procedural_twisting_spire.star", Point(9, 40, 9), 960, "ProceduralTwistingSpire",
@@ -500,6 +502,40 @@ def test_procedural_spiral_stair_uses_full_blocks_at_walkable_corners():
                for pos in corners)
     assert result.volume.block_at(Point(3, 2, 2)).block_state["facing"] == "east"
     assert result.volume.block_at(Point(5, 10, 6)).block_state["facing"] == "west"
+
+
+def test_procedural_slab_spiral_is_a_hollow_round_half_step_corkscrew():
+    result = build_file(EXAMPLES / "procedural_slab_spiral.star")
+
+    # The circular annulus leaves both the central shaft and the square
+    # footprint's corners empty through the full height.
+    assert all(result.volume.block_at(Point(12, y, 12)).block_type == "minecraft:air"
+               for y in range(16))
+    assert all(result.volume.block_at(Point(x, y, z)).block_type == "minecraft:air"
+               for x, z in [(0, 0), (0, 24), (24, 0), (24, 24)]
+               for y in range(16))
+
+    # Successive wedges alternate slab halves, then climb into the next block
+    # cell. The second turn repeats the same footprint eight blocks higher.
+    expected = [
+        (Point(24, 0, 12), "bottom"),
+        (Point(22, 0, 16), "top"),
+        (Point(20, 1, 20), "bottom"),
+        (Point(24, 8, 12), "bottom"),
+        (Point(22, 8, 16), "top"),
+        (Point(20, 9, 20), "bottom"),
+        (Point(22, 15, 8), "top"),
+    ]
+    for pos, slab_type in expected:
+        slab = result.volume.block_at(pos)
+        assert slab.block_type == "minecraft:smooth_stone_slab"
+        assert slab.block_state == {"type": slab_type, "waterlogged": "false"}
+
+    # Cardinal edge cells exist at their angular heights, proving the outer
+    # ring reaches the circle while its diagonal corners remain clipped.
+    assert result.volume.block_at(Point(12, 2, 24)).block_type == "minecraft:smooth_stone_slab"
+    assert result.volume.block_at(Point(0, 4, 12)).block_type == "minecraft:smooth_stone_slab"
+    assert result.volume.block_at(Point(12, 6, 0)).block_type == "minecraft:smooth_stone_slab"
 
 
 def test_procedural_rotunda_shell_is_hollow_with_periodic_windows():
