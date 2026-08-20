@@ -147,7 +147,7 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `SingleDoor(material="minecraft:oak_door")` | `[1, 2, 1]` | Atomic two-half door. |
 | `DoubleDoor(material="minecraft:oak_door")` | `[2, 2, 1]` | Mirrored hinges. |
 | `Window(width=1, height=2, pane="minecraft:glass_pane")` | `[width, height, 1]` | Glass panes. |
-| `ShutteredWindow(width=1, height=2, pane=..., shutter="minecraft:oak_trapdoor")` | `[width+2, height, 1]` | Open-trapdoor shutters flank the panes. |
+| `ShutteredWindow(width=1, height=2, glazing="minecraft:glass", shutter="minecraft:oak_trapdoor")` | `[width+2, height, 1]` | Open-trapdoor shutters flank full-block glazing. |
 | `Archway(width, height, stair="minecraft:stone_brick_stairs")` | `[width, height, 1]` | Carved opening, upside-down stair corners; needs >= 3x3. |
 
 ### `lib/roofs.star` (sit on y=0 of their region; place above walls)

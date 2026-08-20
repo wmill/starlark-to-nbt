@@ -65,20 +65,20 @@ def Window(width=1, height=2, pane="minecraft:glass_pane"):
     )
 
 
-def ShutteredWindow(width=1, height=2, pane="minecraft:glass_pane", shutter="minecraft:oak_trapdoor"):
-    """Window flanked by open-trapdoor shutters; total footprint is width+2."""
+def ShutteredWindow(width=1, height=2, glazing="minecraft:glass", shutter="minecraft:oak_trapdoor"):
+    """Full-block window flanked by open-trapdoor shutters; total footprint is width+2."""
     shutter_state = {"facing": "south", "open": "true", "half": "bottom", "powered": "false", "waterlogged": "false"}
     parts = [
         carve_region([0, 0, 0], [width + 2, height, 1]),
         fill_region([1, 0, 0], [1 + width, height, 1],
-                    block(pane, {"east": "true", "west": "true"}), phase="fixture"),
+                    block(glazing), phase="fixture"),
     ]
     for y in range(height):
         parts.append(place_block([0, y, 0], block(shutter, shutter_state), phase="fixture"))
         parts.append(place_block([width + 1, y, 0], block(shutter, shutter_state), phase="fixture"))
     return component(
         name="ShutteredWindow",
-        props={"width": width, "height": height, "pane": pane, "shutter": shutter},
+        props={"width": width, "height": height, "glazing": glazing, "shutter": shutter},
         min_size=[width + 2, height, 1],
         body=group(parts),
     )

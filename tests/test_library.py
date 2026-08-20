@@ -82,6 +82,17 @@ def test_ladder_and_counter_face_south_and_rotate():
     assert barrels and {b.block_state["facing"] for b in barrels} == {"south"}
 
 
+def test_shuttered_window_uses_full_block_glazing_between_trapdoors():
+    window = build_file(SHOWCASE, props={"name": "ShutteredWindow"})
+
+    for y in range(2):
+        glazing = window.volume.block_at(Point(1, y, 0))
+        assert glazing.block_type == "minecraft:glass"
+        assert glazing.block_state == {}
+        assert window.volume.block_at(Point(0, y, 0)).block_type == "minecraft:oak_trapdoor"
+        assert window.volume.block_at(Point(2, y, 0)).block_type == "minecraft:oak_trapdoor"
+
+
 def test_footbridge_rails_connect_along_run_and_to_deck():
     result = build_file(SHOWCASE, props={"name": "Footbridge"})
     left = result.volume.block_at(Point(0, 1, 3))

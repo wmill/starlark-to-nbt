@@ -145,7 +145,7 @@ def test_medieval_manor_matches_reference_scale_profile_and_interior(tmp_path):
     palette = {str(entry["Name"]) for entry in decoded["palette"]}
     assert {
         "minecraft:stone_bricks", "minecraft:oak_planks", "minecraft:birch_planks",
-        "minecraft:white_wool", "minecraft:glass_pane", "minecraft:bookshelf",
+        "minecraft:white_wool", "minecraft:glass", "minecraft:bookshelf",
         "minecraft:brewing_stand", "minecraft:enchanting_table",
     } <= palette
     stocked = [entry for entry in decoded["blocks"] if "nbt" in entry and "Items" in entry["nbt"]]
