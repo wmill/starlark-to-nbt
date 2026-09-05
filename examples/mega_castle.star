@@ -40,7 +40,7 @@ def tower(name, ox, oz):
         parts.append(fill_region([layer, 32 + layer, layer], [9 - layer, 33 + layer, 9 - layer], COPPER))
     parts.append(fill_region([4, 37, 4], [5, 39, 5], block("minecraft:amethyst_block")))
     parts.append(place_block([4, 39, 4], block("minecraft:purple_banner", {"rotation": "0"}), phase="fixture"))
-    return transform([ox, 0, oz], 0, [9, 40, 9], component(name, {}, group(parts), min_size=[9, 40, 9]))
+    return at([ox, 0, oz], component(name, {}, group(parts), min_size=[9, 40, 9]))
 
 
 def curtain_walls():
@@ -173,10 +173,10 @@ def palace():
         for step in range(9):
             parts.append(place_block([upper_side, 11 + step, 22 - step], block("minecraft:dark_oak_stairs", {"facing": "north", "half": "bottom", "shape": "straight", "waterlogged": "false"}), phase="fixture"))
     # Four reusable guest-chamber instances flank the open central gallery.
-    parts.append(transform([15, 11, 9], 0, [6, 8, 6], GuestChamber("GUEST AZURE", "blue", "east")))
-    parts.append(transform([15, 11, 17], 0, [6, 8, 6], GuestChamber("GUEST VIOLET", "purple", "east")))
-    parts.append(transform([27, 11, 9], 0, [6, 8, 6], GuestChamber("GUEST GOLD", "yellow", "west")))
-    parts.append(transform([27, 11, 17], 0, [6, 8, 6], GuestChamber("GUEST JADE", "green", "west")))
+    parts.append(at([15, 11, 9], GuestChamber("GUEST AZURE", "blue", "east")))
+    parts.append(at([15, 11, 17], GuestChamber("GUEST VIOLET", "purple", "east")))
+    parts.append(at([27, 11, 9], GuestChamber("GUEST GOLD", "yellow", "west")))
+    parts.append(at([27, 11, 17], GuestChamber("GUEST JADE", "green", "west")))
     # Interior labels, guest rooms, library and council suite.
     labels = [
         ([22, 4, 23], "THRONE HALL"), ([11, 4, 13], "ROYAL ARMORY"),
@@ -219,7 +219,7 @@ def stable():
     parts.append(label([14, 5, 29], "ROYAL STABLES"))
     parts.append(place_block([11, 2, 29], block("minecraft:barrel", {"facing": "south", "open": "false"}, container_nbt(["minecraft:saddle", "minecraft:lead", "minecraft:wheat", "minecraft:apple"], id="minecraft:barrel")), phase="fixture"))
     for i in range(4):
-        parts.append(transform([11 + i * 2, 2, 34], 0, [1, 2, 1], Horse(variant=i * 256, tame=True)))
+        parts.append(at([11 + i * 2, 2, 34], Horse(variant=i * 256, tame=True)))
     return component("RoyalStables", {}, group(parts), min_size=[48, 13, 48])
 
 

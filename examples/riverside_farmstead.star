@@ -14,45 +14,45 @@ def Farmhouse():
     wall_height = 8
     shell = [
         Foundation(width, length),
-        transform([0, 1, 0], 0, [width, wall_height, 1], TimberFrameWall(width, wall_height)),
-        transform([0, 1, length - 1], 0, [width, wall_height, 1], TimberFrameWall(width, wall_height)),
-        transform([0, 1, 1], 90, [length - 2, wall_height, 1], TimberFrameWall(length - 2, wall_height)),
-        transform([width - 1, 1, 1], 90, [length - 2, wall_height, 1], TimberFrameWall(length - 2, wall_height)),
-        transform([0, 9, 0], 0, [width, 7, length], GableRoof(width, length)),
+        at([0, 1, 0], TimberFrameWall(width, wall_height)),
+        at([0, 1, length - 1], TimberFrameWall(width, wall_height)),
+        at([0, 1, 1], TimberFrameWall(length - 2, wall_height), rotation=90),
+        at([width - 1, 1, 1], TimberFrameWall(length - 2, wall_height), rotation=90),
+        at([0, 9, 0], GableRoof(width, length)),
         # Upper floor leaves a two-block-wide stairwell at the east side and
         # resumes beyond the top tread to form the landing.
-        transform([1, 5, 1], 0, [8, 1, length - 2], Floor(8, length - 2)),
-        transform([11, 5, 1], 0, [1, 1, length - 2], Floor(1, length - 2)),
-        transform([9, 5, 7], 0, [2, 1, 3], Floor(2, 3)),
-        transform([9, 1, 2], 0, [2, 5, 5], StraightStaircase(2, 5)),
+        at([1, 5, 1], Floor(8, length - 2)),
+        at([11, 5, 1], Floor(1, length - 2)),
+        at([9, 5, 7], Floor(2, 3)),
+        at([9, 1, 2], StraightStaircase(2, 5)),
     ]
     details = [
-        transform([6, 1, 10], 0, [1, 2, 1], SingleDoor()),
-        transform([2, 2, 10], 0, [1, 2, 1], Window()),
-        transform([10, 2, 10], 0, [1, 2, 1], Window()),
-        transform([2, 6, 10], 0, [1, 2, 1], Window()),
-        transform([10, 6, 10], 0, [1, 2, 1], Window()),
-        transform([2, 1, 3], 0, [5, 2, 1], DiningTable(5)),
-        transform([2, 1, 7], 0, [4, 2, 1], KitchenCounter(4)),
-        transform([11, 1, 7], 180, [1, 4, 1], Ladder(4)),
-        transform([2, 6, 2], 0, [1, 1, 2], Bed()),
+        at([6, 1, 10], SingleDoor()),
+        at([2, 2, 10], Window()),
+        at([10, 2, 10], Window()),
+        at([2, 6, 10], Window()),
+        at([10, 6, 10], Window()),
+        at([2, 1, 3], DiningTable(5)),
+        at([2, 1, 7], KitchenCounter(4)),
+        at([11, 1, 7], Ladder(4), rotation=180),
+        at([2, 6, 2], Bed()),
     ]
     return component(name="Farmhouse", props={}, min_size=[width, 16, length], body=group(shell + details))
 
 
 def build():
     parts = [
-        transform([2, 0, 3], 0, [13, 16, 11], Farmhouse()),
-        transform([18, 0, 3], 0, [9, 2, 9], CropPlot(9, 9)),
-        transform([29, 1, 4], 0, [5, 3, 3], HayBaleStack(5, 3, 3)),
+        at([2, 0, 3], Farmhouse()),
+        at([18, 0, 3], CropPlot(9, 9)),
+        at([29, 1, 4], HayBaleStack(5, 3, 3)),
         # Stream runs east/west; the bridge crosses it north/south.
         fill_region([0, 0, 17], [41, 1, 22], block("minecraft:water")),
-        transform([16, 1, 15], 0, [5, 2, 9], Footbridge(5, 9)),
-        transform([17, 0, 24], 0, [3, 1, 8], Path(8, 3)),
-        transform([4, 1, 25], 0, [3, 6, 3], Tree()),
-        transform([34, 1, 26], 0, [3, 6, 3], Tree()),
-        transform([12, 1, 15], 0, [1, 4, 1], LanternPost()),
-        transform([28, 1, 23], 0, [1, 4, 1], LanternPost()),
+        at([16, 1, 15], Footbridge(5, 9)),
+        at([17, 0, 24], Path(8, 3)),
+        at([4, 1, 25], Tree()),
+        at([34, 1, 26], Tree()),
+        at([12, 1, 15], LanternPost()),
+        at([28, 1, 23], LanternPost()),
     ]
     return component(
         name="RiversideFarmstead",

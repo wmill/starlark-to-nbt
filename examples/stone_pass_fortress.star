@@ -43,19 +43,18 @@ def build(mossy_percent=DEFAULT_MOSSY_PERCENT, cracked_percent=DEFAULT_CRACKED_P
     WEATHERING["cracked_percent"] = cracked_percent
     parts = [
         # The defensive line runs east/west across the pass.
-        transform([0, 1, 7], 0, [7, 15, 7], SquareTower(7, 14, material_picker=weathered_stone)),
-        transform([28, 1, 7], 180, [7, 15, 7], SquareTower(7, 14, material_picker=weathered_stone)),
-        transform([7, 1, 10], 0, [6, 10, 1], BattlementWall(6, 9, material_picker=weathered_stone)),
-        transform([22, 1, 10], 0, [6, 10, 1], BattlementWall(6, 9, material_picker=weathered_stone)),
-        transform([13, 1, 8], 0, [9, 11, 5],
-                  Gatehouse(height=10, opening_height=5, material_picker=weathered_stone)),
+        at([0, 1, 7], SquareTower(7, 14, material_picker=weathered_stone)),
+        at([28, 1, 7], SquareTower(7, 14, material_picker=weathered_stone), rotation=180),
+        at([7, 1, 10], BattlementWall(6, 9, material_picker=weathered_stone)),
+        at([22, 1, 10], BattlementWall(6, 9, material_picker=weathered_stone)),
+        at([13, 1, 8], Gatehouse(height=10, opening_height=5, material_picker=weathered_stone)),
         # Water occupies ground level; the lowered bridge crosses one block
         # above it and aligns with the gatehouse tunnel.
         fill_region([0, 0, 13], [WIDTH, 1, 20], block("minecraft:water")),
-        transform([16, 1, 13], 0, [3, 2, 7], Drawbridge()),
-        transform([16, 0, 0], 0, [3, 1, 8], Path(8, 3, "minecraft:gravel")),
-        transform([11, 1, 5], 0, [1, 4, 1], LanternPost()),
-        transform([23, 1, 5], 0, [1, 4, 1], LanternPost()),
+        at([16, 1, 13], Drawbridge()),
+        at([16, 0, 0], Path(8, 3, "minecraft:gravel")),
+        at([11, 1, 5], LanternPost()),
+        at([23, 1, 5], LanternPost()),
     ]
     return component(
         name="StonePassFortress",

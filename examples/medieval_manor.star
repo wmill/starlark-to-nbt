@@ -41,8 +41,8 @@ def ManorFloors():
         fill_region([12, 9, 9], [17, 10, 14], block("minecraft:oak_slab", {"type": "top", "waterlogged": "false"})),
         fill_region([3, 9, 14], [17, 10, 15], block("minecraft:oak_slab", {"type": "top", "waterlogged": "false"})),
         # Stair flights finish beside intact landing rows.
-        transform([10, 1, 5], 0, [2, 4, 4], StraightStaircase(2, 4)),
-        transform([10, 5, 9], 0, [2, 5, 5], StraightStaircase(2, 5)),
+        at([10, 1, 5], StraightStaircase(2, 4)),
+        at([10, 5, 9], StraightStaircase(2, 5)),
     ]
     return component(name="ManorFloors", props={}, min_size=[WIDTH, 14, LENGTH], body=group(parts))
 
@@ -54,33 +54,33 @@ def GroundStorey():
         fill_region([3, 1, 3], [4, 4, 15], STONE),
         fill_region([16, 1, 3], [17, 4, 15], STONE),
         # Broad west entrance and paired windows on every other face.
-        transform([3, 1, 8], 90, [2, 2, 1], DoubleDoor()),
-        transform([3, 1, 4], 90, [3, 2, 1], ShutteredWindow()),
-        transform([3, 1, 11], 90, [3, 2, 1], ShutteredWindow()),
-        transform([16, 1, 4], 270, [3, 2, 1], ShutteredWindow()),
-        transform([16, 1, 11], 270, [3, 2, 1], ShutteredWindow()),
-        transform([5, 1, 2], 180, [3, 2, 1], ShutteredWindow()),
-        transform([12, 1, 2], 180, [3, 2, 1], ShutteredWindow()),
-        transform([5, 1, 15], 0, [3, 2, 1], ShutteredWindow()),
-        transform([12, 1, 15], 0, [3, 2, 1], ShutteredWindow()),
+        at([3, 1, 8], DoubleDoor(), rotation=90),
+        at([3, 1, 4], ShutteredWindow(), rotation=90),
+        at([3, 1, 11], ShutteredWindow(), rotation=90),
+        at([16, 1, 4], ShutteredWindow(), rotation=270),
+        at([16, 1, 11], ShutteredWindow(), rotation=270),
+        at([5, 1, 2], ShutteredWindow(), rotation=180),
+        at([12, 1, 2], ShutteredWindow(), rotation=180),
+        at([5, 1, 15], ShutteredWindow()),
+        at([12, 1, 15], ShutteredWindow()),
     ]
     return component(name="StoneGroundStorey", props={}, min_size=[WIDTH, 4, LENGTH], body=group(parts))
 
 
 def UpperStorey():
     parts = [
-        transform([3, 5, 2], 0, [14, 4, 1], TimberFrameWall(14, 4, log="minecraft:oak_log", infill="minecraft:birch_planks")),
-        transform([3, 5, 15], 180, [14, 4, 1], TimberFrameWall(14, 4, log="minecraft:oak_log", infill="minecraft:birch_planks")),
-        transform([3, 5, 3], 90, [12, 4, 1], TimberFrameWall(12, 4, log="minecraft:oak_log", infill="minecraft:birch_planks")),
-        transform([16, 5, 3], 270, [12, 4, 1], TimberFrameWall(12, 4, log="minecraft:oak_log", infill="minecraft:birch_planks")),
-        transform([3, 6, 6], 90, [3, 2, 1], ShutteredWindow()),
-        transform([3, 6, 11], 90, [3, 2, 1], ShutteredWindow()),
-        transform([16, 6, 6], 270, [3, 2, 1], ShutteredWindow()),
-        transform([16, 6, 11], 270, [3, 2, 1], ShutteredWindow()),
-        transform([5, 6, 2], 180, [3, 2, 1], ShutteredWindow()),
-        transform([12, 6, 2], 180, [3, 2, 1], ShutteredWindow()),
-        transform([5, 6, 15], 0, [3, 2, 1], ShutteredWindow()),
-        transform([12, 6, 15], 0, [3, 2, 1], ShutteredWindow()),
+        at([3, 5, 2], TimberFrameWall(14, 4, log="minecraft:oak_log", infill="minecraft:birch_planks")),
+        at([3, 5, 15], TimberFrameWall(14, 4, log="minecraft:oak_log", infill="minecraft:birch_planks"), rotation=180),
+        at([3, 5, 3], TimberFrameWall(12, 4, log="minecraft:oak_log", infill="minecraft:birch_planks"), rotation=90),
+        at([16, 5, 3], TimberFrameWall(12, 4, log="minecraft:oak_log", infill="minecraft:birch_planks"), rotation=270),
+        at([3, 6, 6], ShutteredWindow(), rotation=90),
+        at([3, 6, 11], ShutteredWindow(), rotation=90),
+        at([16, 6, 6], ShutteredWindow(), rotation=270),
+        at([16, 6, 11], ShutteredWindow(), rotation=270),
+        at([5, 6, 2], ShutteredWindow(), rotation=180),
+        at([12, 6, 2], ShutteredWindow(), rotation=180),
+        at([5, 6, 15], ShutteredWindow()),
+        at([12, 6, 15], ShutteredWindow()),
     ]
     return component(name="TimberUpperStorey", props={}, min_size=[WIDTH, 9, LENGTH], body=group(parts))
 
@@ -119,26 +119,26 @@ def DecorativeRoof():
 def GroundFloorInterior():
     parts = [
         # Smithy and kitchen occupy the north half, echoing the dense original workshop.
-        transform([4, 1, 3], 0, [1, 1, 1], Furnace(["minecraft:iron_ore", "minecraft:coal"])),
-        transform([6, 1, 3], 0, [1, 1, 1], Furnace(["minecraft:raw_copper", "minecraft:coal"])),
+        at([4, 1, 3], Furnace(["minecraft:iron_ore", "minecraft:coal"])),
+        at([6, 1, 3], Furnace(["minecraft:raw_copper", "minecraft:coal"])),
         place_block([8, 1, 3], block("minecraft:anvil", {"facing": "east"}), phase="fixture"),
         place_block([4, 1, 5], block("minecraft:crafting_table"), phase="fixture"),
         place_block([6, 1, 5], block("minecraft:cauldron", {"level": "3"}), phase="fixture"),
         place_block([8, 1, 5], block("minecraft:brewing_stand", {"has_bottle_0": "false", "has_bottle_1": "false", "has_bottle_2": "false"}), phase="fixture"),
-        transform([4, 1, 13], 180, [5, 2, 1], KitchenCounter(5)),
+        at([4, 1, 13], KitchenCounter(5), rotation=180),
         # Dining nook, bedroom, storage, and enchanting study fill the south/east rooms.
-        transform([12, 1, 5], 0, [3, 2, 1], DiningTable(3)),
-        transform([12, 1, 4], 180, [1, 1, 1], Chair()),
-        transform([14, 1, 6], 0, [1, 1, 1], Chair()),
-        transform([14, 1, 9], 0, [1, 1, 2], Bed()),
-        transform([15, 1, 9], 0, [1, 1, 2], Bed()),
-        transform([12, 1, 13], 180, [1, 1, 1], Chest(["minecraft:book", "minecraft:bread", "minecraft:apple"])),
-        transform([14, 1, 13], 180, [1, 1, 1], Chest(["minecraft:iron_ingot", "minecraft:gold_ingot", "minecraft:emerald"])),
+        at([12, 1, 5], DiningTable(3)),
+        at([12, 1, 4], Chair(), rotation=180),
+        at([14, 1, 6], Chair()),
+        at([14, 1, 9], Bed()),
+        at([15, 1, 9], Bed()),
+        at([12, 1, 13], Chest(["minecraft:book", "minecraft:bread", "minecraft:apple"]), rotation=180),
+        at([14, 1, 13], Chest(["minecraft:iron_ingot", "minecraft:gold_ingot", "minecraft:emerald"]), rotation=180),
         place_block([15, 1, 12], block("minecraft:enchanting_table"), phase="fixture"),
-        transform([9, 1, 14], 180, [5, 2, 1], BookshelfWall(5, 2)),
+        at([9, 1, 14], BookshelfWall(5, 2), rotation=180),
         # Small tables and ceiling lamps keep the large open plan legible in-game.
-        transform([5, 1, 10], 0, [1, 2, 1], Table()),
-        transform([7, 1, 10], 0, [1, 2, 1], Table()),
+        at([5, 1, 10], Table()),
+        at([7, 1, 10], Table()),
         place_block([6, 3, 8], block("minecraft:lantern", {"hanging": "true", "waterlogged": "false"}), phase="fixture"),
         place_block([13, 3, 8], block("minecraft:lantern", {"hanging": "true", "waterlogged": "false"}), phase="fixture"),
     ]
@@ -147,20 +147,20 @@ def GroundFloorInterior():
 
 def UpperFloorInterior():
     parts = [
-        transform([4, 5, 3], 0, [5, 2, 1], BookshelfWall(5, 2)),
-        transform([4, 5, 5], 0, [1, 1, 2], Bed("minecraft:green_bed")),
-        transform([5, 5, 5], 0, [1, 1, 2], Bed("minecraft:green_bed")),
-        transform([14, 5, 4], 180, [1, 1, 2], Bed("minecraft:red_bed")),
-        transform([15, 5, 4], 180, [1, 1, 2], Bed("minecraft:red_bed")),
-        transform([4, 5, 12], 0, [4, 2, 1], DiningTable(4)),
-        transform([4, 5, 11], 180, [1, 1, 1], Chair()),
-        transform([7, 5, 13], 0, [1, 1, 1], Chair()),
-        transform([14, 5, 12], 180, [1, 1, 1], Chest(["minecraft:map", "minecraft:compass", "minecraft:clock"])),
+        at([4, 5, 3], BookshelfWall(5, 2)),
+        at([4, 5, 5], Bed("minecraft:green_bed")),
+        at([5, 5, 5], Bed("minecraft:green_bed")),
+        at([14, 5, 4], Bed("minecraft:red_bed"), rotation=180),
+        at([15, 5, 4], Bed("minecraft:red_bed"), rotation=180),
+        at([4, 5, 12], DiningTable(4)),
+        at([4, 5, 11], Chair(), rotation=180),
+        at([7, 5, 13], Chair()),
+        at([14, 5, 12], Chest(["minecraft:map", "minecraft:compass", "minecraft:clock"]), rotation=180),
         place_block([6, 7, 9], block("minecraft:lantern", {"hanging": "true", "waterlogged": "false"}), phase="fixture"),
         place_block([14, 7, 9], block("minecraft:lantern", {"hanging": "true", "waterlogged": "false"}), phase="fixture"),
         # Loft storage is accessible from the upper stair landing.
-        transform([5, 10, 7], 0, [1, 1, 1], Chest(["minecraft:paper", "minecraft:book", "minecraft:candle"])),
-        transform([14, 10, 10], 180, [1, 1, 1], Chest(["minecraft:wheat", "minecraft:leather", "minecraft:string"])),
+        at([5, 10, 7], Chest(["minecraft:paper", "minecraft:book", "minecraft:candle"])),
+        at([14, 10, 10], Chest(["minecraft:wheat", "minecraft:leather", "minecraft:string"]), rotation=180),
     ]
     return component(name="UpperFloorInterior", props={}, min_size=[WIDTH, 11, LENGTH], body=group(parts))
 
@@ -194,7 +194,7 @@ def build():
             ManorFloors(),
             GroundStorey(),
             UpperStorey(),
-            transform([0, 8, 0], 0, [WIDTH, 9, LENGTH], DecorativeRoof()),
+            at([0, 8, 0], DecorativeRoof()),
             GroundFloorInterior(),
             UpperFloorInterior(),
         ]),

@@ -15,15 +15,14 @@ LENGTH = 13
 def build():
     parts = [
         fill_region([0, 0, 0], [WIDTH, 1, LENGTH], block("minecraft:grass_block")),
-        transform([2, 1, 3], 0, [7, 5, 7], Pergola(7, 7, 4)),
-        transform([4, 1, 4], 0, [3, 1, 1], Bench(3)),
-        transform([5, 1, 6], 0, [1, 1, 1],
-                  Sign(["", "Designed by", "Claude ☺", ""], color="orange", glowing=True)),
-        transform([5, 0, 10], 0, [1, 1, 3], Path(3, 1)),
-        transform([1, 1, 10], 0, [3, 2, 3], FlowerBed(3, 3)),
-        transform([7, 1, 10], 0, [3, 2, 3], FlowerBed(3, 3)),
-        transform([4, 1, 11], 0, [1, 4, 1], LanternPost()),
-        transform([6, 1, 11], 0, [1, 4, 1], LanternPost()),
+        at([2, 1, 3], Pergola(7, 7, 4)),
+        at([4, 1, 4], Bench(3)),
+        at([5, 1, 6], Sign(["", "Designed by", "Claude ☺", ""], color="orange", glowing=True)),
+        at([5, 0, 10], Path(3, 1)),
+        at([1, 1, 10], FlowerBed(3, 3)),
+        at([7, 1, 10], FlowerBed(3, 3)),
+        at([4, 1, 11], LanternPost()),
+        at([6, 1, 11], LanternPost()),
     ]
     return component(
         name="ClaudePergola",

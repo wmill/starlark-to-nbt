@@ -22,27 +22,26 @@ LENGTH = 45
 
 
 def _standing_sign(pos, lines, color="white"):
-    return transform(pos, 0, [1, 1, 1],
-                     Sign(lines, material="minecraft:dark_oak_sign",
-                          color=color, glowing=True))
+    return at(pos, Sign(lines, material="minecraft:dark_oak_sign",
+                        color=color, glowing=True))
 
 
 def _lever_input(x, z, color):
     # Lever and bridging dust each bring their own colored pad so the wire
     # never floats: pad at y=1, control/dust at y=2, meeting the gate's dust.
     return group([
-        transform([x, 1, z], 0, [1, 2, 1], Lever(base=color)),
-        transform([x, 1, z + 1], 0, [1, 2, 1], RedstoneWire(base=color)),
+        at([x, 1, z], Lever(base=color)),
+        at([x, 1, z + 1], RedstoneWire(base=color)),
     ])
 
 
 def _gate_station(x, z, size, gate, inputs, output_x, lines):
     parts = [
-        transform([x, 1, z], 0, size, gate),
+        at([x, 1, z], gate),
         # Output lamp on a walkway-colored pedestal, driven by the gate's
         # south-edge dust.
         place_block([x + output_x, 1, z + size[2]], block("minecraft:deepslate_tiles")),
-        transform([x + output_x, 2, z + size[2]], 0, [1, 1, 1], RedstoneLamp()),
+        at([x + output_x, 2, z + size[2]], RedstoneLamp()),
         _standing_sign([x + output_x, 1, z - 4], lines, color="yellow"),
     ]
     if len(inputs) >= 1:
@@ -54,10 +53,8 @@ def _gate_station(x, z, size, gate, inputs, output_x, lines):
 
 def _pulse_input(x, z):
     return group([
-        transform([x, 1, z], 0, [1, 2, 1],
-                  Button(base="minecraft:orange_concrete")),
-        transform([x, 1, z + 1], 0, [1, 2, 1],
-                  RedstoneWire(base="minecraft:orange_concrete")),
+        at([x, 1, z], Button(base="minecraft:orange_concrete")),
+        at([x, 1, z + 1], RedstoneWire(base="minecraft:orange_concrete")),
     ])
 
 
@@ -91,27 +88,27 @@ def InteractiveGallery():
                       ["XNOR", "A B | OUT", "00=1  01=0", "10=0  11=1"]),
 
         # Timing and memory stations.
-        transform([24, 1, 17], 0, [1, 2, 5], TFlipFlop()),
+        at([24, 1, 17], TFlipFlop()),
         _pulse_input(24, 15),
         place_block([24, 1, 22], block("minecraft:deepslate_tiles")),
-        transform([24, 2, 22], 0, [1, 1, 1], RedstoneLamp()),
+        at([24, 2, 22], RedstoneLamp()),
         _standing_sign([24, 1, 28],
                        ["T FLIP-FLOP", "Press to toggle", "Bulb remembers", "Lamp = Q"],
                        color="light_blue"),
 
         # x=32 keeps the pulse button clear of the AND station's output lamp.
-        transform([32, 1, 17], 0, [4, 2, 9], PulseExtender(16)),
+        at([32, 1, 17], PulseExtender(16)),
         _pulse_input(33, 15),
         place_block([33, 1, 26], block("minecraft:deepslate_tiles")),
-        transform([33, 2, 26], 0, [1, 1, 1], RedstoneLamp()),
+        at([33, 2, 26], RedstoneLamp()),
         _standing_sign([33, 1, 28],
                        ["PULSE EXTENDER", "Press orange", "Output stays on", "for 16 ticks"],
                        color="light_blue"),
 
-        transform([37, 1, 17], 0, [5, 2, 8], RedstoneClock(4)),
+        at([37, 1, 17], RedstoneClock(4)),
         _pulse_input(38, 15),
         place_block([41, 1, 25], block("minecraft:deepslate_tiles")),
-        transform([41, 2, 25], 0, [1, 1, 1], RedstoneLamp()),
+        at([41, 2, 25], RedstoneLamp()),
         _standing_sign([39, 1, 28],
                        ["REPEATER CLOCK", "Button starts", "Center lever", "locks/pauses"],
                        color="light_blue"),
@@ -121,34 +118,33 @@ def InteractiveGallery():
                        color="light_blue"),
 
         # Practical applications.
-        transform([2, 1, 34], 0, [7, 2, 3], HopperClock()),
+        at([2, 1, 34], HopperClock()),
         _standing_sign([5, 1, 32],
                        ["HOPPER CLOCK", "Items move", "Comparators alternate", "More = slower"],
                        color="orange"),
 
-        transform([12, 1, 34], 0, [3, 3, 4], PistonTrapdoor(3)),
+        at([12, 1, 34], PistonTrapdoor(3)),
         _standing_sign([13, 1, 32],
                        ["PISTON BRIDGE", "Top lever", "ON = closed", "OFF = open"],
                        color="orange"),
 
-        transform([20, 1, 34], 0, [6, 4, 3], PistonDoor()),
+        at([20, 1, 34], PistonDoor()),
         _standing_sign([22, 1, 32],
                        ["2x2 PISTON DOOR", "Top lever", "ON = closed", "OFF = open"],
                        color="orange"),
 
-        transform([30, 1, 34], 0, [3, 5, 6], ItemSorter()),
+        at([30, 1, 34], ItemSorter()),
         _standing_sign([31, 1, 32],
                        ["ITEM SORTER", "Redstone filtered", "Other items pass", "41+4 filter"],
                        color="orange"),
 
-        transform([38, 1, 34], 0, [5, 3, 2], LampMatrix(5, 3)),
+        at([38, 1, 34], LampMatrix(5, 3)),
         _standing_sign([40, 1, 32],
                        ["LAMP MATRIX", "Passive display", "Drive backing", "from rear"],
                        color="orange"),
 
-        transform([47, 1, 34], 0, [1, 1, 1],
-                  WeightedPressurePlate(power=0)),
-        transform([47, 1, 35], 0, [1, 1, 1], RedstoneWire()),
+        at([47, 1, 34], WeightedPressurePlate(power=0)),
+        at([47, 1, 35], RedstoneWire()),
         place_block([47, 1, 36], block("minecraft:redstone_lamp", {"lit": "false"})),
         _standing_sign([47, 1, 32],
                        ["ANALOG INPUT", "Weighted plate", "Power is 0-15", "Lamp is output"],

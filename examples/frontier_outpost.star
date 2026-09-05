@@ -18,17 +18,17 @@ def Barracks():
     wall_height = 5
     parts = [
         Foundation(width, length, 1, "minecraft:cobblestone"),
-        transform([0, 1, 0], 0, [width, wall_height, 1], TimberFrameWall(width, wall_height, log="minecraft:spruce_log")),
-        transform([0, 1, length - 1], 180, [width, wall_height, 1], TimberFrameWall(width, wall_height, log="minecraft:spruce_log")),
-        transform([0, 1, 1], 90, [length - 2, wall_height, 1], TimberFrameWall(length - 2, wall_height, log="minecraft:spruce_log")),
-        transform([width - 1, 1, 1], 90, [length - 2, wall_height, 1], TimberFrameWall(length - 2, wall_height, log="minecraft:spruce_log")),
-        transform([0, 6, 0], 0, [width, 6, length], GableRoof(width, length, stair="minecraft:spruce_stairs", ridge="minecraft:spruce_planks")),
-        transform([5, 1, length - 1], 0, [1, 2, 1], SingleDoor("minecraft:spruce_door")),
-        transform([2, 2, length - 1], 0, [1, 2, 1], Window()),
-        transform([8, 2, length - 1], 0, [1, 2, 1], Window()),
-        transform([2, 1, 2], 0, [1, 1, 2], Bed("minecraft:green_bed")),
-        transform([8, 1, 2], 0, [1, 1, 2], Bed("minecraft:green_bed")),
-        transform([4, 1, 5], 0, [3, 2, 1], DiningTable()),
+        at([0, 1, 0], TimberFrameWall(width, wall_height, log="minecraft:spruce_log")),
+        at([0, 1, length - 1], TimberFrameWall(width, wall_height, log="minecraft:spruce_log"), rotation=180),
+        at([0, 1, 1], TimberFrameWall(length - 2, wall_height, log="minecraft:spruce_log"), rotation=90),
+        at([width - 1, 1, 1], TimberFrameWall(length - 2, wall_height, log="minecraft:spruce_log"), rotation=90),
+        at([0, 6, 0], GableRoof(width, length, stair="minecraft:spruce_stairs", ridge="minecraft:spruce_planks")),
+        at([5, 1, length - 1], SingleDoor("minecraft:spruce_door")),
+        at([2, 2, length - 1], Window()),
+        at([8, 2, length - 1], Window()),
+        at([2, 1, 2], Bed("minecraft:green_bed")),
+        at([8, 1, 2], Bed("minecraft:green_bed")),
+        at([4, 1, 5], DiningTable()),
     ]
     return component(name="Barracks", props={}, min_size=[width, 12, length], body=group(parts))
 
@@ -38,23 +38,23 @@ def build():
     parts = [
         # North and side walls are continuous; the south wall leaves room for
         # the centered five-block gate.
-        transform([0, 1, 0], 0, [SIZE, 6, 1], PalisadeWall(SIZE)),
-        transform([0, 1, 1], 90, [wall_span, 6, 1], PalisadeWall(wall_span)),
-        transform([SIZE - 1, 1, 1], 90, [wall_span, 6, 1], PalisadeWall(wall_span)),
-        transform([0, 1, SIZE - 1], 0, [12, 6, 1], PalisadeWall(12)),
-        transform([17, 1, SIZE - 1], 0, [12, 6, 1], PalisadeWall(12)),
-        transform([12, 1, SIZE - 1], 0, [5, 7, 1], PalisadeGate()),
+        at([0, 1, 0], PalisadeWall(SIZE)),
+        at([0, 1, 1], PalisadeWall(wall_span), rotation=90),
+        at([SIZE - 1, 1, 1], PalisadeWall(wall_span), rotation=90),
+        at([0, 1, SIZE - 1], PalisadeWall(12)),
+        at([17, 1, SIZE - 1], PalisadeWall(12)),
+        at([12, 1, SIZE - 1], PalisadeGate()),
         # Towers sit just inside the perimeter so their posts remain distinct
         # from the palisade columns.
-        transform([2, 1, 2], 0, [5, 8, 5], Watchtower()),
-        transform([22, 1, 2], 90, [5, 8, 5], Watchtower()),
-        transform([22, 1, 22], 180, [5, 8, 5], Watchtower()),
-        transform([2, 1, 22], 270, [5, 8, 5], Watchtower()),
-        transform([9, 0, 8], 0, [11, 12, 9], Barracks()),
-        transform([13, 0, 17], 0, [3, 1, 11], Path(11, 3, "minecraft:coarse_dirt")),
-        transform([4, 1, 12], 0, [4, 3, 2], HayBaleStack(4, 3, 2)),
-        transform([7, 1, 18], 0, [1, 4, 1], LanternPost(post="minecraft:spruce_fence")),
-        transform([21, 1, 18], 0, [1, 4, 1], LanternPost(post="minecraft:spruce_fence")),
+        at([2, 1, 2], Watchtower()),
+        at([22, 1, 2], Watchtower(), rotation=90),
+        at([22, 1, 22], Watchtower(), rotation=180),
+        at([2, 1, 22], Watchtower(), rotation=270),
+        at([9, 0, 8], Barracks()),
+        at([13, 0, 17], Path(11, 3, "minecraft:coarse_dirt")),
+        at([4, 1, 12], HayBaleStack(4, 3, 2)),
+        at([7, 1, 18], LanternPost(post="minecraft:spruce_fence")),
+        at([21, 1, 18], LanternPost(post="minecraft:spruce_fence")),
     ]
     return component(
         name="FrontierOutpost",

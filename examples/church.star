@@ -80,7 +80,7 @@ def Church(width, length, height):
         fill_region([1, 1, 0], [width - 1, height, 1], block("minecraft:stone_bricks")),
         fill_region([1, 1, length - 1], [width - 1, height, length], block("minecraft:stone_bricks")),
         carve_region([door_x, 1, 0], [door_x + 1, 3, 1]),
-        transform([door_x, 1, 0], 180, [1, 2, 1], Door()),
+        at([door_x, 1, 0], Door(), rotation=180),
     ])
     interior = inset(
         x=[1, 1], y=[1, height - 2], z=[2, 1],
@@ -104,7 +104,7 @@ def Church(width, length, height):
         min_size=[width, height + roof_height, length],
         body=group([
             transform([0, 0, 0], 0, [width, height, length], group([shell, interior])),
-            transform([0, height, 0], 0, [width, roof_height, length], GableRoof(width, length)),
+            at([0, height, 0], GableRoof(width, length)),
         ]),
     )
 
