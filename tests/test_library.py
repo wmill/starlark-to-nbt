@@ -342,3 +342,19 @@ def test_redstone_argument_ranges_fail_in_starlark(tmp_path):
     )
     with pytest.raises(BuildError, match="delay must be between 1 and 4"):
         build_file(source)
+
+
+def test_rampart_wall_has_recessed_arcade_and_clear_wall_walk():
+    wall = build_file(SHOWCASE, props={"name": "RampartWall"})
+    for x in range(12):
+        assert wall.volume.block_at(Point(x, 5, 1)).block_type == "minecraft:chiseled_stone_bricks"
+        assert Point(x, 6, 1) not in wall.volume.voxels
+        assert Point(x, 7, 1) not in wall.volume.voxels
+        assert wall.volume.block_at(Point(x, 6, 0)).block_type == "minecraft:oak_fence"
+    assert Point(2, 2, 0) not in wall.volume.voxels
+    assert wall.volume.block_at(Point(2, 2, 1)).block_type == "minecraft:stone"
+    assert wall.volume.block_at(Point(4, 2, 0)).block_type == "minecraft:stone_bricks"
+    assert wall.volume.block_at(Point(11, 2, 0)).block_type == "minecraft:stone_bricks"
+    assert wall.volume.block_at(Point(1, 4, 0)).block_state["facing"] == "west"
+    assert wall.volume.block_at(Point(2, 4, 0)).block_state["type"] == "top"
+    assert wall.volume.block_at(Point(3, 4, 0)).block_state["facing"] == "east"

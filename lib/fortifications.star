@@ -84,27 +84,43 @@ def SquareTower(size, height, material="minecraft:stone_bricks", material_picker
 
 
 def RampartWall(length, height=7, stone="minecraft:stone_bricks", core="minecraft:stone",
-                 accent="minecraft:infested_stone_bricks", railing="minecraft:oak_fence"):
-    """Three-thick layered curtain wall (outer/core/inner stone) with a
-    torch-lit merlon crown and an inner-face walkway railing in the gaps."""
+                 accent="minecraft:infested_stone_bricks", railing="minecraft:oak_fence",
+                 trim="minecraft:chiseled_stone_bricks",
+                 stairs="minecraft:stone_brick_stairs", slab="minecraft:stone_brick_slab"):
+    """South-facing parapet, clear wall walk, and recessed courtyard arcade."""
     if length < 3 or height < 3:
         fail("RampartWall requires length >= 3 and height >= 3")
+    deck = height - 2
     parts = [
-        fill_region([0, 0, 0], [length, height, 1], block(stone)),
-        fill_region([0, 0, 1], [length, height, 2], block(core)),
-        fill_region([0, 0, 2], [length, height, 3], block(stone)),
+        fill_region([0, 0, 1], [length, deck, 2], block(core)),
+        fill_region([0, 0, 2], [length, deck, 3], block(stone)),
+        fill_region([0, deck, 0], [length, deck + 1, 3], block(trim)),
+        fill_region([0, deck + 1, 2], [length, height, 3], block(accent)),
     ]
-    rail = block(railing, {"east": "true", "west": "true"})
-    for x in range(0, length, 2):
-        parts.append(fill_region([x, height, 0], [x + 1, height + 1, 3], block(accent)))
+    for x in range(length):
+        # Close partial bays with an end pier; recesses expose the stone backing.
+        if x % 4 == 0 or x == length - 1:
+            parts.append(fill_region([x, 0, 0], [x + 1, deck, 1], block(stone)))
+        else:
+            if x % 4 == 1:
+                cap = block(stairs, {"facing": "west", "half": "top", "shape": "straight"})
+            elif x % 4 == 3 or x == length - 2:
+                cap = block(stairs, {"facing": "east", "half": "top", "shape": "straight"})
+            else:
+                cap = block(slab, {"type": "top"})
+            parts.append(place_block([x, deck - 1, 0], cap))
+        rail = block(railing, {"east": "true" if x < length - 1 else "false",
+                               "west": "true" if x > 0 else "false"})
+        parts.append(place_block([x, deck + 1, 0], rail, phase="fixture"))
+        if x % 2 == 0:
+            parts.append(place_block([x, height, 2], block(accent)))
         if x % 4 == 0:
-            parts.append(place_block([x, height + 1, 1], block("minecraft:torch"), phase="fixture"))
-    for x in range(1, length, 2):
-        parts.append(place_block([x, height, 2], rail, phase="fixture"))
+            parts.append(place_block([x, height + 1, 2], block("minecraft:torch"), phase="fixture"))
     return component(
         name="RampartWall",
         props={"length": length, "height": height, "stone": stone, "core": core,
-               "accent": accent, "railing": railing},
+               "accent": accent, "railing": railing, "trim": trim,
+               "stairs": stairs, "slab": slab},
         min_size=[length, height + 2, 3],
         body=group(parts),
     )
