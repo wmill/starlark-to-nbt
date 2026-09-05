@@ -67,6 +67,12 @@ Multi-block objects that must be placed all-or-nothing (doors, beds) use
 
 ## DSL reference
 
+Start with `docs/quickstart.md` for a complete custom scene and the MCP workflow.
+`at(pos, child, rotation=0, size=None)` positions a child using its `min_size`,
+or an explicit size for unsized nodes. It uses the same normalized rotation
+and bounds checks as `transform`: pos is the minimum rotated footprint corner;
+90/270 swap width and length. Missing size produces `missing_component_size`.
+
 | Constructor | Semantics |
 |---|---|
 | `component(name, props, body, min_size=None, metadata=None, validators=None)` | Named subtree; `min_size=[x,y,z]` is validated against the assigned region and used as the natural size when built standalone. The root may set typed placement metadata such as `metadata={"ground_level": 1}`. Optional validators apply to matching operations in this component subtree. |
@@ -425,6 +431,7 @@ offending coordinates/region: `component_too_small`, `split_overflow`,
 `invalid_metadata`, `metadata_not_root`, `load_error`, `load_cycle`,
 `invalid_validator`, `validator_no_targets`, `invalid_validator_target`,
 `door_not_supported`, `doorway_obstructed`, `starlark_error`,
+`missing_component_size` (`at` needs an explicit size or a child with `min_size`),
 `missing_root_size` (root component has no `min_size` and width/height/length
 props were not all supplied), `invalid_box` (root size has a non-positive
 dimension), `serialize_error` (block-entity NBT holds an unserializable

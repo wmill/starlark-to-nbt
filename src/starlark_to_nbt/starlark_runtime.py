@@ -58,6 +58,10 @@ def transform(translation, rotation_y, child_size, child):
     return _tag("transform", translation=translation, rotation_y=rotation_y, child_size=child_size, child=child)
 
 
+def at(pos, child, rotation=0, size=None):
+    return _tag("at", pos=pos, child=child, rotation=rotation, size=size)
+
+
 def block(block_type, block_state=None, nbt=None):
     value = {"block_type": block_type, "block_state": block_state or {}}
     if nbt is not None:
@@ -135,7 +139,7 @@ def place_assembly(pos, name, size, blocks):
 
 BOUND_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "component": component, "validator": validator, "group": group, "fixed": fixed, "fill": fill,
-    "split": split, "inset": inset, "repeat": repeat, "transform": transform,
+    "split": split, "inset": inset, "repeat": repeat, "transform": transform, "at": at,
     "block": block, "sign_nbt": sign_nbt, "container_nbt": container_nbt, "loot_nbt": loot_nbt,
     "place_block": place_block, "fill_region": fill_region, "carve_region": carve_region,
     "place_assembly": place_assembly, "entity": entity, "place_entity": place_entity,

@@ -19,30 +19,30 @@ def Cottage(width, length, wall_height):
     shell = [
         Foundation(width, length),
         # Perimeter walls; side walls slot between the front/back corners.
-        transform([0, 1, 0], 0, [width, wall_height, 1], TimberFrameWall(width, wall_height)),
-        transform([0, 1, length - 1], 0, [width, wall_height, 1], TimberFrameWall(width, wall_height)),
-        transform([0, 1, 1], 90, [length - 2, wall_height, 1], TimberFrameWall(length - 2, wall_height)),
-        transform([width - 1, 1, 1], 90, [length - 2, wall_height, 1], TimberFrameWall(length - 2, wall_height)),
-        transform([0, base, 0], 0, [width, roof_height, length], GableRoof(width, length)),
-        transform([door_x, 1, length - 1], 0, [1, 2, 1], SingleDoor()),
+        at([0, 1, 0], TimberFrameWall(width, wall_height)),
+        at([0, 1, length - 1], TimberFrameWall(width, wall_height)),
+        at([0, 1, 1], TimberFrameWall(length - 2, wall_height), rotation=90),
+        at([width - 1, 1, 1], TimberFrameWall(length - 2, wall_height), rotation=90),
+        at([0, base, 0], GableRoof(width, length)),
+        at([door_x, 1, length - 1], SingleDoor()),
     ]
 
     windows = [
-        transform([2, 2, length - 1], 0, [1, 2, 1], Window()),
-        transform([width - 3, 2, length - 1], 0, [1, 2, 1], Window()),
-        transform([2, 2, 0], 0, [1, 2, 1], Window()),
-        transform([width - 3, 2, 0], 0, [1, 2, 1], Window()),
-        transform([0, 2, mid_z - 1], 90, [3, 2, 1], ShutteredWindow()),
-        transform([width - 1, 2, mid_z - 1], 270, [3, 2, 1], ShutteredWindow()),
+        at([2, 2, length - 1], Window()),
+        at([width - 3, 2, length - 1], Window()),
+        at([2, 2, 0], Window()),
+        at([width - 3, 2, 0], Window()),
+        at([0, 2, mid_z - 1], ShutteredWindow(), rotation=90),
+        at([width - 1, 2, mid_z - 1], ShutteredWindow(), rotation=270),
     ]
 
     furniture = [
-        transform([(width - 3) // 2, 1, 1], 0, [3, 4, 1], Fireplace(4)),
-        transform([1, 1, 2], 0, [1, 1, 2], Bed()),
-        transform([width - 4, 1, length - 4], 0, [1, 2, 1], Table()),
-        transform([width - 4, 1, length - 3], 180, [1, 1, 1], Chair()),
-        transform([(width - 3) // 2, 1, (length - 3) // 2], 0, [3, 1, 3], Carpet(3, 3)),
-        transform([width - 2, 1, 3], 90, [3, 2, 1], BookshelfWall(3, 2)),
+        at([(width - 3) // 2, 1, 1], Fireplace(4)),
+        at([1, 1, 2], Bed()),
+        at([width - 4, 1, length - 4], Table()),
+        at([width - 4, 1, length - 3], Chair(), rotation=180),
+        at([(width - 3) // 2, 1, (length - 3) // 2], Carpet(3, 3)),
+        at([width - 2, 1, 3], BookshelfWall(3, 2), rotation=90),
     ]
 
     return component(

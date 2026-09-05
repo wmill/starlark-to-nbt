@@ -255,6 +255,17 @@ def parse_node(value: Any, path: str = "$", source_file: str | None = None) -> N
             _int(obj["child_extent"], f"{path}.child_extent", 1), _int(obj["gap"], f"{path}.gap", 0),
             parse_node(obj["child"], f"{path}.child", source_file),
         )
+    if kind == "at":
+        _keys(obj, {"kind", "pos", "child", "rotation"}, {"size"}, path)
+        child = parse_node(obj["child"], f"{path}.child", source_file)
+        size = _point(obj["size"], f"{path}.size", True) if "size" in obj else getattr(child, "min_size", None)
+        if size is None:
+            raise _error(path, "at requires size=[width, height, length] or a child component with min_size",
+                         "missing_component_size")
+        rotation = _int(obj["rotation"], f"{path}.rotation")
+        if rotation not in (0, 90, 180, 270):
+            raise _error(f"{path}.rotation", "expected 0, 90, 180, or 270")
+        return TransformNode(_point(obj["pos"], f"{path}.pos"), rotation, size, child)
     if kind == "transform":
         _keys(obj, {"kind", "translation", "rotation_y", "child_size", "child"}, set(), path)
         rotation = _int(obj["rotation_y"], f"{path}.rotation_y")
