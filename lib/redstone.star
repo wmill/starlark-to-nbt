@@ -649,7 +649,8 @@ def XnorGate(base=_BASE):
 def RedstoneClock(period=2, base=_BASE):
     """Four-repeater pulse loop with a one-way north input.
 
-    The center lever locks the north ring repeater, pausing its current state.
+    The center lever locks only the north ring repeater. Unlocking does not
+    guarantee restart: the circulating pulse can be lost or become constant.
     `period` is the delay of each ring repeater (1-4 ticks)."""
     _require_range("period", period, 1, 4)
     return component(
@@ -703,35 +704,36 @@ def HopperClock(items=None, base=_BASE):
     """Adjustable hopper clock with alternating comparator outputs."""
     if items == None:
         items = [{"id": "minecraft:redstone", "count": 16}]
-    return component(
-        name="HopperClock",
-        props={"items": items, "base": base},
-        min_size=[7, 2, 3],
-        body=group([
-            _slab(7, 3, base),
-            place_block([2, 1, 1],
-                        block("minecraft:hopper", {"facing": "east", "enabled": "true"},
-                              nbt=container_nbt(items, id="minecraft:hopper"))),
-            place_block([3, 1, 1],
-                        block("minecraft:hopper", {"facing": "west", "enabled": "true"},
-                              nbt=container_nbt(None, id="minecraft:hopper"))),
-            place_block([1, 1, 1],
-                        block("minecraft:comparator",
-                              {"mode": "compare", "facing": "east", "powered": "false"}),
-                        phase="fixture"),
-            place_block([4, 1, 1],
-                        block("minecraft:comparator",
-                              {"mode": "compare", "facing": "west", "powered": "false"}),
-                        phase="fixture"),
-            _dust(0, 1), _dust(5, 1),
-            place_block([1, 1, 0],
-                        block("minecraft:sticky_piston", {"facing": "east", "extended": "false"})),
-            place_block([4, 1, 0],
-                        block("minecraft:sticky_piston", {"facing": "west", "extended": "false"})),
-            place_block([3, 1, 0], block("minecraft:redstone_block")),
-            _dust(0, 2), _dust(6, 2),
-        ]),
-    )
+    parts = [_slab(10, 4, base)]
+    for x, facing, contents, enabled in [(4, "east", items, "true"),
+                                       (5, "west", None, "false")]:
+        parts.append(place_block([x, 1, 2],
+                                block("minecraft:hopper", {"facing": facing, "enabled": enabled},
+                                      nbt=container_nbt(contents, id="minecraft:hopper"))))
+    for comparator_x, repeater_x, edge_x, drive_x, facing in [
+        (3, 2, 1, 2, "east"), (6, 7, 8, 7, "west"),
+    ]:
+        # Boost even a one-item comparator signal before the two dust corners.
+        active = comparator_x == 3 and len(items) > 0
+        parts.extend([
+            place_block([comparator_x, 1, 2], block("minecraft:comparator",
+                        {"mode": "compare", "facing": facing, "powered": _b(active)}), phase="fixture"),
+            place_block([repeater_x, 1, 2], block("minecraft:repeater",
+                        {"delay": "1", "facing": facing, "powered": _b(active), "locked": "false"}), phase="fixture"),
+            at([edge_x, 1, 2], RedstoneWire(power=15 if active else 0)),
+            at([edge_x, 1, 1], RedstoneWire(power=14 if active else 0)),
+            at([drive_x, 1, 1], RedstoneWire(power=13 if active else 0)),
+            at([edge_x, 1, 3], RedstoneWire(power=14 if active else 0)),
+        ])
+    parts.extend([
+        # Begin with the left piston extended, locking the empty right hopper.
+        # Its head reserves the travel cell until the left hopper empties.
+        at([3, 1, 1], Piston(sticky=True, facing="east", extended=True)),
+        at([6, 1, 1], Piston(sticky=True, facing="west")),
+        place_block([5, 1, 1], block("minecraft:redstone_block")),
+    ])
+    return component(name="HopperClock", props={"items": items, "base": base},
+                     min_size=[10, 2, 4], body=group(parts))
 
 
 def TFlipFlop(base=_BASE):
@@ -857,28 +859,32 @@ def PistonTrapdoor(width=2, base=_BASE):
 
 def PistonDoor(base=_BASE, door="minecraft:smooth_stone"):
     """2x2 side-piston door. Power the raised north control line to close."""
-    parts = [
-        fill_region([0, 0, 0], [6, 1, 3], block(base)),
-        fill_region([0, 1, 0], [6, 3, 1], block(base)),
-        place_block([0, 3, 0],
-                    block("minecraft:lever",
-                          {"face": "floor", "facing": "south", "powered": "false"}),
-                    phase="fixture"),
-        _dust_run_x(1, 6, 0, y=3),
-    ]
+    # Stair the control bus over the opening. End pads power the upper
+    # pistons; Java quasi-connectivity powers the lower pistons, which receive
+    # their update when the upper pistons move. Keep the two-high passage clear.
+    parts = [fill_region([0, 0, 0], [6, 1, 4], block(base))]
+    for x, top in [(0, 2), (1, 3), (2, 3), (3, 3), (4, 3), (5, 2)]:
+        place_y = top + 1
+        parts.append(place_block([x, top, 1], block(base)))
+        parts.append(_dust(x, 1, y=place_y))
+    parts.extend([
+        place_block([0, 2, 0], block(base)),
+        place_block([0, 3, 0], block("minecraft:lever",
+                    {"face": "floor", "facing": "south", "powered": "false"}), phase="fixture"),
+    ])
     for y in range(1, 3):
-        parts.append(place_block([0, y, 1],
+        parts.append(place_block([0, y, 2],
                                  block("minecraft:sticky_piston",
                                        {"facing": "east", "extended": "false"})))
-        parts.append(place_block([1, y, 1], block(door)))
-        parts.append(place_block([5, y, 1],
+        parts.append(place_block([1, y, 2], block(door)))
+        parts.append(place_block([5, y, 2],
                                  block("minecraft:sticky_piston",
                                        {"facing": "west", "extended": "false"})))
-        parts.append(place_block([4, y, 1], block(door)))
+        parts.append(place_block([4, y, 2], block(door)))
     return component(
         name="PistonDoor",
         props={"base": base, "door": door},
-        min_size=[6, 4, 3],
+        min_size=[6, 5, 4],
         body=group(parts),
     )
 

@@ -186,75 +186,6 @@ def test_keep_stress_build_is_deterministic(tmp_path):
     assert first.read_bytes() == second.read_bytes()
 
 
-def test_mega_castle_bounds_entities_content_and_determinism(tmp_path):
-    result = build_file(EXAMPLES / "mega_castle.star")
-    assert result.volume.bounds.size == Point(48, 40, 48)
-    assert result.metadata.to_dict() == {"ground_level": 1, "y_offset": -1}
-    assert len(result.volume.voxels) > 10_000
-    palette = {voxel.block.block_type for voxel in result.volume.voxels.values()}
-    assert len(palette) >= 20
-
-    horses = [item for item in result.entities if item.entity.entity_type == "minecraft:horse"]
-    assert len(horses) == 4
-    assert {item.entity.nbt["Variant"] for item in horses} == {0, 256, 512, 768}
-    assert all(10 <= item.pos.x < 21 and 28 <= item.pos.z < 41 for item in horses)
-
-    first, second = tmp_path / "castle-1.nbt", tmp_path / "castle-2.nbt"
-    write_structure_nbt(result.volume, first)
-    write_structure_nbt(result.volume, second)
-    assert first.read_bytes() == second.read_bytes()
-    decoded = nbtlib.load(first)
-    labels = {
-        str(message)
-        for entry in decoded["blocks"] if "nbt" in entry and "front_text" in entry["nbt"]
-        for message in entry["nbt"]["front_text"]["messages"]
-    }
-    assert {
-        "AETHERCOURT", "THRONE HALL", "ROYAL ARMORY", "ROYAL STABLES",
-        "GUEST AZURE", "GUEST VIOLET", "GUEST GOLD", "GUEST JADE",
-        "LIBRARY", "WAR COUNCIL",
-    } <= labels
-    stocked = [entry for entry in decoded["blocks"] if "nbt" in entry and "Items" in entry["nbt"]]
-    assert len(stocked) >= 9
-
-    # Both stair cores pass through the second floor and finish beside an
-    # intact upper landing instead of terminating beneath the floor plate.
-    for x in (12, 34):
-        for step in range(9):
-            stair = result.volume.block_at(Point(x, 2 + step, 14 + step))
-            assert stair.block_type == "minecraft:dark_oak_stairs"
-        for z in range(19, 22):
-            assert result.volume.block_at(Point(x, 10, z)).block_type == "minecraft:air"
-        assert result.volume.block_at(Point(x, 10, 22)).block_type == "minecraft:dark_oak_stairs"
-        assert result.volume.block_at(Point(x, 10, 23)).block_type == "minecraft:polished_diorite"
-
-        upper_x = 13 if x == 12 else 33
-        assert result.volume.block_at(Point(x, 11, 22)).block_type == "minecraft:air"
-        assert result.volume.block_at(Point(x, 12, 22)).block_type == "minecraft:air"
-        for step in range(9):
-            stair = result.volume.block_at(Point(upper_x, 11 + step, 22 - step))
-            assert stair.block_type == "minecraft:dark_oak_stairs"
-            assert stair.block_state["facing"] == "north"
-        for z in range(15, 18):
-            assert result.volume.block_at(Point(upper_x, 19, z)).block_type == "minecraft:air"
-        assert result.volume.block_at(Point(upper_x, 19, 14)).block_type == "minecraft:dark_oak_stairs"
-        assert result.volume.block_at(Point(upper_x, 19, 13)).block_type == "minecraft:polished_diorite"
-
-    guest_paths = {
-        op.provenance.component_path
-        for op in result.operations
-        if "GuestChamber" in op.provenance.component_path
-    }
-    assert guest_paths
-    for point, bed_type in [
-        (Point(16, 11, 10), "minecraft:blue_bed"),
-        (Point(16, 11, 18), "minecraft:purple_bed"),
-        (Point(28, 11, 10), "minecraft:yellow_bed"),
-        (Point(28, 11, 18), "minecraft:green_bed"),
-    ]:
-        assert result.volume.block_at(point).block_type == bed_type
-
-
 @pytest.mark.parametrize(
     ("filename", "size", "voxel_count", "representative", "palette"),
     [
@@ -619,31 +550,33 @@ def test_claude_pergola_sign_carries_glowing_block_entity_text(tmp_path):
 def test_redstone_showcase_is_labeled_interactive_and_deterministic(tmp_path):
     source = EXAMPLES / "redstone_showcase.star"
     result = build_file(source)
-    assert result.volume.bounds.size == Point(52, 7, 45)
-    assert result.metadata.to_dict() == {"ground_level": 1, "y_offset": -1}
+    assert result.volume.bounds.size == Point(82, 12, 90)
+    assert result.metadata.to_dict() == {"ground_level": 3, "y_offset": -3}
 
     first = tmp_path / "redstone-1.nbt"
     second = tmp_path / "redstone-2.nbt"
-    write_structure_nbt(result.volume, first)
-    write_structure_nbt(build_file(source).volume, second)
+    write_build_outputs(result, first)
+    write_build_outputs(build_file(source), second)
     assert first.read_bytes() == second.read_bytes()
+    assert first.with_suffix(".meta.json").read_bytes() == second.with_suffix(".meta.json").read_bytes()
+    assert first.with_suffix(".meta.json").read_text() == '{\n  "ground_level": 3,\n  "y_offset": -3\n}\n'
 
     decoded = nbtlib.load(first)
     signs = [
         entry for entry in decoded["blocks"]
         if "nbt" in entry and "front_text" in entry["nbt"]
     ]
-    assert len(signs) == 18
+    assert len(signs) == 70
     headings = {
         str(entry["nbt"]["front_text"]["messages"][0])
         for entry in signs
     }
     assert {
         "REDSTONE LAB", "NOT", "OR", "NOR", "NAND", "AND", "XOR", "XNOR",
-        "T FLIP-FLOP", "PULSE EXTENDER", "REPEATER CLOCK", "MEMORY DEMOS",
+        "T FLIP-FLOP", "PULSE EXTENDER", "REPEATER CLOCK",
         "HOPPER CLOCK", "PISTON BRIDGE", "2x2 PISTON DOOR", "ITEM SORTER",
-        "LAMP MATRIX", "ANALOG INPUT",
-    } == headings
+        "LAMP MATRIX", "ANALOG METER",
+    } <= headings
 
     palette_names = {str(entry["Name"]) for entry in decoded["palette"]}
     assert {
@@ -651,6 +584,62 @@ def test_redstone_showcase_is_labeled_interactive_and_deterministic(tmp_path):
         "minecraft:copper_bulb", "minecraft:comparator", "minecraft:hopper",
         "minecraft:sticky_piston",
     } <= palette_names
+
+    blocks = {tuple(map(int, entry["pos"])): entry for entry in decoded["blocks"]}
+
+    def decoded_block(pos):
+        entry = blocks[pos]
+        return decoded["palette"][int(entry["state"])], entry.get("nbt")
+
+    assert list(map(int, decoded["size"])) == [82, 12, 90]
+    assert {str(decoded["palette"][int(e["state"])]["Properties"]["rotation"])
+            for e in signs} == {"8"}
+    # Matrix controls are wall-mounted against individual backing blocks.
+    for x in range(68, 73):
+        for y in range(3, 6):
+            spec, _ = decoded_block((x, y, 76))
+            assert str(spec["Name"]) == "minecraft:lever"
+            assert str(spec["Properties"]["facing"]) == "north"
+            assert str(decoded_block((x, y, 77))[0]["Name"]) == "minecraft:smooth_stone"
+            assert str(decoded_block((x, y, 78))[0]["Name"]) == "minecraft:redstone_lamp"
+    # Each analog sample has its own north-output diode and numbered lamp.
+    for x in range(64, 79):
+        assert str(decoded_block((x, 4, 55))[0]["Name"]) == "minecraft:redstone_wire"
+        spec, _ = decoded_block((x, 4, 54))
+        assert str(spec["Name"]) == "minecraft:repeater"
+        assert str(spec["Properties"]["facing"]) == "south"
+        assert str(decoded_block((x, 4, 53))[0]["Name"]) == "minecraft:redstone_lamp"
+    # Empty input, onward line and reject; supplies are separate from transport.
+    for pos in [(50, 8, 77), (51, 7, 82), (50, 4, 77)]:
+        assert not decoded_block(pos)[1]["Items"]
+    for pos, facing in [((50, 7, 77), "south"), ((50, 7, 78), "east")] + [
+            ((51, 7, z), "south") for z in range(78, 82)]:
+        spec, nbt = decoded_block(pos)
+        assert str(spec["Name"]) == "minecraft:hopper"
+        assert str(spec["Properties"]["facing"]) == facing
+        assert not nbt["Items"]
+    analog_supply = decoded_block((63, 3, 49))[1]["Items"]
+    assert len({str(i["id"]) for i in analog_supply}) == 15
+    assert all(int(i["count"]) == 1 for i in analog_supply)
+    # The repaired clock and door survive serialization with their drive paths.
+    assert str(decoded_block((49, 4, 54))[0]["Properties"]["extended"]) == "true"
+    assert str(decoded_block((50, 4, 54))[0]["Name"]) == "minecraft:piston_head"
+    for x, facing in [(48, "east"), (53, "west")]:
+        assert str(decoded_block((x, 4, 55))[0]["Properties"]["facing"]) == facing
+    for x in (47, 54):
+        assert str(decoded_block((x, 4, 56))[0]["Name"]) == "minecraft:redstone_wire"
+        assert str(decoded_block((x, 4, 57))[0]["Name"]) == "minecraft:redstone_lamp"
+    for x in (30, 31):
+        for y in (3, 4):
+            for z in range(75, 79):
+                assert (x, y, z) not in blocks
+    supply = decoded_block((46, 3, 72))[1]["Items"]
+    assert [(str(i["id"]), int(i["count"])) for i in supply] == [
+        ("minecraft:redstone", 32), ("minecraft:cobblestone", 32)]
+    assert [int(i["count"]) for i in decoded_block((50, 6, 77))[1]["Items"]] == [41, 1, 1, 1, 1]
+    for x in range(9, 12):
+        for y in (1, 2):
+            assert str(decoded_block((x, y, 78))[0]["Name"]) == "minecraft:air"
 
 
 def test_container_helpers_pack_items_and_loot():
@@ -690,3 +679,61 @@ def test_showcase_containers_serialize_block_entity_items(tmp_path):
     (barrel,) = list(nbtlib.load(output)["blocks"])
     assert str(barrel["nbt"]["LootTable"]) == "minecraft:chests/simple_dungeon"
     assert "Items" not in barrel["nbt"]
+
+
+def test_redstone_gallery_has_separate_stations_and_walkable_approaches():
+    volume = build_file(EXAMPLES / "redstone_showcase.star").volume
+
+    def name(x, y, z):
+        voxel = volume.voxels.get(Point(x, y, z))
+        return voxel.block.block_type if voxel else "minecraft:air"
+
+    # The full inter-station aisles have a floor and two blocks of headroom.
+    for x in range(82):
+        for z in range(90):
+            if x in (20, 21, 40, 41, 60, 61) or z in (22, 23, 44, 45, 66, 67):
+                assert name(x, 2, z) == "minecraft:polished_andesite"
+                assert name(x, 3, z) in ("minecraft:air", "minecraft:dark_oak_sign")
+                assert name(x, 4, z) == "minecraft:air"
+    # North and south door approaches, plus the passage itself, are two high.
+    for x in (30, 31):
+        for z in range(72, 84):
+            for y in (3, 4):
+                assert name(x, y, z) == "minecraft:air"
+            assert name(x, 2, z) != "minecraft:air"
+    # Bridge moving blocks start north of the trench; banks and bypass remain.
+    for x in range(9, 12):
+        assert name(x, 2, 77) == "minecraft:smooth_stone"
+        assert name(x, 2, 78) == "minecraft:air"
+        assert name(x, 2, 80) == "minecraft:polished_andesite"
+    for x in (8, 12):
+        assert name(x, 2, 78) == "minecraft:polished_andesite"
+        assert name(x, 3, 78) == name(x, 4, 78) == "minecraft:air"
+    # Continuous two-wide stair access to the elevated sorter inventories.
+    for i in range(5):
+        for x in (53, 54):
+            stair = volume.block_at(Point(x, 3 + i, 71 + i))
+            assert stair.block_type == "minecraft:deepslate_tile_stairs"
+            assert stair.block_state["facing"] == "south"
+            assert name(x, 4 + i, 71 + i) == name(x, 5 + i, 71 + i) == "minecraft:air"
+    for x in (53, 54):
+        for z in range(76, 84):
+            assert name(x, 7, z) == "minecraft:deepslate_tiles"
+            assert name(x, 8, z) == name(x, 9, z) == "minecraft:air"
+    # Each control/inventory is within interaction range of clear floor or
+    # the sorter balcony. Exclude circuit pads from candidate standing cells.
+    standing = []
+    for x in range(82):
+        for z in range(90):
+            for y, floor in [(3, "minecraft:polished_andesite"), (8, "minecraft:deepslate_tiles")]:
+                if (name(x, y - 1, z) == floor
+                        and name(x, y, z) in ("minecraft:air", "minecraft:dark_oak_sign")
+                        and name(x, y + 1, z) == "minecraft:air"):
+                    standing.append((x + 0.5, y + 1.62, z + 0.5))
+    interactive = {"minecraft:lever", "minecraft:stone_button", "minecraft:barrel",
+                   "minecraft:hopper", "minecraft:light_weighted_pressure_plate"}
+    for pos, voxel in volume.voxels.items():
+        if voxel.block.block_type in interactive:
+            distance_squared = min((x - pos.x - 0.5) ** 2 + (y - pos.y - 0.5) ** 2
+                                   + (z - pos.z - 0.5) ** 2 for x, y, z in standing)
+            assert distance_squared < 4.5 ** 2, (pos, voxel.block.block_type)

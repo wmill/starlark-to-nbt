@@ -325,20 +325,17 @@ standalone layouts and rotations are covered by the library test harness.
 | `AndGate(base=...)` | `[3, 2, 8]` | NAND then invert. |
 | `XorGate(base=...)` | `[5, 2, 7]` | Isolated torch XOR; inputs x=0/x=4, output x=2. |
 | `XnorGate(base=...)` | `[5, 2, 10]` | XOR core followed by an inverter. |
-| `RedstoneClock(period=2, base=...)` | `[5, 2, 8]` | Four-repeater pulse loop; north pulse starts it, center lever locks/pauses a stage, south-east repeater is output. |
-| `HopperClock(items=None, base=...)` | `[7, 2, 3]` | Alternating comparator outputs; more hopper items produce a longer period. |
+| `RedstoneClock(period=2, base=...)` | `[5, 2, 8]` | Four-repeater pulse loop; north pulse starts it, center lever locks one stage; unlocking may require reset/restart, south-east repeater is output. |
+| `HopperClock(items=None, base=...)` | `[10, 2, 4]` | Boosted comparator branches drive opposing sticky pistons; outputs x=1/8 at z=3. Starts with left piston extended and empty right hopper locked. More items lengthen the period. |
 | `TFlipFlop(base=...)` | `[1, 2, 5]` | Copper-bulb toggle memory with north pulse input and south comparator output. |
-| `PulseExtender(ticks=4, base=...)` | `[4, 2, (ticks+3)//4+5]` | Direct/delayed copper-bulb one-shot; input pulse must be shorter than positive `ticks`. |
+| `PulseExtender(ticks=4, base=...)` | `[4, 2, (ticks+3)//4+5]` | Direct/delayed copper-bulb one-shot; input pulse must be shorter than positive `ticks` redstone ticks. Not retriggerable: wait for the delayed pulse to end before another input. |
 | `LampMatrix(width, height, lamp="minecraft:redstone_lamp", base=...)` | `[width, height, 2]` | Lamp wall on a backing panel — a drivable display. |
 | `PistonTrapdoor(width=2, base=...)` | `[width, 3, 4]` | Retracting floor bridge; lever/dust on a raised control row at z=0 drive the piston row at z=1, powered = closed. |
-| `PistonDoor(base=..., door="minecraft:smooth_stone")` | `[6, 4, 3]` | 2x2 side-piston door; integrated top lever, powered = closed. |
+| `PistonDoor(base=..., door="minecraft:smooth_stone")` | `[6, 5, 4]` | 2x2 side-piston door; side lever and overhead bus leave x=2..3, y=1..2 clear. Upper pistons update the lower pair via Java quasi-connectivity. Powered = closed. |
 | `ItemSorter(target="minecraft:redstone", filler="minecraft:light_gray_stained_glass_pane", base=...)` | `[3, 5, 6]` | Wiki-standard overflow-safe 41+4 hopper filter; feed the top hopper, sorted items collect in the bottom barrel, non-matching items stay on top for transport. |
 
 ## Worked examples
 
-- `examples/mega_castle.star` — Aethercourt, a 48x40x48 high-fantasy castle
-  with four roofed towers, wall walks, gatehouse, three-level furnished palace,
-  stocked armory, stable with four horses, gardens, and placement ground level 1.
 - `examples/cottage.star` — timber-framed cottage: four rotated walls, gable
   roof with plank gable ends, self-carving door/windows, furnished interior.
   The reference for what a generated script should look like.
@@ -369,11 +366,14 @@ standalone layouts and rotations are covered by the library test harness.
 - `examples/claude_pergola.star` — 11x7x13 garden nook with ground level 1: an
   open pergola sheltering a bench and a standing sign with glowing orange
   block-entity text, plus an entrance path, flower beds, and lantern posts.
-- `examples/redstone_showcase.star` — 52x7x45 interactive redstone lab with
+- `examples/redstone_showcase.star` — 82x12x90 interactive redstone lab (ground level 3) with
   independently controlled truth-table stations for all seven gates, labeled
   timing/memory circuits, and signed piston, sorting, display, and analog-input
   demonstrations. Blue/green controls are A/B, orange controls are pulses, and
-  south-edge lamps are outputs.
+  south-edge lamps are outputs. Sixteen 18x20 stations have two-block aisles,
+  supplied sorter/analog inputs, rear matrix controls, and a shallow bridge
+  trench. See [gallery guide](redstone-gallery.md) for instructions and the
+  required Java 1.21.7 manual playtests.
 - `examples/procedural_facade.star` — 29x8x1 pattern wall gallery: checkerboard,
   gradient, diagonal-stripe, and triangular-wave-crenellation panels, each a
   different index-driven material formula.

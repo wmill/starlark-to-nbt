@@ -32,8 +32,7 @@ The reusable component library is grouped in `lib/*.star`; its prompt-ready DSL
 and component reference is `docs/component-catalog.md`. `lib/showcase.star`
 builds individual components for testing. `examples/church.star` is the full
 pipeline vertical slice, `examples/cottage.star` demonstrates `load()`-based
-composition, `examples/keep.star` is the large stress build, and
-`examples/mega_castle.star` is the 48x40x48 entity-enabled showcase. The remaining
+composition, and `examples/keep.star` is the large stress build. The remaining
 files in `examples/` are representative composed builds and procedural cases.
 
 ## Development Commands

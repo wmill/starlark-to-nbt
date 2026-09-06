@@ -1,162 +1,170 @@
-# Interactive redstone gallery for Java 1.21.7.
-#
-#   uv run starlark-to-nbt build examples/redstone_showcase.star \
-#     --output build/redstone_showcase.nbt --debug-dir build/redstone_showcase
-#
-# Blue controls are input A, green controls are input B, and lamps on the
-# south edge are outputs. Every mechanism is separated from its neighbors so
-# its dust cannot cross-connect after structure placement.
-
-load("../lib/structural.star", "Foundation")
+# Interactive Java 1.21.7 gallery. See docs/redstone-gallery.md for playtests.
 load("../lib/fixtures.star", "Sign")
-load("../lib/redstone.star",
-     "AndGate", "Button", "HopperClock", "ItemSorter", "LampMatrix",
-     "Lever", "NandGate", "NorGate", "NotGate", "OrGate", "PistonDoor",
-     "PistonTrapdoor", "PulseExtender", "RedstoneClock", "RedstoneLamp",
-     "RedstoneWire", "TFlipFlop", "WeightedPressurePlate",
-     "XnorGate", "XorGate")
+load("../lib/redstone.star", "AndGate", "Button", "HopperClock", "ItemSorter",
+     "LampMatrix", "Lever", "NandGate", "NorGate", "NotGate", "OrGate",
+     "PistonDoor", "PistonTrapdoor", "PulseExtender", "RedstoneClock",
+     "RedstoneLamp", "RedstoneWire", "Repeater", "TFlipFlop",
+     "WeightedPressurePlate", "XnorGate", "XorGate")
 
-WIDTH = 52
-HEIGHT = 7
-LENGTH = 45
-
-
-def _standing_sign(pos, lines, color="white"):
-    return at(pos, Sign(lines, material="minecraft:dark_oak_sign",
-                        color=color, glowing=True))
+WIDTH = 82
+HEIGHT = 12
+LENGTH = 90
+_BASE = "minecraft:smooth_stone"
 
 
-def _lever_input(x, z, color):
-    # Lever and bridging dust each bring their own colored pad so the wire
-    # never floats: pad at y=1, control/dust at y=2, meeting the gate's dust.
-    return group([
-        at([x, 1, z], Lever(base=color)),
-        at([x, 1, z + 1], RedstoneWire(base=color)),
-    ])
+def _sign(x, z, lines, y=3):
+    # Rotation 8 faces north, toward visitors arriving from the north aisle.
+    return transform([x, y, z], 180, [1, 1, 1],
+              Sign(lines, material="minecraft:dark_oak_sign", color="white", glowing=True))
 
 
-def _gate_station(x, z, size, gate, inputs, output_x, lines):
-    parts = [
-        at([x, 1, z], gate),
-        # Output lamp on a walkway-colored pedestal, driven by the gate's
-        # south-edge dust.
-        place_block([x + output_x, 1, z + size[2]], block("minecraft:deepslate_tiles")),
-        at([x + output_x, 2, z + size[2]], RedstoneLamp()),
-        _standing_sign([x + output_x, 1, z - 4], lines, color="yellow"),
-    ]
-    if len(inputs) >= 1:
-        parts.append(_lever_input(x + inputs[0], z - 2, "minecraft:blue_concrete"))
-    if len(inputs) == 2:
-        parts.append(_lever_input(x + inputs[1], z - 2, "minecraft:lime_concrete"))
+def _container(x, y, z, items=None, kind="barrel", facing="up"):
+    return place_block([x, y, z], block("minecraft:" + kind,
+                       {"facing": facing}, nbt=container_nbt(items, id="minecraft:" + kind)))
+
+
+def _input(x, z, pulse=False, color="minecraft:blue_concrete"):
+    control = Button(base="minecraft:orange_concrete") if pulse else Lever(base=color)
+    return group([at([x, 3, z], control), at([x, 3, z + 1], RedstoneWire(base=color))])
+
+
+def _gate_station(gate, inputs, output_x, lines, pulse=False):
+    size = gate["min_size"]
+    x = (18 - size[0]) // 2
+    z = 6
+    parts = [at([x, 3, z], gate),
+             at([x + output_x, 4, z + size[2]], RedstoneLamp()),
+             _sign(7, 1, lines),
+             _sign(x + output_x, z + size[2] + 2, ["OUTPUT", "Lamp = Q", "", ""])]
+    for i in range(len(inputs)):
+        ix = x + inputs[i]
+        parts.append(_input(ix, z - 2, pulse=pulse,
+                            color="minecraft:blue_concrete" if i == 0 else "minecraft:lime_concrete"))
+        parts.append(_sign(ix, z - 3, ["PULSE" if pulse else ("A" if i == 0 else "B"), "", "", ""]))
     return group(parts)
 
 
-def _pulse_input(x, z):
+def _hopper_station():
     return group([
-        at([x, 1, z], Button(base="minecraft:orange_concrete")),
-        at([x, 1, z + 1], RedstoneWire(base="minecraft:orange_concrete")),
+        _sign(7, 1, ["HOPPER CLOCK", "Two output lamps", "More items=slower", "Edit either hopper"]),
+        at([4, 3, 7], HopperClock()),
+        at([5, 4, 11], RedstoneLamp()), at([12, 4, 11], RedstoneLamp()),
+        _sign(5, 13, ["OUTPUT LEFT", "", "", ""]),
+        _sign(12, 13, ["OUTPUT RIGHT", "", "", ""]),
+        _sign(8, 5, ["INVENTORY", "16 items total", "Keep some items", "Wait for settling"]),
     ])
 
 
-def InteractiveGallery():
+def _analog_station():
+    parts = [_sign(7, 1, ["ANALOG METER", "Drop items on gold", "Longer = stronger", "Collect to reset"]),
+             _container(1, 3, 3, [{"id": "minecraft:" + item, "count": 1} for item in [
+                 "stone", "cobblestone", "dirt", "sand", "gravel", "oak_planks",
+                 "spruce_planks", "glass", "redstone", "coal", "iron_ingot",
+                 "gold_ingot", "diamond", "emerald", "quartz"]]),
+             _sign(3, 3, ["SUPPLY", "15 distinct items", "Drop separately", "See gallery guide"]),
+             at([1, 3, 9], WeightedPressurePlate(base=_BASE))]
+    for i in range(15):
+        x = i + 2
+        parts.extend([
+            at([x, 3, 9], RedstoneWire(base=_BASE)),
+            at([x, 3, 8], Repeater(facing="north", base=_BASE)),
+            at([x, 4, 7], RedstoneLamp()),
+            _sign(x, 5, [str(i + 1), "", "", ""]),
+        ])
+    return group(parts)
+
+
+def _bridge_station():
+    return group([
+        _sign(7, 1, ["PISTON BRIDGE", "Lever ON=cross", "OFF=visible gap", "Walk around sides"]),
+        at([7, 1, 7], PistonTrapdoor(3)),
+        # Travel cell is an explicit shallow trench, including the base slab.
+        carve_region([7, 1, 10], [10, 3, 11]),
+        _sign(5, 6, ["CONTROL", "Side lever", "Cross east/west", "Over moving row"]),
+        # The crossing runs east/west through z=10. The surrounding floor
+        # supplies fixed banks, and z=12 is a safe bypass.
+    ])
+
+
+def _door_station():
+    return group([
+        _sign(7, 1, ["2x2 PISTON DOOR", "Lever ON=closed", "OFF=walk through", "Controls at side"]),
+        at([6, 2, 7], PistonDoor()),
+        # Explicit passage and approaches preserve air when placed in terrain.
+        carve_region([8, 3, 4], [10, 5, 7]),
+        carve_region([8, 3, 11], [10, 5, 16]),
+        _sign(4, 7, ["CONTROL", "Side lever", "", ""]),
+    ])
+
+
+def _sorter_station():
     parts = [
-        Foundation(WIDTH, LENGTH, material="minecraft:polished_andesite"),
-        # Visitor aisle and color legend.
-        fill_region([0, 1, 14], [WIDTH, 2, 15], block("minecraft:deepslate_tiles")),
-        fill_region([0, 1, 29], [WIDTH, 2, 31], block("minecraft:deepslate_tiles")),
-        _standing_sign([25, 1, 1],
-                       ["REDSTONE LAB", "Blue=A  Green=B", "Orange=pulse", "Lamp=output"],
-                       color="aqua"),
-
-        # Logic classroom, row one.
-        _gate_station(2, 6, [1, 2, 4], NotGate(), [0], 0,
-                      ["NOT", "A | OUT", "0 | 1", "1 | 0"]),
-        _gate_station(8, 6, [3, 2, 4], OrGate(), [0, 2], 1,
-                      ["OR", "A B | OUT", "00=0  01=1", "10=1  11=1"]),
-        _gate_station(15, 6, [3, 2, 7], NorGate(), [0, 2], 1,
-                      ["NOR", "A B | OUT", "00=1  01=0", "10=0  11=0"]),
-        _gate_station(22, 6, [3, 2, 5], NandGate(), [0, 2], 1,
-                      ["NAND", "A B | OUT", "00=1  01=1", "10=1  11=0"]),
-        _gate_station(29, 6, [3, 2, 8], AndGate(), [0, 2], 1,
-                      ["AND", "A B | OUT", "00=0  01=0", "10=0  11=1"]),
-
-        # Logic classroom, row two.
-        _gate_station(4, 20, [5, 2, 7], XorGate(), [0, 4], 2,
-                      ["XOR", "A B | OUT", "00=0  01=1", "10=1  11=0"]),
-        # z=19 keeps the XNOR sign south of the NOR station's lamp column.
-        _gate_station(14, 19, [5, 2, 10], XnorGate(), [0, 4], 2,
-                      ["XNOR", "A B | OUT", "00=1  01=0", "10=0  11=1"]),
-
-        # Timing and memory stations.
-        at([24, 1, 17], TFlipFlop()),
-        _pulse_input(24, 15),
-        place_block([24, 1, 22], block("minecraft:deepslate_tiles")),
-        at([24, 2, 22], RedstoneLamp()),
-        _standing_sign([24, 1, 28],
-                       ["T FLIP-FLOP", "Press to toggle", "Bulb remembers", "Lamp = Q"],
-                       color="light_blue"),
-
-        # x=32 keeps the pulse button clear of the AND station's output lamp.
-        at([32, 1, 17], PulseExtender(16)),
-        _pulse_input(33, 15),
-        place_block([33, 1, 26], block("minecraft:deepslate_tiles")),
-        at([33, 2, 26], RedstoneLamp()),
-        _standing_sign([33, 1, 28],
-                       ["PULSE EXTENDER", "Press orange", "Output stays on", "for 16 ticks"],
-                       color="light_blue"),
-
-        at([37, 1, 17], RedstoneClock(4)),
-        _pulse_input(38, 15),
-        place_block([41, 1, 25], block("minecraft:deepslate_tiles")),
-        at([41, 2, 25], RedstoneLamp()),
-        _standing_sign([39, 1, 28],
-                       ["REPEATER CLOCK", "Button starts", "Center lever", "locks/pauses"],
-                       color="light_blue"),
-
-        _standing_sign([47, 1, 28],
-                       ["MEMORY DEMOS", "Bulb toggles", "Clock circulates", "Lever pauses it"],
-                       color="light_blue"),
-
-        # Practical applications.
-        at([2, 1, 34], HopperClock()),
-        _standing_sign([5, 1, 32],
-                       ["HOPPER CLOCK", "Items move", "Comparators alternate", "More = slower"],
-                       color="orange"),
-
-        at([12, 1, 34], PistonTrapdoor(3)),
-        _standing_sign([13, 1, 32],
-                       ["PISTON BRIDGE", "Top lever", "ON = closed", "OFF = open"],
-                       color="orange"),
-
-        at([20, 1, 34], PistonDoor()),
-        _standing_sign([22, 1, 32],
-                       ["2x2 PISTON DOOR", "Top lever", "ON = closed", "OFF = open"],
-                       color="orange"),
-
-        at([30, 1, 34], ItemSorter()),
-        _standing_sign([31, 1, 32],
-                       ["ITEM SORTER", "Redstone filtered", "Other items pass", "41+4 filter"],
-                       color="orange"),
-
-        at([38, 1, 34], LampMatrix(5, 3)),
-        _standing_sign([40, 1, 32],
-                       ["LAMP MATRIX", "Passive display", "Drive backing", "from rear"],
-                       color="orange"),
-
-        at([47, 1, 34], WeightedPressurePlate(power=0)),
-        at([47, 1, 35], RedstoneWire()),
-        place_block([47, 1, 36], block("minecraft:redstone_lamp", {"lit": "false"})),
-        _standing_sign([47, 1, 32],
-                       ["ANALOG INPUT", "Weighted plate", "Power is 0-15", "Lamp is output"],
-                       color="orange"),
+        _sign(7, 1, ["ITEM SORTER", "Insert at INPUT", "Redstone filtered", "Cobble -> reject"]),
+        at([7, 3, 8], ItemSorter()),
+        _container(8, 8, 9),
+        _sign(6, 6, ["INPUT ABOVE", "Use side stairs", "Do not edit filter", "41+4 reserved"]),
+        _container(4, 3, 4, [{"id": "minecraft:redstone", "count": 32},
+                               {"id": "minecraft:cobblestone", "count": 32}]),
+        _sign(6, 4, ["SUPPLY", "Take both types", "Insert above", ""]),
+        _container(9, 7, 14),
+        _sign(9, 16, ["REJECT ABOVE", "Cobblestone", "", ""]),
+        _sign(6, 10, ["FILTERED", "Bottom barrel", "Redstone", ""]),
     ]
-    return component(
-        name="InteractiveRedstoneGallery",
-        props={},
-        min_size=[WIDTH, HEIGHT, LENGTH],
-        metadata={"ground_level": 1},
-        body=group(parts),
-    )
+    # Turn away from the filter's dust rather than carrying inventory over it.
+    parts.append(_container(8, 7, 10, kind="hopper", facing="east"))
+    for z in range(10, 14):
+        parts.append(_container(9, 7, z, kind="hopper", facing="south"))
+    # A two-wide staircase and side balcony reach the input and reject barrels.
+    for i in range(5):
+        if i > 0:
+            parts.append(fill_region([11, 3, 3 + i], [13, 3 + i, 4 + i], block("minecraft:deepslate_tiles")))
+        parts.append(fill_region([11, 3 + i, 3 + i], [13, 4 + i, 4 + i],
+                     block("minecraft:deepslate_tile_stairs", {"facing": "south", "half": "bottom", "shape": "straight"})))
+    parts.append(fill_region([10, 7, 8], [13, 8, 16], block("minecraft:deepslate_tiles")))
+    return group(parts)
+
+
+def _matrix_station():
+    parts = [_sign(7, 1, ["LAMP MATRIX", "15 rear levers", "Each drives pixel", "Walk around panel"]),
+             at([6, 3, 9], LampMatrix(5, 3)),
+             _sign(7, 6, ["REAR CONTROLS", "Rows match height", "Columns match X", "Front is south"])]
+    for x in range(5):
+        for y in range(3):
+            parts.append(at([6 + x, 3 + y, 8], Lever(face="wall", facing="north")))
+    return group(parts)
+
+
+def InteractiveGallery():
+    stations = [
+        _gate_station(NotGate(), [0], 0, ["NOT", "A | Q", "0 | 1", "1 | 0"]),
+        _gate_station(OrGate(), [0, 2], 1, ["OR", "00=0 01=1", "10=1 11=1", ""]),
+        _gate_station(NorGate(), [0, 2], 1, ["NOR", "00=1 01=0", "10=0 11=0", ""]),
+        _gate_station(NandGate(), [0, 2], 1, ["NAND", "00=1 01=1", "10=1 11=0", ""]),
+        _gate_station(AndGate(), [0, 2], 1, ["AND", "00=0 01=0", "10=0 11=1", ""]),
+        _gate_station(XorGate(), [0, 4], 2, ["XOR", "00=0 01=1", "10=1 11=0", ""]),
+        _gate_station(XnorGate(), [0, 4], 2, ["XNOR", "00=1 01=0", "10=0 11=1", ""]),
+        _gate_station(TFlipFlop(), [0], 0, ["T FLIP-FLOP", "Press to toggle", "Wait then repeat", "Bulb remembers"], pulse=True),
+        _gate_station(PulseExtender(16), [1], 1, ["PULSE EXTENDER", "16 redstone ticks", "Short pulse only", "Wait before retry"], pulse=True),
+        group([_gate_station(RedstoneClock(4), [1], 4, ["REPEATER CLOCK", "Button starts", "Lever=stage lock", "May need restart"], pulse=True),
+               _sign(13, 10, ["STAGE LOCK", "Not pause/resume", "Unlock then start", "Reset if stuck"])]),
+        _hopper_station(), _analog_station(),
+        _bridge_station(), _door_station(), _sorter_station(), _matrix_station(),
+    ]
+    parts = [fill_region([0, 0, 0], [WIDTH, 1, LENGTH], block("minecraft:polished_andesite"))]
+    # Leave mechanism recesses out of the structural floor before carving.
+    for z0, z1, spans in [(0, 75, [[0, WIDTH]]),
+                           (75, 79, [[0, 9], [12, 28], [34, WIDTH]]),
+                           (79, LENGTH, [[0, WIDTH]])]:
+        for span in spans:
+            parts.append(fill_region([span[0], 1, z0], [span[1], 3, z1], block("minecraft:polished_andesite")))
+    for i in range(16):
+        x = 2 + (i % 4) * 20
+        z = 2 + (i // 4) * 22
+        parts.append(at([x, 0, z], component(name="Station", props={"index": i},
+                     min_size=[18, HEIGHT, 20], body=stations[i])))
+    parts.append(_sign(40, 0, ["REDSTONE LAB", "Blue=A Green=B", "Orange=pulse", "Rows go west-east"]))
+    return component(name="InteractiveRedstoneGallery", props={},
+                     min_size=[WIDTH, HEIGHT, LENGTH], metadata={"ground_level": 3}, body=group(parts))
 
 
 def build():

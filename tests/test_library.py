@@ -358,3 +358,46 @@ def test_rampart_wall_has_recessed_arcade_and_clear_wall_walk():
     assert wall.volume.block_at(Point(1, 4, 0)).block_state["facing"] == "west"
     assert wall.volume.block_at(Point(2, 4, 0)).block_state["type"] == "top"
     assert wall.volume.block_at(Point(3, 4, 0)).block_state["facing"] == "east"
+
+
+def test_hopper_clock_boosts_both_branches_and_reserves_piston_travel():
+    clock = build_file(SHOWCASE, props={"name": "HopperClock"}).volume
+    assert clock.bounds.size == Point(10, 2, 4)
+    for comparator_x, repeater_x, edge_x, drive_x, facing in [
+        (3, 2, 1, 2, "east"), (6, 7, 8, 7, "west"),
+    ]:
+        comparator = clock.block_at(Point(comparator_x, 1, 2))
+        assert comparator.block_type == "minecraft:comparator"
+        assert comparator.block_state["facing"] == facing
+        repeater = clock.block_at(Point(repeater_x, 1, 2))
+        assert repeater.block_type == "minecraft:repeater"
+        assert repeater.block_state["facing"] == facing
+        # Each boosted signal reaches its piston through two corners, and
+        # branches to a south-edge output without touching the opposite side.
+        for x, z in [(edge_x, 2), (edge_x, 1), (drive_x, 1), (edge_x, 3)]:
+            assert clock.block_at(Point(x, 1, z)).block_type == "minecraft:redstone_wire"
+            assert clock.block_at(Point(x, 0, z)).block_type == "minecraft:smooth_stone"
+    assert clock.block_at(Point(3, 1, 1)).block_state == {"facing": "east", "extended": "true"}
+    assert clock.block_at(Point(4, 1, 1)).block_type == "minecraft:piston_head"
+    assert clock.block_at(Point(5, 1, 1)).block_type == "minecraft:redstone_block"
+    assert clock.block_at(Point(6, 1, 1)).block_state == {"facing": "west", "extended": "false"}
+    assert clock.block_at(Point(4, 1, 2)).block_nbt["Items"][0]["count"] == 16
+    assert clock.block_at(Point(5, 1, 2)).block_state["enabled"] == "false"
+
+
+def test_piston_door_bus_clears_passage_and_powers_upper_piston_pads():
+    door = build_file(SHOWCASE, props={"name": "PistonDoor"}).volume
+    assert door.bounds.size == Point(6, 5, 4)
+    for x in (2, 3):
+        for y in (1, 2):
+            for z in range(4):
+                assert Point(x, y, z) not in door.voxels
+    for x in (0, 5):
+        assert door.block_at(Point(x, 2, 1)).block_type == "minecraft:smooth_stone"
+        assert door.block_at(Point(x, 3, 1)).block_type == "minecraft:redstone_wire"
+        for y in (1, 2):
+            assert door.block_at(Point(x, y, 2)).block_type == "minecraft:sticky_piston"
+    for x in range(1, 5):
+        assert door.block_at(Point(x, 3, 1)).block_type == "minecraft:smooth_stone"
+        assert door.block_at(Point(x, 4, 1)).block_type == "minecraft:redstone_wire"
+    assert door.block_at(Point(0, 3, 0)).block_type == "minecraft:lever"
