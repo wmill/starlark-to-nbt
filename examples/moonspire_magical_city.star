@@ -74,7 +74,7 @@ def build():
         put(x+5,14,z+5,"sea_lantern")
         box(x+4,11,z+5,x+7,12,z+8,"purple_carpet")
         box(x+4,9,z+11,x+7,10,min(z+14,62),"chiseled_quartz_block")
-        extras.append(transform([x+8,11,z+9],0,[1,1,1],Sign(lines=[labels[n],"Moonspire Guild", "Visitors welcome"],color="purple",glowing=True)))
+        extras.append(transform([x+8,11,z+9],180,[1,1,1],Sign(lines=[labels[n],"Moonspire Guild", "Visitors welcome"],color="purple",glowing=True)))
     # Four circular guardian towers, airy interiors and tapered turquoise spires.
     for cx,cz in [[4,4],[58,4],[4,58],[58,58]]:
         for y in range(10,26):
