@@ -737,3 +737,41 @@ def test_redstone_gallery_has_separate_stations_and_walkable_approaches():
             distance_squared = min((x - pos.x - 0.5) ** 2 + (y - pos.y - 0.5) ** 2
                                    + (z - pos.z - 0.5) ** 2 for x, y, z in standing)
             assert distance_squared < 4.5 ** 2, (pos, voxel.block.block_type)
+
+
+def test_moonspire_magical_city_preserves_landmarks_furnishings_and_metadata(tmp_path):
+    source = EXAMPLES / "moonspire_magical_city.star"
+    result = build_file(source)
+    assert result.volume.bounds.size == Point(63, 59, 67)
+    assert len(result.volume.voxels) == 56893
+    assert result.metadata.to_dict() == {"ground_level": 10, "y_offset": -10}
+    for pos, material in [
+        (Point(31, 57, 18), "minecraft:end_rod"),  # observatory pinnacle
+        (Point(4, 36, 4), "minecraft:amethyst_block"),  # guardian tower
+        (Point(31, 18, 45), "minecraft:sea_lantern"),  # floating crystal core
+        (Point(31, 5, 66), "minecraft:quartz_stairs"),  # descending approach
+        (Point(10, 11, 12), "minecraft:air"),  # hollow guild-house interior
+    ]:
+        assert result.volume.block_at(pos).block_type == material
+
+    first = tmp_path / "moonspire-1.nbt"
+    second = tmp_path / "moonspire-2.nbt"
+    write_build_outputs(result, first)
+    write_build_outputs(build_file(source), second)
+    assert first.read_bytes() == second.read_bytes()
+    assert first.with_suffix(".meta.json").read_bytes() == second.with_suffix(".meta.json").read_bytes()
+    assert first.with_suffix(".meta.json").read_text() == '{\n  "ground_level": 10,\n  "y_offset": -10\n}\n'
+
+    decoded = nbtlib.load(first)
+    assert list(map(int, decoded["size"])) == [63, 59, 67]
+    chests = [entry["nbt"] for entry in decoded["blocks"]
+              if str(decoded["palette"][int(entry["state"])]["Name"]) == "minecraft:chest"]
+    assert len(chests) == 6
+    for chest in chests:
+        assert [(str(item["id"]), int(item["count"])) for item in chest["Items"]] == [
+            ("minecraft:amethyst_shard", 16)]
+    headings = {str(entry["nbt"]["front_text"]["messages"][0])
+                for entry in decoded["blocks"]
+                if "nbt" in entry and "front_text" in entry["nbt"]}
+    assert headings == {"MOONSPIRE", "Moonlit Library", "Alchemist's Rest", "Starlight Inn",
+                        "Crystal Atelier", "Astral Cartography", "Enchanter's House"}

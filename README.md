@@ -20,6 +20,7 @@ uv run starlark-to-nbt build examples/stone_pass_fortress.star \
   --arg mossy_percent=0.15 --arg cracked_percent=0.07 \
   --output stone_pass_fortress.nbt
 uv run starlark-to-nbt build examples/medieval_manor.star --output medieval_manor.nbt
+uv run starlark-to-nbt build examples/moonspire_magical_city.star --output moonspire_magical_city.nbt
 
 # Rebuild every example into build/<example-name>.nbt:
 ./scripts/rebuild_examples.sh

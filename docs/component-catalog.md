@@ -336,6 +336,12 @@ standalone layouts and rotations are covered by the library test harness.
 
 ## Worked examples
 
+- `examples/moonspire_magical_city.star` — 63x59x67 magical city with ground
+  level 10: six furnished guild houses, four guardian towers, a tall arcane
+  observatory, a floating crystal fountain, glowing gardens, and a descending
+  south approach. Demonstrates procedural voxel composition combined with
+  reusable self-carving doors, beds, stocked chests, bookshelves, and signs.
+
 - `examples/cottage.star` — timber-framed cottage: four rotated walls, gable
   roof with plank gable ends, self-carving door/windows, furnished interior.
   The reference for what a generated script should look like.
