@@ -55,7 +55,7 @@ def _validate_doors(placement: ValidatorPlacement, operations: list[BlockOperati
             coordinate = operation.writes[0].pos if operation.writes else None
             errors.append(Diagnostic(
                 "invalid_validator_target",
-                f"assembly {validator.assembly!r} is not a matching two-block door",
+                f"assembly {validator.assembly!r} is not a matching single or double door",
                 operation.provenance.component_path,
                 operation.provenance.source,
                 region=operation.provenance.assigned_region,
@@ -64,30 +64,34 @@ def _validate_doors(placement: ValidatorPlacement, operations: list[BlockOperati
                          "assembly": validator.assembly},
             ))
             continue
-        lower, upper, facing = door
+        columns, facing = door
+        occupied = {point for column in columns for point in column}
         front = _FRONT[facing]
         left = Point(front.z, 0, -front.x)
         right = Point(-left.x, 0, -left.z)
-        for height, anchor in (("lower", lower), ("upper", upper)):
-            for side, offset in (("left", left), ("right", right)):
-                support = anchor + offset
-                if not _has_support(volume, root_box, metadata, support):
-                    errors.append(_door_error(
-                        "door_not_supported",
-                        f"{height} half has no solid {side} jamb at {support.to_list()}",
-                        operation, lower, validator.assembly,
-                        {"half": height, "side": side, "support": support.to_list()},
-                    ))
-            for direction, offset in (("front", front), ("back", Point(-front.x, 0, -front.z))):
-                clearance = anchor + offset
-                if not _is_clear(volume, root_box, metadata, clearance):
-                    errors.append(_door_error(
-                        "doorway_obstructed",
-                        f"{height} half is obstructed at its {direction} cell {clearance.to_list()}",
-                        operation, lower, validator.assembly,
-                        {"half": height, "direction": direction,
-                         "obstruction": clearance.to_list()},
-                    ))
+        for lower, upper in columns:
+            for height, anchor in (("lower", lower), ("upper", upper)):
+                for side, offset in (("left", left), ("right", right)):
+                    support = anchor + offset
+                    if support in occupied:
+                        continue
+                    if not _has_support(volume, root_box, metadata, support):
+                        errors.append(_door_error(
+                            "door_not_supported",
+                            f"{height} half has no solid {side} jamb at {support.to_list()}",
+                            operation, lower, validator.assembly,
+                            {"half": height, "side": side, "support": support.to_list()},
+                        ))
+                for direction, offset in (("front", front), ("back", Point(-front.x, 0, -front.z))):
+                    clearance = anchor + offset
+                    if not _is_clear(volume, root_box, metadata, clearance):
+                        errors.append(_door_error(
+                            "doorway_obstructed",
+                            f"{height} half is obstructed at its {direction} cell {clearance.to_list()}",
+                            operation, lower, validator.assembly,
+                            {"half": height, "direction": direction,
+                             "obstruction": clearance.to_list()},
+                        ))
     return errors
 
 
@@ -95,27 +99,37 @@ def _is_in_scope(path: str, scope: str) -> bool:
     return path == scope or path.startswith(f"{scope}/")
 
 
-def _door_halves(operation: BlockOperation) -> tuple[Point, Point, str] | None:
-    if len(operation.writes) != 2:
+def _door_halves(operation: BlockOperation) -> tuple[list[tuple[Point, Point]], str] | None:
+    if len(operation.writes) not in (2, 4):
         return None
-    lower_writes = [write for write in operation.writes
-                    if write.block.block_state.get("half") == "lower"]
-    upper_writes = [write for write in operation.writes
-                    if write.block.block_state.get("half") == "upper"]
-    if len(lower_writes) != 1 or len(upper_writes) != 1:
+    lowers = [write for write in operation.writes if write.block.block_state.get("half") == "lower"]
+    uppers = {write.pos: write for write in operation.writes
+              if write.block.block_state.get("half") == "upper"}
+    if len(lowers) != len(operation.writes) // 2 or len(uppers) != len(lowers):
         return None
-    lower = lower_writes[0]
-    upper = upper_writes[0]
-    facing = lower.block.block_state.get("facing")
-    if (
-        not lower.block.block_type.endswith("_door")
-        or upper.block.block_type != lower.block.block_type
-        or facing not in _FRONT
-        or upper.block.block_state.get("facing") != facing
-        or upper.pos != lower.pos + Point(0, 1, 0)
-    ):
+    facing = lowers[0].block.block_state.get("facing")
+    material = lowers[0].block.block_type
+    if facing not in _FRONT or not material.endswith("_door"):
         return None
-    return lower.pos, upper.pos, facing
+    columns = []
+    for lower in lowers:
+        upper = uppers.get(lower.pos + Point(0, 1, 0))
+        if (upper is None or lower.block.block_type != material or upper.block.block_type != material
+                or lower.block.block_state.get("facing") != facing
+                or upper.block.block_state.get("facing") != facing):
+            return None
+        if len(lowers) == 2 and any(lower.block.block_state.get(key) != upper.block.block_state.get(key)
+                                    for key in ("hinge", "open", "powered")):
+            return None
+        columns.append((lower.pos, upper.pos))
+    if len(lowers) == 2:
+        front = _FRONT[facing]
+        side = Point(front.z, 0, -front.x)
+        if lowers[1].pos not in (lowers[0].pos + side, lowers[0].pos + Point(-side.x, 0, -side.z)):
+            return None
+        if {lower.block.block_state.get("hinge") for lower in lowers} != {"left", "right"}:
+            return None
+    return columns, facing
 
 
 def _has_support(volume: SparseVolume, root_box: Box, metadata: BuildMetadata,

@@ -76,7 +76,7 @@ and bounds checks as `transform`: pos is the minimum rotated footprint corner;
 | Constructor | Semantics |
 |---|---|
 | `component(name, props, body, min_size=None, metadata=None, validators=None)` | Named subtree; `min_size=[x,y,z]` is validated against the assigned region and used as the natural size when built standalone. The root may set typed placement metadata such as `metadata={"ground_level": 1}`. Optional validators apply to matching operations in this component subtree. |
-| `validator("door_supported_on_both_sides", assembly="name")` | Post-execution check for matching named door assemblies. Both door halves need solid left/right jambs and clear front/back cells. |
+| `validator("door_supported_on_both_sides", assembly="name")` | Post-execution check for matching named door assemblies. Accepts a two-block single door or a four-block double door with matching halves and mirrored hinges. Requires solid outer jambs and clear front/back cells for each door column. |
 | `group(children)` | Children share the parent's region unchanged. |
 | `split(axis, sizes, children)` | Partition the region along `axis` (`"x"`/`"y"`/`"z"`). `sizes` entries are `fixed(n)` or `fill()`; fills share the remainder deterministically. Overflow/underflow are errors. |
 | `inset(child, amount=n)` or `inset(child, x=[lo,hi], y=[...], z=[...])` | Shrink the region by per-axis margins. |
@@ -206,17 +206,17 @@ them builds standalone. `lib/showcase.star` builds any single component:
 
 | Component | Size | Notes |
 |---|---|---|
-| `BspDungeon(width=48, length=48, room_height=4, min_room_size=5, target_leaf_size=18, max_depth=8, seed=0, wide_corridor_chance=0.30, light_spacing=8, burial_depth=4, surface_entrance=True, wall=..., floor=..., stair=..., door=..., torch=..., lantern=..., loot_table="minecraft:chests/simple_dungeon", wall_picker=None)` | Exact `[width, generated height, length]` | Deterministic underground BSP rooms and connected tunnels. Narrow links use atomic doors under a masonry lintel when both jambs remain intact, otherwise they remain open; wide links use three-block stone arches. Rooms are seeded with weighted types — plain, mob (a dark spawner room with cobwebs), treasure (a `loot_table` chest with candles), armoury (gear chest, anvil, armor stand), library (bookshelves and a lectern), crypt (skull niches under soul torches), storeroom (barrels and a crafting table), and fountain — with furniture kept clear of every corridor landing; rooms smaller than 5x5 inside stay plain. Rooms are lit by wall-mounted torches (mob rooms stay dark) and corridors by hanging lanterns. With an entrance, a north-edge hut and descending stair reach surface level `room_height + burial_depth + 2`; without one, height is `room_height + 2` and callers choose placement metadata. Requires enough space for inset rooms; probabilities and split controls are validated. |
+| `BspDungeon(width=48, length=48, room_height=4, min_room_size=5, target_leaf_size=18, max_depth=8, seed=0, wide_corridor_chance=0.30, light_spacing=8, burial_depth=4, surface_entrance=True, wall=..., floor=..., stair=..., door=..., torch=..., lantern=..., loot_table="minecraft:chests/simple_dungeon", wall_picker=None)` | Exact `[width, generated height, length]` | Deterministic underground BSP rooms and connected tunnels. Standard links are two blocks wide with atomic double doors under a masonry lintel when both outer jambs remain intact; otherwise they remain fully open. Wide links are three blocks wide with stone arches. Bends retain the passage width, and occasional arch ribs decorate straight sections without reducing walking clearance. Rooms are seeded with weighted types — plain, mob (a dark spawner room with cobwebs), treasure (a `loot_table` chest with candles), armoury (gear chest, anvil, armor stand), library (bookshelves and a lectern), crypt (skull niches under soul torches), storeroom (barrels and a crafting table), and fountain — with furniture kept clear of every corridor landing; rooms smaller than 5x5 inside stay plain. Rooms are lit by wall-mounted torches (mob rooms stay dark) and corridors by hanging lanterns with spatial spacing independent of passage width. `wall_torch_count` includes entrance lighting; `stair_torch_count` reports its subset. With an entrance, a six-block-wide north-edge hut, double doorway, continuous landing, and two-wide descending stair with solid backing, side walls, a stepped ceiling, and wall torches reach surface level `room_height + burial_depth + 2`; without one, height is `room_height + 2` and callers choose placement metadata. Requires enough space for inset rooms; probabilities and split controls are validated. |
 
 The component props include `room_count`, `connection_count`,
 `wide_connection_count`, `surface_level`, `mob_room_count`,
-`furnished_room_count`, and `wall_torch_count`, making a generated topology easy
+`furnished_room_count`, `wall_torch_count`, and `stair_torch_count`, making a generated topology easy
 to inspect without embedding custom data in structure NBT. Its leaf-room and
 bottom-up sibling-connection strategy follows the approaches described by
 [RogueBasin](https://www.roguebasin.com/index.php/Basic_BSP_Dungeon_generation)
 and [Gonzalo Uribe](https://medium.com/@guribemontero/dungeon-generation-using-binary-space-trees-47d4a668e2d0).
 `wall_picker(base_wall, x, y, z)` can return a block identifier for each room,
-corridor, and entrance-hut wall or ceiling cell. Results are cached by local
+corridor, entrance-hut, and stairwell wall or ceiling cell. Results are cached by local
 coordinate so overlapping shell writes remain consistent; omitting the picker
 retains compact bulk fills.
 
@@ -419,14 +419,16 @@ standalone layouts and rotations are covered by the library test harness.
 - `examples/bsp_dungeon.star` — 96x15x96 deterministic underground dungeon:
   iteratively subdivided BSP rooms furnished by weighted type (spawner dens,
   loot-table treasure vaults, armouries, libraries, crypts, storerooms,
-  fountains), door and arch corridors with filled lintels, wall-torch room
-  lighting with hanging tunnel lanterns,
-  and a north-edge surface hut with a carved descending stair.
+  fountains), two/three-block corridors with double doors, filled lintels and
+  decorative arch ribs, wall-torch room lighting, hanging tunnel lanterns,
+  and a trimmed north-edge surface hut with fully enclosed two-wide stairs.
   Root metadata places its surface walking plane at local Y=10. An opt-in
   validator checks every `bsp_dungeon_door` assembly after execution. Seeded
   weathering defaults to 15% mid-wall moss and 7% cracked stone; moss ranges
   from 1.5 times the configured rate at wall bases to 0.5 times at wall tops.
-  Both percentages are configurable build arguments.
+  Both percentages are configurable build arguments. Layout uses keyed hash
+  choices so adding random draws does not shift subsequent choices; weathering
+  uses `random.star`'s cyclic visual-pattern table.
 
 ## Errors
 

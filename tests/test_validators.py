@@ -114,3 +114,43 @@ def test_declared_validator_fails_the_build_pipeline(tmp_path):
     assert {diagnostic.code for diagnostic in error.value.diagnostics} == {
         "door_not_supported",
     }
+
+
+def double_door_operation(facing="south", defect=None):
+    front = {"north": Point(0, 0, -1), "south": Point(0, 0, 1),
+             "east": Point(1, 0, 0), "west": Point(-1, 0, 0)}[facing]
+    side = Point(front.z, 0, -front.x)
+    writes = []
+    for column in range(2):
+        pos = Point(3, 1, 3) + (side if column else Point(0, 0, 0))
+        if column and defect == "separated":
+            pos += side
+        for height, half in [(0, "lower"), (1, "upper")]:
+            states = {"facing": facing, "half": half,
+                      "hinge": "left" if column == 0 or defect == "hinges" else "right",
+                      "open": "false", "powered": "false"}
+            if column and height and defect == "mismatched_half":
+                states["facing"] = "up"
+            writes.append(BlockWrite(pos + Point(0, height, 0), BlockSpec("minecraft:oak_door", states)))
+    return BlockOperation(Phase.FIXTURE, "place_assembly", tuple(writes), DOOR_OWNER, "door", 1), front, side
+
+
+@pytest.mark.parametrize("facing", ["north", "east", "south", "west"])
+def test_double_doors_check_outer_jambs_and_each_approach_lane(facing):
+    door, front, side = double_door_operation(facing)
+    origin = Point(3, 1, 3)
+    jambs = [origin + offset + Point(0, height, 0)
+             for offset in (Point(-side.x, 0, -side.z), side + side) for height in (0, 1)]
+    assert diagnostics([structure_operation(jambs), door]) == []
+    assert {d.code for d in diagnostics([structure_operation(jambs[:-1]), door])} == {"door_not_supported"}
+    for column in (Point(0, 0, 0), side):
+        for direction in (front, Point(-front.x, 0, -front.z)):
+            obstruction = origin + column + direction
+            errors = diagnostics([structure_operation(jambs + [obstruction]), door])
+            assert [d.code for d in errors] == ["doorway_obstructed"]
+
+
+@pytest.mark.parametrize("defect", ["separated", "hinges", "mismatched_half"])
+def test_double_door_validator_rejects_malformed_pairs(defect):
+    door, _, _ = double_door_operation(defect=defect)
+    assert [d.code for d in diagnostics([door])] == ["invalid_validator_target"]

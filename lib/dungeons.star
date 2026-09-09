@@ -2,6 +2,9 @@
 # Nodes are subdivided in depth passes because the embedded Starlark runtime
 # deliberately does not support recursion.
 
+# Keyed layout choices do not shift when another feature needs a random draw.
+# random.star intentionally cycles a 1,024-value visual-pattern table; keep
+# that cursor-based utility in the example's weathering, not the BSP topology.
 _HASH_MOD = 2147483647
 
 
@@ -392,16 +395,12 @@ def _add_cell(cells, ordered, x, z):
 
 
 def _add_line(cells, ordered, x0, z0, x1, z1, corridor_width):
-    if x0 == x1:
-        lo, hi = (z0, z1) if z0 <= z1 else (z1, z0)
-        for z in range(lo, hi + 1):
-            for offset in range(-(corridor_width // 2), corridor_width // 2 + 1):
-                _add_cell(cells, ordered, x0 + offset, z)
-    else:
-        lo, hi = (x0, x1) if x0 <= x1 else (x1, x0)
-        for x in range(lo, hi + 1):
-            for offset in range(-(corridor_width // 2), corridor_width // 2 + 1):
-                _add_cell(cells, ordered, x, z0 + offset)
+    # Sweep a square footprint, including endpoints, so bends retain width.
+    lo = -(corridor_width // 2)
+    hi = lo + corridor_width
+    for z in range(min(z0, z1) + lo, max(z0, z1) + hi):
+        for x in range(min(x0, x1) + lo, max(x0, x1) + hi):
+            _add_cell(cells, ordered, x, z)
 
 
 def _inside_room(x, z, rooms):
@@ -411,60 +410,57 @@ def _inside_room(x, z, rooms):
     return False
 
 
+def _door_cells(candidate):
+    x, z = candidate["x"], candidate["z"]
+    if candidate["facing"] in ["north", "south"]:
+        return [[x - 1, z], [x, z]]
+    return [[x, z - 1], [x, z]]
+
+
 def _door(door_candidates, fixture_cells, x, z, facing, door, y=1):
-    key = _key(x, z)
-    if key in fixture_cells:
+    candidate = {"x": x, "y": y, "z": z, "facing": facing, "door": door}
+    cells = _door_cells(candidate)
+    if any([_key(cell[0], cell[1]) in fixture_cells for cell in cells]):
         return
-    fixture_cells[key] = True
-    door_candidates.append({
-        "x": x, "y": y, "z": z, "facing": facing, "door": door,
-    })
+    for cell in cells:
+        fixture_cells[_key(cell[0], cell[1])] = True
+    door_candidates.append(candidate)
 
 
 def _emit_door(parts, candidate):
-    x, y, z = candidate["x"], candidate["y"], candidate["z"]
-    facing, door = candidate["facing"], candidate["door"]
-    state = {"facing": facing, "hinge": "left", "open": "false", "powered": "false"}
-    if y > 1:
-        # Only the surface-hut door needs its own opening; dungeon-level door
-        # cells are corridor cells, already carved to full height.
-        parts.append(carve_region([x, y, z], [x + 1, y + 2, z + 1]))
-    parts.append(place_assembly(
-        pos=[x, y, z],
-        name="bsp_dungeon_door",
-        size=[1, 2, 1],
-        blocks=[
-            {"pos": [0, 0, 0], "block": block(door, dict(state, half="lower"))},
-            {"pos": [0, 1, 0], "block": block(door, dict(state, half="upper"))},
-        ],
-    ))
+    cells = _door_cells(candidate)
+    x, z = cells[0]
+    y, facing = candidate["y"], candidate["facing"]
+    dx, dz = cells[1][0] - x, cells[1][1] - z
+    parts.append(carve_region([x, y, z], [x + dx + 1, y + 2, z + dz + 1]))
+    blocks = []
+    for i in range(2):
+        hinge = "right" if (i == 0) == (facing in ["south", "west"]) else "left"
+        state = {"facing": facing, "hinge": hinge, "open": "false", "powered": "false"}
+        for h, half in [[0, "lower"], [1, "upper"]]:
+            blocks.append({"pos": [i * dx, h, i * dz],
+                           "block": block(candidate["door"], dict(state, half=half))})
+    parts.append(place_assembly([x, y, z], "bsp_dungeon_door", [dx + 1, 2, dz + 1], blocks))
 
 
 def _door_has_jambs(candidate, corridor_cells, room_height):
-    # Dungeon corridors carve from y=1 through room_height. Surface doors are
-    # above that range and retain the hut wall on each side.
     if candidate["y"] > room_height:
         return True
-    facing = candidate["facing"]
-    if facing == "north" or facing == "south":
-        offsets = [[-1, 0], [1, 0]]
-    else:
-        offsets = [[0, -1], [0, 1]]
-    for offset in offsets:
-        if _key(candidate["x"] + offset[0], candidate["z"] + offset[1]) in corridor_cells:
-            return False
-    return True
+    cells = _door_cells(candidate)
+    dx, dz = cells[1][0] - cells[0][0], cells[1][1] - cells[0][1]
+    return (_key(cells[0][0] - dx, cells[0][1] - dz) not in corridor_cells
+            and _key(cells[1][0] + dx, cells[1][1] + dz) not in corridor_cells)
 
 
-def _arch(parts, fixture_cells, x, z, axis, room_height, stair):
+def _arch(parts, fixture_cells, x, z, axis, room_height, stair, width=3):
     # axis is the corridor's direction through the wall. The opening runs on
     # the perpendicular axis and is capped by two upside-down stair corners.
     if axis == "x":
-        parts.append(carve_region([x, 1, z - 1], [x + 1, room_height + 1, z + 2]))
-        positions = [[x, room_height, z - 1, "north"], [x, room_height, z + 1, "south"]]
+        parts.append(carve_region([x, 1, z - 1], [x + 1, room_height + 1, z + width - 1]))
+        positions = [[x, room_height, z - 1, "north"], [x, room_height, z + width - 2, "south"]]
     else:
-        parts.append(carve_region([x - 1, 1, z], [x + 2, room_height + 1, z + 1]))
-        positions = [[x - 1, room_height, z, "west"], [x + 1, room_height, z, "east"]]
+        parts.append(carve_region([x - 1, 1, z], [x + width - 1, room_height + 1, z + 1]))
+        positions = [[x - 1, room_height, z, "west"], [x + width - 2, room_height, z, "east"]]
     for item in positions:
         key = _key(item[0], item[2])
         if key not in fixture_cells:
@@ -624,7 +620,7 @@ def BspDungeon(
         a = rooms[nodes[node["left"]]["rep"]]
         b = rooms[nodes[node["right"]]["rep"]]
         is_wide = _hash(seed, node_index, 8) % 10000 < chance_threshold
-        corridor_width = 3 if is_wide else 1
+        corridor_width = 3 if is_wide else 2
         connection_count += 1
         if is_wide:
             wide_connection_count += 1
@@ -665,29 +661,47 @@ def BspDungeon(
                 _door(door_candidates, fixture_cells, xa, a["z1"] - 1, "south", door)
                 _door(door_candidates, fixture_cells, xb, b["z0"], "north", door)
 
+    stair_torch_count = 0
     # Entrance hut, descending stair tunnel, and its dungeon-level landing.
     if surface_entrance:
         center = width // 2
-        hx0, hx1 = center - 2, center + 3
-        if hx0 < 0 or hx1 > width:
-            fail("BspDungeon width is too small for the surface entrance hut")
-        parts.extend([
-            fill_region([hx0, surface_level, 0], [center, surface_level + 1, 5], block(floor)),
-            fill_region([center + 1, surface_level, 0], [hx1, surface_level + 1, 5], block(floor)),
-            place_block([center, surface_level, 0], block(floor)),
-            carve_region([hx0 + 1, surface_level + 1, 1], [hx1 - 1, surface_level + 4, 4]),
-        ])
-        parts.extend(_shell(
-            hx0, 0, hx1, 5, surface_level + 1, 3, wall, wall_picker, wall_materials))
+        hx0, hx1 = center - 3, center + 3
+        # Continuous vestibule floor; the stair opening begins only at z=3.
+        parts.append(fill_region([hx0, surface_level, 0], [hx1, surface_level + 1, 3], block(floor)))
+        for x in [hx0, hx1 - 1]:
+            parts.append(fill_region([x, surface_level, 3], [x + 1, surface_level + 1, 5], block(floor)))
+        parts.append(carve_region([hx0 + 1, surface_level + 1, 1], [hx1 - 1, surface_level + 4, 3]))
+        parts.extend(_shell(hx0, 0, hx1, 5, surface_level + 1, 3, wall, wall_picker, wall_materials))
         _door(door_candidates, fixture_cells, center, 0, "north", door, y=surface_level + 1)
+        # Inset corner piers and roof trim stay inside the original root bounds.
+        for x in [hx0 + 1, hx1 - 2]:
+            parts.extend(_wall_fill([x, surface_level + 1, 1], [x + 1, surface_level + 3, 2],
+                                    wall, wall_picker, wall_materials, phase="fixture"))
+            parts.append(place_block([x, surface_level + 3, 1],
+                         block(stair, {"facing": "north", "half": "top", "shape": "straight"}), phase="fixture"))
         for step in range(surface_level):
-            y = surface_level - step
-            z = 3 + step
-            stair_cells[_key(center, z)] = True
-            parts.append(place_block([center, y, z], block(stair, {
-                "facing": "north", "half": "bottom", "shape": "straight",
-            })))
-            parts.append(carve_region([center, y + 1, z], [center + 1, y + 4, z + 1]))
+            y, z = surface_level - step, 3 + step
+            for x in [center - 1, center]:
+                stair_cells[_key(x, z)] = True
+                parts.append(fill_region([x, 0, z], [x + 1, y, z + 1], block(floor)))
+                parts.append(place_block([x, y, z], block(stair, {
+                    "facing": "north", "half": "bottom", "shape": "straight",
+                })))
+                parts.append(carve_region([x, y + 1, z], [x + 1, y + 4, z + 1]))
+                parts.append(_wall_block([x, y + 4, z], wall, wall_picker, wall_materials))
+            for x in [center - 2, center + 1]:
+                parts.extend(_wall_fill([x, y, z], [x + 1, y + 5, z + 1],
+                                       wall, wall_picker, wall_materials))
+            if step % light_spacing == 0:
+                stair_torch_count += 1
+                parts.append(place_block([center - 1, y + 2, z],
+                             block(torch, {"facing": "east"}), phase="fixture"))
+        # Close the vertical seam where a tall dungeon ceiling rises above
+        # the final stair roof; otherwise this face would expose the terrain.
+        if room_height > 4:
+            parts.extend(_wall_fill([center - 2, 6, surface_level + 2],
+                                    [center + 2, room_height + 2, surface_level + 3],
+                                    wall, wall_picker, wall_materials))
         landing_z = 3 + surface_level
         north_room = rooms[0]
         for room in rooms[1:]:
@@ -695,14 +709,16 @@ def BspDungeon(
                 north_room = room
         room_x = (north_room["x0"] + north_room["x1"]) // 2
         room_z = north_room["z0"] + 1
-        _add_line(corridor_cells, ordered_corridor_cells, center, landing_z, center, bsp_z0, 1)
-        _add_line(corridor_cells, ordered_corridor_cells, center, bsp_z0, room_x, bsp_z0, 1)
-        _add_line(corridor_cells, ordered_corridor_cells, room_x, bsp_z0, room_x, room_z, 1)
+        _add_line(corridor_cells, ordered_corridor_cells, center, landing_z, center, bsp_z0, 2)
+        _add_line(corridor_cells, ordered_corridor_cells, center, bsp_z0, room_x, bsp_z0, 2)
+        _add_line(corridor_cells, ordered_corridor_cells, room_x, bsp_z0, room_x, room_z, 2)
 
     # Each path cell gets a complete tunnel cross-section. Neighboring tunnel
     # cells are subsequently carved, leaving only the exterior side shell.
     for cell in ordered_corridor_cells:
         x, z = cell[0], cell[1]
+        if _key(x, z) in stair_cells:
+            continue
         parts.append(place_block([x, 0, z], block(floor)))
         parts.append(_wall_block(
             [x, room_height + 1, z], wall, wall_picker, wall_materials))
@@ -721,14 +737,14 @@ def BspDungeon(
             if candidate["y"] == 1:
                 # Lintel: refill the carved corridor column above the door.
                 # Fixture phase, or the carve pass would erase it again.
-                for y in range(3, room_height + 1):
-                    parts.append(_wall_block(
-                        [candidate["x"], y, candidate["z"]],
-                        wall, wall_picker, wall_materials, phase="fixture"))
+                for cell in _door_cells(candidate):
+                    for y in range(3, room_height + 1):
+                        parts.append(_wall_block([cell[0], y, cell[1]],
+                                     wall, wall_picker, wall_materials, phase="fixture"))
 
     mob_room_count = 0
     furnished_room_count = 0
-    wall_torch_count = 0
+    wall_torch_count = stair_torch_count
     for room in rooms:
         furnished = _furnish_room(
             parts, room, _room_type(seed, room), room_height, torch, loot_table,
@@ -739,13 +755,35 @@ def BspDungeon(
         if furnished[0] != "plain":
             furnished_room_count += 1
 
+    # Sparse arch ribs: only exact straight cross-sections, away from rooms,
+    # intersections and reserved doorway fixtures. No floor-level intrusion.
+    for cell in ordered_corridor_cells:
+        x, z = cell
+        if (x + z) % (2 * light_spacing) != 0:
+            continue
+        for axis in ["x", "z"]:
+            for rib_width in [2, 3]:
+                clear = True
+                for along in range(-1, 2):
+                    for across in range(-2, rib_width):
+                        rx = x + (along if axis == "x" else across)
+                        rz = z + (across if axis == "x" else along)
+                        inside = across >= -1 and across < rib_width - 1
+                        key = _key(rx, rz)
+                        if ((key in corridor_cells) != inside or key in stair_cells
+                                or key in fixture_cells or _inside_room(rx, rz, rooms)):
+                            clear = False
+                if clear:
+                    _arch(parts, fixture_cells, x, z, axis, room_height, stair, width=rib_width)
+
     light_cells = {}
-    for index in range(0, len(ordered_corridor_cells), light_spacing):
+    for index in range(len(ordered_corridor_cells)):
         cell = ordered_corridor_cells[index]
         x, z = cell[0], cell[1]
         key = _key(x, z)
-        if key not in light_cells and key not in fixture_cells and not _inside_room(x, z, rooms):
-            light_cells[key] = True
+        if (key not in fixture_cells and key not in stair_cells and not _inside_room(x, z, rooms)
+                and all([abs(x - light[0]) + abs(z - light[1]) >= light_spacing for light in light_cells.values()])):
+            light_cells[key] = [x, z]
             parts.append(place_block(
                 [x, room_height, z], block(lantern, {"hanging": "true"}), phase="fixture"))
 
@@ -764,6 +802,7 @@ def BspDungeon(
             "mob_room_count": mob_room_count,
             "furnished_room_count": furnished_room_count,
             "wall_torch_count": wall_torch_count,
+            "stair_torch_count": stair_torch_count,
         },
         min_size=[width, total_height, length],
         body=group(parts),

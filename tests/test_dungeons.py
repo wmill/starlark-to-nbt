@@ -7,8 +7,7 @@ import nbtlib
 import pytest
 
 from starlark_to_nbt.model import BuildError, Point
-from starlark_to_nbt.pipeline import build_file
-from starlark_to_nbt.serialize import write_structure_nbt
+from starlark_to_nbt.pipeline import build_file, write_build_outputs
 
 ROOT = Path(__file__).parents[1]
 SHOWCASE = ROOT / "lib" / "showcase.star"
@@ -26,7 +25,7 @@ def test_compact_dungeon_has_topology_stats_atomic_doors_and_supported_lights():
     assert props["room_count"] >= 2
     assert props["connection_count"] == props["room_count"] - 1
     doors = [op for op in result.operations if op.assembly_name == "bsp_dungeon_door"]
-    assert doors and all(len(op.writes) == 2 for op in doors)
+    assert doors and all(len(op.writes) == 4 for op in doors)
     assert props["wide_connection_count"] > 0
     assert any(v.block.block_type == "minecraft:stone_brick_stairs"
                for v in result.volume.voxels.values())
@@ -124,9 +123,11 @@ def test_reference_is_sparse_connected_and_has_surface_metadata(tmp_path):
 
     first = tmp_path / "first.nbt"
     second = tmp_path / "second.nbt"
-    write_structure_nbt(result.volume, first)
-    write_structure_nbt(build_file(EXAMPLE).volume, second)
+    write_build_outputs(result, first)
+    write_build_outputs(build_file(EXAMPLE), second)
     assert first.read_bytes() == second.read_bytes()
+    assert first.with_suffix(".meta.json").read_bytes() == second.with_suffix(".meta.json").read_bytes()
+    assert first.with_suffix(".meta.json").read_text() == '{\n  "ground_level": 10,\n  "y_offset": -10\n}\n'
 
     # The validated door geometry survives sparse structure serialization.
     decoded = nbtlib.load(first)
@@ -135,22 +136,38 @@ def test_reference_is_sparse_connected_and_has_surface_metadata(tmp_path):
         Point(*map(int, entry["pos"])): palette[int(entry["state"])]
         for entry in decoded["blocks"]
     }
+    assert list(map(int, decoded["size"])) == [96, 15, 96]
+    for x in (47, 48):
+        for z in (0, 1, 2):
+            assert blocks[Point(x, 10, z)] == "minecraft:polished_andesite"
+        for step in range(10):
+            y, z = 10 - step, 3 + step
+            assert blocks[Point(x, y, z)] == "minecraft:stone_brick_stairs"
+            assert blocks[Point(x, y + 1, z)] == "minecraft:air"
+            assert blocks[Point(x, y + 4, z)] in STONE_BRICKS
+    surface_doors = [entry for entry in decoded["blocks"]
+                     if int(entry["pos"][1]) in (11, 12) and int(entry["pos"][2]) == 0
+                     and palette[int(entry["state"])] == "minecraft:oak_door"]
+    assert len(surface_doors) == 4
+    assert {str(decoded["palette"][int(e["state"])]["Properties"]["hinge"])
+            for e in surface_doors} == {"left", "right"}
     door = next(op for op in result.operations
                 if op.assembly_name == "bsp_dungeon_door" and op.writes[0].pos.y == 1)
-    lower = door.writes[0]
-    front = {
-        "north": Point(0, 0, -1), "south": Point(0, 0, 1),
-        "east": Point(1, 0, 0), "west": Point(-1, 0, 0),
-    }[lower.block.block_state["facing"]]
-    side = Point(front.z, 0, -front.x)
-    for height in (0, 1):
-        anchor = lower.pos + Point(0, height, 0)
-        assert blocks[anchor + side] in STONE_BRICKS
-        assert blocks[anchor - side] in STONE_BRICKS
-        assert blocks[anchor + front] == blocks[anchor - front] == "minecraft:air"
-    # The lintel refills the carved corridor column above every door.
-    for height in (2, 3):
-        assert blocks[lower.pos + Point(0, height, 0)] in STONE_BRICKS
+    occupied = {write.pos for write in door.writes}
+    for lower in [write for write in door.writes if write.block.block_state["half"] == "lower"]:
+        front = {
+            "north": Point(0, 0, -1), "south": Point(0, 0, 1),
+            "east": Point(1, 0, 0), "west": Point(-1, 0, 0),
+        }[lower.block.block_state["facing"]]
+        side = Point(front.z, 0, -front.x)
+        for height in (0, 1):
+            anchor = lower.pos + Point(0, height, 0)
+            for neighbor in (anchor + side, anchor - side):
+                if neighbor not in occupied:
+                    assert blocks[neighbor] in STONE_BRICKS
+            assert blocks[anchor + front] == blocks[anchor - front] == "minecraft:air"
+        for height in (2, 3):
+            assert blocks[lower.pos + Point(0, height, 0)] in STONE_BRICKS
 
 
 def test_reference_rooms_are_furnished_by_type():
@@ -262,3 +279,73 @@ def test_entrance_disabled_uses_exact_low_footprint(tmp_path):
 def test_invalid_dungeon_controls_fail_through_starlark_diagnostics(props):
     with pytest.raises(BuildError, match="starlark_error"):
         build_file(EXAMPLE, props=props)
+
+
+@pytest.mark.parametrize("props", [
+    {"seed": 0, "room_height": 3, "burial_depth": 0, "wide_corridor_chance": 0.0},
+    {"seed": 17, "wide_corridor_chance": 1.0},
+    {"seed": 101, "burial_depth": 6},
+    {"seed": 102},
+    {"seed": 17, "room_height": 7},
+    {"seed": 20250721, "width": 96, "length": 96},
+])
+def test_entrance_has_continuous_floor_enclosed_stairs_and_wide_connected_paths(props):
+    result = build_file(EXAMPLE, props={"width": 48, "length": 48, **props})
+    volume = result.volume
+    level = result.component_ir.props["surface_level"]
+    height = result.component_ir.props["room_height"]
+    center = result.volume.bounds.size.x // 2
+    for x in (center - 1, center):
+        for z in (0, 1, 2):
+            assert volume.block_at(Point(x, level, z)).block_type == "minecraft:polished_andesite"
+        for step in range(level):
+            y, z = level - step, 3 + step
+            tread = volume.block_at(Point(x, y, z))
+            assert tread.block_type == "minecraft:stone_brick_stairs"
+            assert tread.block_state["facing"] == "north"
+            assert volume.block_at(Point(x, y - 1, z)).block_type == "minecraft:polished_andesite"
+            for dy in (1, 2, 3):
+                assert volume.block_at(Point(x, y + dy, z)).block_type in {
+                    "minecraft:air", "minecraft:wall_torch"}
+            assert volume.block_at(Point(x, y + 4, z)).block_type in STONE_BRICKS
+            for side in (center - 2, center + 1):
+                for dy in range(5):
+                    assert volume.block_at(Point(side, y + dy, z)).block_type in STONE_BRICKS
+
+    if height > 4:
+        for x in range(center - 2, center + 2):
+            for y in range(6, height + 2):
+                assert volume.block_at(Point(x, y, level + 2)).block_type in STONE_BRICKS
+
+    # Identify the emitted full-height tunnel carvings, independently of their
+    # generation order. Every cell must remain part of a connected 2x2 route.
+    corridors = set()
+    for op in result.operations:
+        if op.kind != "carve_region" or len(op.writes) != height:
+            continue
+        cells = {(w.pos.x, w.pos.z) for w in op.writes}
+        if len(cells) == 1 and {w.pos.y for w in op.writes} == set(range(1, height + 1)):
+            corridors.update(cells)
+    assert corridors
+    walkable = set()
+    for p, voxel in volume.voxels.items():
+        if p.y != 1 or voxel.block.block_type not in {"minecraft:air", "minecraft:oak_door"}:
+            continue
+        above = volume.voxels.get(p + Point(0, 1, 0))
+        floor = volume.voxels.get(p - Point(0, 1, 0))
+        if (above and above.block.block_type in {"minecraft:air", "minecraft:oak_door"}
+                and floor and floor.block.block_type == "minecraft:polished_andesite"):
+            walkable.add((p.x, p.z))
+    assert corridors <= walkable
+    anchors = {(x, z) for x, z in walkable
+               if {(x + 1, z), (x, z + 1), (x + 1, z + 1)} <= walkable}
+    start = next(anchor for anchor in anchors if anchor in corridors)
+    seen, queue = {start}, deque([start])
+    while queue:
+        x, z = queue.popleft()
+        for neighbor in ((x - 1, z), (x + 1, z), (x, z - 1), (x, z + 1)):
+            if neighbor in anchors and neighbor not in seen:
+                seen.add(neighbor)
+                queue.append(neighbor)
+    for x, z in corridors:
+        assert any(anchor in seen for anchor in ((x, z), (x - 1, z), (x, z - 1), (x - 1, z - 1))), (x, z)

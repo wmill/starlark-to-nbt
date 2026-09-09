@@ -1,3 +1,10 @@
+# Weathered BSP dungeon: two-block passages and enclosed entrance stairs,
+# with occasional three-block arched passages controlled by wide_corridor_chance.
+# The library's keyed hash chooses the layout; this example uses random.star
+# only for reproducible, height-biased wall weathering.
+#
+# uv run starlark-to-nbt build examples/bsp_dungeon.star --output build/bsp_dungeon.nbt
+
 load("../lib/dungeons.star", "BspDungeon")
 load("../lib/random.star", "random_cycle", "random_number")
 
