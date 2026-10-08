@@ -1,5 +1,8 @@
 # Roofs. All roofs sit on y=0 of their own region; place them above the walls
 # with transform(). Gable and shed roofs slope along +X; the ridge runs along +Z.
+# Round roofs (ConeRoof, and Dome in shapes.star) share Cylinder's footprint.
+
+load("shapes.star", "ring_cells")
 
 
 def GableRoof(width, length, stair="minecraft:oak_stairs", ridge="minecraft:oak_planks", gable=None):
@@ -82,5 +85,78 @@ def PyramidRoof(size, stair="minecraft:oak_stairs", cap="minecraft:oak_planks"):
         name="PyramidRoof",
         props={"size": size, "stair": stair, "cap": cap},
         min_size=[size, (size + 1) // 2, size],
+        body=group(parts),
+    )
+
+
+def _stair(material, facing, shape="straight"):
+    return block(material, {"facing": facing, "half": "bottom", "shape": shape})
+
+
+def HipRoof(width, length, stair="minecraft:oak_stairs", ridge="minecraft:oak_planks"):
+    """Four slopes rising from every eave to a ridge along the longer axis (a
+    single cap block when square and odd). Corner stairs carry explicit
+    outer shapes, since pasted structures do not recompute stair shapes.
+    Height is (min(width, length)+1)//2."""
+    if width < 2 or length < 2:
+        fail("HipRoof requires width >= 2 and length >= 2")
+    short = min(width, length)
+    levels = short // 2
+    parts = []
+    for i in range(levels):
+        x0, x1 = i, width - 1 - i
+        z0, z1 = i, length - 1 - i
+        parts.append(place_block([x0, i, z0], _stair(stair, "south", "outer_left")))
+        parts.append(place_block([x1, i, z0], _stair(stair, "south", "outer_right")))
+        parts.append(place_block([x0, i, z1], _stair(stair, "north", "outer_right")))
+        parts.append(place_block([x1, i, z1], _stair(stair, "north", "outer_left")))
+        if x1 - x0 > 1:
+            parts.append(fill_region([x0 + 1, i, z0], [x1, i + 1, z0 + 1], _stair(stair, "south")))
+            parts.append(fill_region([x0 + 1, i, z1], [x1, i + 1, z1 + 1], _stair(stair, "north")))
+        if z1 - z0 > 1:
+            parts.append(fill_region([x0, i, z0 + 1], [x0 + 1, i + 1, z1], _stair(stair, "east")))
+            parts.append(fill_region([x1, i, z0 + 1], [x1 + 1, i + 1, z1], _stair(stair, "west")))
+    if short % 2 == 1:
+        parts.append(fill_region([levels, levels, levels], [width - levels, levels + 1, length - levels],
+                                 block(ridge)))
+    return component(
+        name="HipRoof",
+        props={"width": width, "length": length, "stair": stair, "ridge": ridge},
+        min_size=[width, (short + 1) // 2, length],
+        body=group(parts),
+    )
+
+
+def ConeRoof(radius, stair="minecraft:oak_stairs", cap="minecraft:oak_planks", steep=False):
+    """Round stair cone over a (2*radius+1) footprint, matching a Cylinder of
+    the same radius. Each layer is a one-block ring that steps in by one
+    (every two layers when steep=True); stairs face the axis, diagonal ring
+    cells are full `cap` blocks, and a `cap` block closes the apex. Height
+    is radius+1 (2*radius+1 when steep)."""
+    if radius < 1:
+        fail("ConeRoof requires radius >= 1")
+    step = 2 if steep else 1
+    layers = radius * step + 1
+    parts = []
+    for y in range(layers):
+        r = radius - y // step
+        if r == 0:
+            parts.append(place_block([radius, y, radius], block(cap)))
+            continue
+        for cell in ring_cells(r):
+            dx, dz = cell[0] - r, cell[1] - r
+            ax = dx if dx >= 0 else -dx
+            az = dz if dz >= 0 else -dz
+            if ax == az:
+                value = block(cap)
+            elif ax > az:
+                value = _stair(stair, "east" if dx < 0 else "west")
+            else:
+                value = _stair(stair, "south" if dz < 0 else "north")
+            parts.append(place_block([radius + dx, y, radius + dz], value))
+    return component(
+        name="ConeRoof",
+        props={"radius": radius, "stair": stair, "cap": cap, "steep": steep},
+        min_size=[2 * radius + 1, layers, 2 * radius + 1],
         body=group(parts),
     )

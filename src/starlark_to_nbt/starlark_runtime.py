@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from pathlib import Path
 from typing import Any, Callable
@@ -137,12 +138,33 @@ def place_assembly(pos, name, size, blocks):
     return _tag("place_assembly", pos=pos, name=name, size=size, blocks=blocks)
 
 
+def isqrt(n):
+    """Exact integer square root; prefer it over sqrt() for geometry."""
+    if not isinstance(n, int) or n < 0:
+        raise ValueError(f"isqrt() needs a non-negative int, got {n!r}")
+    return math.isqrt(n)
+
+
+def round_int(x):
+    """Round half away from zero to an int, unlike Python's banker's rounding."""
+    return int(math.floor(abs(x) + 0.5)) * (1 if x >= 0 else -1)
+
+
+# Float math for curves. libm may differ in the last bit across platforms, so
+# round() results before using them as coordinates.
+MATH_FUNCTIONS: dict[str, Callable[..., Any]] = {
+    "isqrt": isqrt, "sqrt": math.sqrt, "sin": math.sin, "cos": math.cos, "atan2": math.atan2,
+    "round": round_int, "floor": math.floor, "ceil": math.ceil,
+}
+
+
 BOUND_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "component": component, "validator": validator, "group": group, "fixed": fixed, "fill": fill,
     "split": split, "inset": inset, "repeat": repeat, "transform": transform, "at": at,
     "block": block, "sign_nbt": sign_nbt, "container_nbt": container_nbt, "loot_nbt": loot_nbt,
     "place_block": place_block, "fill_region": fill_region, "carve_region": carve_region,
     "place_assembly": place_assembly, "entity": entity, "place_entity": place_entity,
+    **MATH_FUNCTIONS,
 }
 
 
@@ -150,6 +172,7 @@ def _new_module() -> sl.Module:
     module = sl.Module()
     for name, function in BOUND_FUNCTIONS.items():
         module.add_callable(name, function)
+    module["PI"] = math.pi
     return module
 
 

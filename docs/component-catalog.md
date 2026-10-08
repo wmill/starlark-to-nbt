@@ -98,6 +98,12 @@ resolved relative to the loading file. Standard Starlark applies: `def`,
 `if`/`elif`/`else`, `for` over `range(...)` or lists, list comprehensions,
 no `while`, no recursion.
 
+Math builtins (Starlark has none natively): `isqrt(n)` (exact integer square
+root), `round(x)` (half away from zero, returns an int), `floor(x)`, `ceil(x)`,
+`sqrt`, `sin`, `cos`, `atan2(y, x)`, and the constant `PI`. Prefer integer
+geometry; always `round()` float results before using them as coordinates.
+For circles, use `lib/shapes.star` instead of hand-written distance tests.
+
 ## Composition patterns
 
 **Walls on four sides.** Walls run along +X, 1 thick in Z, and are rotated into
@@ -164,6 +170,42 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `ShedRoof(width, length, stair=...)` | `[width, width, length]` | Single 45-degree slope ascending +X. |
 | `FlatRoof(width, length, slab="minecraft:oak_slab", trim="minecraft:oak_fence")` | `[width, 2, length]` | Slab deck + fence parapet. |
 | `PyramidRoof(size, stair=..., cap="minecraft:oak_planks")` | `[size, (size+1)//2, size]` | Square footprint. |
+| `HipRoof(width, length, stair=..., ridge="minecraft:oak_planks")` | `[width, (min(width,length)+1)//2, length]` | Slopes on all four sides up to a ridge along the longer axis; corner stairs use outer shapes. Requires width, length >= 2. |
+| `ConeRoof(radius, stair=..., cap="minecraft:oak_planks", steep=False)` | `[2r+1, r+1, 2r+1]` (`steep`: height `2r+1`) | Round stair cone matching a `Cylinder(radius, ...)` footprint; diagonal ring cells and the apex are `cap` blocks. For a round dome roof use `Dome` from `lib/shapes.star`. |
+
+### `lib/shapes.star` (round shapes; symmetric, so rotation is a no-op)
+
+Radii are rounded to r + 0.5 (`dx*dx + dz*dz <= r*r + r`), which gives
+smooth outlines with no lone one-block nub at the cardinal points. Footprints
+are `2r+1` wide with the center cell at `[r, r]`. Rings and shells are
+watertight (no diagonal gaps). Place a `ConeRoof` or `Dome` of the same
+radius directly on top of a `Cylinder`.
+
+| Component | Size | Notes |
+|---|---|---|
+| `Disc(radius, material="minecraft:stone")` | `[2r+1, 1, 2r+1]` | Filled disc. |
+| `Ellipse(rx, rz, material=...)` | `[2rx+1, 1, 2rz+1]` | Filled ellipse. |
+| `Cylinder(radius, height, material="minecraft:stone_bricks", hollow=True, thickness=1, floor=None)` | `[2r+1, height, 2r+1]` | Round tower body; `floor` fills the interior at y=0 (hollow only). |
+| `EllipticCylinder(rx, rz, height, ...)` | `[2rx+1, height, 2rz+1]` | Oval tower body; same options as `Cylinder`. |
+| `Dome(radius, material="minecraft:glass", hollow=True, thickness=1)` | `[2r+1, r+1, 2r+1]` | Upper hemisphere; base ring equals `Cylinder`'s wall ring. |
+| `Sphere(radius, material="minecraft:stone", hollow=True, thickness=1)` | `[2r+1, 2r+1, 2r+1]` | Full sphere. |
+
+Helpers for custom round geometry return `[x, z]` cell lists: `disc_cells(r)`,
+`ellipse_cells(rx, rz)`, `ring_cells(r, thickness=1)`,
+`ellipse_ring_cells(rx, rz, thickness=1)`, and
+`sphere_layer_cells(r, dy, thickness=None)` (the slice `dy` above the center).
+`fill_cells(cells, y_min, y_max, block, phase="structure")` turns cells into
+one `fill_region` per row (via `cell_runs(cells)`).
+
+```python
+load("../lib/shapes.star", "Cylinder", "ring_cells", "fill_cells")
+load("../lib/roofs.star", "ConeRoof")
+
+tower = group([
+    Cylinder(5, 12, floor="minecraft:spruce_planks"),
+    at([0, 12, 0], ConeRoof(5, stair="minecraft:dark_oak_stairs")),
+])
+```
 
 ### `lib/fixtures.star` (FIXTURE phase — place into empty/carved space)
 

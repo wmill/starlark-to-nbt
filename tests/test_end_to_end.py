@@ -364,7 +364,7 @@ def test_build_outputs_replace_existing_nbt_and_metadata_sidecar(tmp_path):
          {"minecraft:deepslate_tiles", "minecraft:polished_deepslate", "minecraft:cobbled_deepslate_stairs"}),
         ("procedural_slab_spiral.star", Point(25, 16, 25), 784, "ProceduralSlabSpiral",
          {"minecraft:smooth_stone_slab"}),
-        ("procedural_rotunda.star", Point(19, 19, 19), 1453, "ProceduralRotunda",
+        ("procedural_rotunda.star", Point(19, 19, 19), 1826, "ProceduralRotunda",
          {"minecraft:smooth_stone", "minecraft:quartz_block", "minecraft:glass"}),
         ("procedural_twisting_spire.star", Point(9, 40, 9), 960, "ProceduralTwistingSpire",
          {"minecraft:purpur_block", "minecraft:end_stone_bricks",
@@ -473,17 +473,20 @@ def test_procedural_rotunda_shell_is_hollow_with_periodic_windows():
     result = build_file(EXAMPLES / "procedural_rotunda.star")
     assert result.volume.block_at(Point(9, 0, 9)).block_type == "minecraft:smooth_stone"
     assert result.volume.block_at(Point(9, 0, 1)).block_type == "minecraft:smooth_stone"
+    # Rounded to r + 0.5: the cardinal edge is a 7-wide row, not a lone nub.
+    edge = [z for z in range(19) if result.volume.block_at(Point(0, 0, z)).block_type != "minecraft:air"]
+    assert edge == list(range(6, 13))
     # Interior is hollow, not a solid disk of blocks under the dome.
     assert result.volume.block_at(Point(9, 4, 9)).block_type == "minecraft:air"
-    # The dome apex is a deliberate open oculus.
-    assert result.volume.block_at(Point(9, 18, 9)).block_type == "minecraft:air"
+    # The shapes.star Dome closes at the apex.
+    assert result.volume.block_at(Point(9, 18, 9)).block_type == "minecraft:glass"
     # The dome's base layer is a ring, not a disk: present at the outer edge,
     # absent at the center of that same height.
     assert result.volume.block_at(Point(18, 9, 9)).block_type == "minecraft:glass"
     assert result.volume.block_at(Point(9, 9, 9)).block_type == "minecraft:air"
     # Both window and plain wall columns exist in the annulus.
-    assert result.volume.block_at(Point(0, 1, 9)).block_type == "minecraft:glass"
-    assert result.volume.block_at(Point(1, 1, 5)).block_type == "minecraft:quartz_block"
+    assert result.volume.block_at(Point(0, 1, 6)).block_type == "minecraft:glass"
+    assert result.volume.block_at(Point(0, 1, 9)).block_type == "minecraft:quartz_block"
 
 
 def test_procedural_twisting_spire_ring_offset_cycles_through_table():

@@ -4,7 +4,8 @@
 
 load("structural.star", "Foundation", "Floor", "SolidWall", "WindowedWall", "TimberFrameWall", "Column", "Balcony", "StraightStaircase", "Footbridge")
 load("openings.star", "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway")
-load("roofs.star", "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof")
+load("roofs.star", "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof", "HipRoof", "ConeRoof")
+load("shapes.star", "Disc", "Ellipse", "Cylinder", "EllipticCylinder", "Dome", "Sphere")
 load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Chest", "Barrel", "Furnace", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter")
 load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "RoundTree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse")
 load("fortifications.star", "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower", "RampartWall", "RampartTower")
@@ -50,6 +51,22 @@ def showcase(name):
         return FlatRoof(6, 6)
     elif name == "PyramidRoof":
         return PyramidRoof(7)
+    elif name == "HipRoof":
+        return HipRoof(7, 11)
+    elif name == "ConeRoof":
+        return ConeRoof(4)
+    elif name == "Disc":
+        return Disc(5)
+    elif name == "Ellipse":
+        return Ellipse(6, 3)
+    elif name == "Cylinder":
+        return Cylinder(4, 6, floor="minecraft:oak_planks")
+    elif name == "EllipticCylinder":
+        return EllipticCylinder(5, 3, 4)
+    elif name == "Dome":
+        return Dome(5)
+    elif name == "Sphere":
+        return Sphere(4)
     elif name == "Bench":
         return Bench(3)
     elif name == "Chair":
@@ -213,7 +230,8 @@ def showcase(name):
 COMPONENT_NAMES = [
     "Foundation", "Floor", "SolidWall", "WindowedWall", "TimberFrameWall", "Column", "Balcony", "StraightStaircase", "Footbridge",
     "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway",
-    "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof",
+    "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof", "HipRoof", "ConeRoof",
+    "Disc", "Ellipse", "Cylinder", "EllipticCylinder", "Dome", "Sphere",
     "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Chest", "Barrel", "Furnace", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter",
     "Well", "FenceRing", "Path", "Tree", "RoundTree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse",
     "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower", "RampartWall", "RampartTower",

@@ -56,6 +56,8 @@ inspect the world before retrying, especially when entities are included.
 - Doors/windows carve their own holes. Furniture belongs above floors.
 - Untouched cells preserve terrain; explicitly carved air clears it on placement.
 - Starlark supports functions, loops, and comprehensions; no while or recursion.
+  Math builtins (`isqrt`, `round`, `sqrt`, `sin`, `cos`, `PI`, ...) are bound;
+  use `lib/shapes.star` for circles, cylinders, and domes.
   Block states are strings. Use namespaced identifiers such as `minecraft:oak_planks`.
 
 ## Find details only when needed
