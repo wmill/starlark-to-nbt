@@ -197,6 +197,13 @@ Helpers for custom round geometry return `[x, z]` cell lists: `disc_cells(r)`,
 `fill_cells(cells, y_min, y_max, block, phase="structure")` turns cells into
 one `fill_region` per row (via `cell_runs(cells)`).
 
+Cells are local to each shape's own footprint: `[0, 0]` is its min corner and
+the center is `[r, r]` (`[rx, rz]` for ellipses). Shapes of different radii
+therefore do **not** share a center. To nest `disc_cells(r - 1)` inside
+`ring_cells(r)`, shift it by the radius difference:
+`[[c[0] + 1, c[1] + 1] for c in disc_cells(r - 1)]` (or wrap the ops in
+`at([dx, 0, dz], group(...))`).
+
 ```python
 load("../lib/shapes.star", "Cylinder", "ring_cells", "fill_cells")
 load("../lib/roofs.star", "ConeRoof")

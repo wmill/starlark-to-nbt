@@ -27,13 +27,15 @@ def _inside(dx, dy, dz, rx, ry, rz):
 
 
 def ellipse_cells(rx, rz):
-    """Cells [x, z] of a filled ellipse in a (2rx+1) x (2rz+1) footprint."""
+    """Cells [x, z] of a filled ellipse in a (2rx+1) x (2rz+1) footprint,
+    centered at [rx, rz]."""
     return [[x, z] for x in range(2 * rx + 1) for z in range(2 * rz + 1)
             if _inside(x - rx, 0, z - rz, rx, 0, rz)]
 
 
 def disc_cells(r):
-    """Cells [x, z] of a filled disc in a (2r+1)-square footprint."""
+    """Cells [x, z] of a filled disc in a (2r+1)-square footprint, centered
+    at [r, r]. Offset by (R - r) to center it inside a radius-R shape."""
     return ellipse_cells(r, r)
 
 
@@ -60,7 +62,7 @@ def ellipse_ring_cells(rx, rz, thickness=1):
 
 
 def ring_cells(r, thickness=1):
-    """Cells [x, z] of a circular ring `thickness` blocks wide."""
+    """Cells [x, z] of a circular ring `thickness` blocks wide, centered at [r, r]."""
     return ellipse_ring_cells(r, r, thickness)
 
 
