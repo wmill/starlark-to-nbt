@@ -182,13 +182,22 @@ class _Loader:
     With a ``root``, the loader is confined: absolute paths are rejected and
     every resolved path must land inside ``root`` under one of the ``allowed``
     top-level directories. Confined failures all use the same "module not
-    found" message so load() cannot probe the filesystem."""
+    found" message so load() cannot probe the filesystem.
+
+    ``mounts`` maps extra top-level names under ``root`` to directories that
+    live elsewhere (e.g. ``{"library": Path("/srv/library")}`` makes
+    ``../library/x.star`` resolve into that directory, confined to it). Files
+    loaded from a mount resolve their own load() paths from ``base_dir``, so
+    a mounted module uses the same load paths as a top-level script."""
 
     def __init__(self, base_dir: Path, root: str | Path | None = None,
-                 allowed: tuple[str, ...] = ("lib",)):
+                 allowed: tuple[str, ...] = ("lib",),
+                 mounts: dict[str, str | Path] | None = None):
+        self._base_dir = base_dir
         self._dir_stack = [base_dir]
         self._root = Path(root).resolve() if root is not None else None
         self._allowed = allowed
+        self._mounts = {name: Path(target).resolve() for name, target in (mounts or {}).items()}
         self._cache: dict[str, sl.FrozenModule] = {}
         self._in_progress: set[str] = set()
         # The Rust eval layer wraps Python exceptions raised by the load
@@ -202,8 +211,12 @@ class _Loader:
             raise self._fail("load_error", f"module not found: {path}", path)
         resolved = raw if raw.is_absolute() else self._dir_stack[-1] / raw
         resolved = resolved.resolve()
-        if self._root is not None and not self._permitted(resolved):
+        mounted = self._mounted(resolved)
+        if mounted is False or (mounted is None and self._root is not None
+                                and not self._permitted(resolved)):
             raise self._fail("load_error", f"module not found: {path}", path)
+        if mounted:
+            resolved = mounted
         key = str(resolved)
         if key in self._cache:
             return self._cache[key]
@@ -216,7 +229,7 @@ class _Loader:
                 raise self._fail("load_error", f"module not found: {path}", path) from exc
             raise self._fail("load_error", f"cannot load {path}: {exc}", key) from exc
         self._in_progress.add(key)
-        self._dir_stack.append(resolved.parent)
+        self._dir_stack.append(self._base_dir if mounted else resolved.parent)
         try:
             module = _new_module()
             ast = sl.parse(key, source)
@@ -227,6 +240,17 @@ class _Loader:
             self._in_progress.discard(key)
         self._cache[key] = frozen
         return frozen
+
+    def _mounted(self, resolved: Path) -> Path | bool | None:
+        """Real path for a load into a mount, False if it escapes the mount, None if not a mount."""
+        if self._root is None or not self._mounts or not resolved.is_relative_to(self._root):
+            return None
+        parts = resolved.relative_to(self._root).parts
+        if not parts or parts[0] not in self._mounts:
+            return None
+        mount = self._mounts[parts[0]]
+        real = mount.joinpath(*parts[1:]).resolve()
+        return real if real.is_relative_to(mount) and real != mount else False
 
     def _permitted(self, resolved: Path) -> bool:
         if not resolved.is_relative_to(self._root):
@@ -246,13 +270,14 @@ _ENTRY_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 def evaluate_source(source: str, filename: str, entry: str, props: dict[str, Any],
                     base_dir: str | Path | None = None,
-                    loader_root: str | Path | None = None) -> Node:
+                    loader_root: str | Path | None = None,
+                    mounts: dict[str, str | Path] | None = None) -> Node:
     if not _ENTRY_NAME.fullmatch(entry):
         raise BuildError(Diagnostic("invalid_entry", f"entry {entry!r} is not a valid identifier", entry,
                                     SourceRef(filename)))
     if base_dir is None and loader_root is not None:
         base_dir = loader_root
-    loader = _Loader(Path(base_dir), root=loader_root) if base_dir is not None else None
+    loader = _Loader(Path(base_dir), root=loader_root, mounts=mounts) if base_dir is not None else None
     file_loader = loader.file_loader if loader else None
     try:
         module = _new_module()

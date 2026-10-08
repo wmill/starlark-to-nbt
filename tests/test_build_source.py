@@ -139,3 +139,54 @@ def test_unserializable_block_nbt_is_a_diagnostic(tmp_path):
     with pytest.raises(BuildError) as info:
         write_structure_nbt(volume, tmp_path / "out.nbt")
     assert info.value.diagnostics[0].code == "serialize_error"
+
+
+def _library(tmp_path):
+    library = tmp_path / "library"
+    (library / "cell").mkdir(parents=True)
+    (library / "cell" / "v1.star").write_text(
+        'load("../lib/palette.star", "STONE")\n'
+        "\n"
+        "def Cell():\n"
+        '    return component(name="Cell", props={},\n'
+        "                     body=place_block([0, 0, 0], block(STONE)))\n",
+        encoding="utf-8",
+    )
+    root = tmp_path / "root"
+    (root / "lib").mkdir(parents=True)
+    (root / "lib" / "palette.star").write_text('STONE = "minecraft:stone"\n', encoding="utf-8")
+    return root, library
+
+
+def test_mounted_library_module_loads_with_script_relative_paths(tmp_path):
+    root, library = _library(tmp_path)
+    source = 'load("../library/cell/v1.star", "Cell")\n\ndef build():\n    return Cell()\n'
+    result = build_source(source, root_size=Point(1, 1, 1), base_dir=root / "scripts",
+                          loader_root=root, mounts={"library": library})
+    assert len(result.volume.voxels) == 1
+
+
+def test_mounted_library_rejects_escape_from_mount(tmp_path):
+    root, library = _library(tmp_path)
+    (tmp_path / "secret.star").write_text("X = 1\n", encoding="utf-8")
+    source = 'load("../library/../../secret.star", "X")\n\ndef build():\n    return None\n'
+    diagnostic = _diagnostic(source, base_dir=root / "scripts", loader_root=root,
+                             mounts={"library": library})
+    assert diagnostic.message == "module not found: ../library/../../secret.star"
+
+
+def test_mounted_library_missing_module_is_uniform(tmp_path):
+    root, library = _library(tmp_path)
+    source = 'load("../library/cell/v9.star", "Cell")\n\ndef build():\n    return None\n'
+    diagnostic = _diagnostic(source, base_dir=root / "scripts", loader_root=root,
+                             mounts={"library": library})
+    assert diagnostic.message == "module not found: ../library/cell/v9.star"
+
+
+def test_library_directory_is_not_loadable_without_mount(tmp_path):
+    root, _ = _library(tmp_path)
+    (root / "library" / "cell").mkdir(parents=True)
+    (root / "library" / "cell" / "v1.star").write_text("X = 1\n", encoding="utf-8")
+    source = 'load("../library/cell/v1.star", "X")\n\ndef build():\n    return None\n'
+    diagnostic = _diagnostic(source, base_dir=root / "scripts", loader_root=root)
+    assert diagnostic.code == "load_error"

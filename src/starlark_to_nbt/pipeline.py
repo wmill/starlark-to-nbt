@@ -36,10 +36,11 @@ def build_file(path: str | Path, entry: str = "build", props: dict[str, Any] | N
 def build_source(source: str, entry: str = "build", props: dict[str, Any] | None = None,
                  root_size: Point | None = None, filename: str = "<input>",
                  base_dir: str | Path | None = None,
-                 loader_root: str | Path | None = None) -> BuildResult:
+                 loader_root: str | Path | None = None,
+                 mounts: dict[str, str | Path] | None = None) -> BuildResult:
     props = props or {}
     component_ir = evaluate_source(source, filename, entry, props,
-                                   base_dir=base_dir, loader_root=loader_root)
+                                   base_dir=base_dir, loader_root=loader_root, mounts=mounts)
     return _finish_build(component_ir, props, root_size)
 
 
