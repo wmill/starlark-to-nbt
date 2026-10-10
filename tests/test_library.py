@@ -401,3 +401,59 @@ def test_piston_door_bus_clears_passage_and_powers_upper_piston_pads():
         assert door.block_at(Point(x, 3, 1)).block_type == "minecraft:smooth_stone"
         assert door.block_at(Point(x, 4, 1)).block_type == "minecraft:redstone_wire"
     assert door.block_at(Point(0, 3, 0)).block_type == "minecraft:lever"
+
+
+def test_rounded_cuboid_scoop_and_platform(tmp_path):
+    source = tmp_path / "terrain.star"
+    source.write_text(
+        f'load("{SHOWCASE.parent / "shapes.star"}", "RoundedCuboid")\n'
+        'def build(material="minecraft:air", rounding="bottom", terrain=False):\n'
+        '    shape = RoundedCuboid(13, 5, 9, radius=3, material=material, rounding=rounding)\n'
+        '    if not terrain:\n'
+        '        return shape\n'
+        '    return component(name="Terrain", props={}, min_size=[13, 5, 9], body=group([\n'
+        '        fill_region([0, 0, 0], [13, 5, 9], block("minecraft:stone")), shape]))\n',
+        encoding="utf-8",
+    )
+    scoop = build_file(source).volume
+    platform = build_file(source, props={"material": "minecraft:dirt", "rounding": "top"}).volume
+    assert {Point(p.x, 4 - p.y, p.z) for p in scoop.voxels} == set(platform.voxels)
+    assert all(v.block.block_type == "minecraft:air" for v in scoop.voxels.values())
+    assert all(v.block.block_type == "minecraft:dirt" for v in platform.voxels.values())
+    for x in range(3, 10):
+        for z in range(3, 6):
+            assert Point(x, 0, z) in scoop.voxels
+            assert Point(x, 4, z) in platform.voxels
+    layers = [{(p.x, p.z) for p in scoop.voxels if p.y == y} for y in range(5)]
+    assert layers[0] < layers[-1]
+    assert all(a <= b for a, b in zip(layers, layers[1:]))
+    assert Point(0, 0, 0) not in scoop.voxels
+    terrain = build_file(source, props={"terrain": True}).volume
+    assert terrain.block_at(Point(6, 0, 4)).block_type == "minecraft:air"
+    assert terrain.block_at(Point(0, 0, 0)).block_type == "minecraft:stone"
+
+
+@pytest.mark.parametrize("args", [
+    "0, 5, 9", "13, 5, 9, radius=-1", "4, 5, 9", "13, 2, 9",
+    '13, 4, 9, rounding="all"', '13, 5, 9, rounding="side"',
+    "13, 5, 9, radius=1.5",
+])
+def test_rounded_cuboid_rejects_invalid_geometry(tmp_path, args):
+    source = tmp_path / "invalid.star"
+    source.write_text(
+        f'load("{SHOWCASE.parent / "shapes.star"}", "RoundedCuboid")\n'
+        f'def build():\n    return RoundedCuboid({args})\n', encoding="utf-8",
+    )
+    with pytest.raises(BuildError, match="RoundedCuboid"):
+        build_file(source)
+
+
+@pytest.mark.parametrize("rounding", ["bottom", "top", "all"])
+def test_rounded_cuboid_zero_radius_is_box(tmp_path, rounding):
+    source = tmp_path / "box.star"
+    source.write_text(
+        f'load("{SHOWCASE.parent / "shapes.star"}", "RoundedCuboid")\n'
+        f'def build():\n    return RoundedCuboid(4, 1, 2, radius=0, rounding="{rounding}")\n',
+        encoding="utf-8",
+    )
+    assert len(build_file(source).volume.voxels) == 8

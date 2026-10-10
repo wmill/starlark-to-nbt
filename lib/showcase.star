@@ -5,7 +5,7 @@
 load("structural.star", "Foundation", "Floor", "SolidWall", "WindowedWall", "TimberFrameWall", "Column", "Balcony", "StraightStaircase", "Footbridge")
 load("openings.star", "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway")
 load("roofs.star", "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof", "HipRoof", "ConeRoof")
-load("shapes.star", "Disc", "Ellipse", "Cylinder", "EllipticCylinder", "Dome", "Sphere")
+load("shapes.star", "Disc", "Ellipse", "Cylinder", "EllipticCylinder", "Dome", "Sphere", "RoundedCuboid")
 load("fixtures.star", "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Chest", "Barrel", "Furnace", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter")
 load("outdoor.star", "Well", "FenceRing", "Path", "Tree", "RoundTree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse")
 load("fortifications.star", "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower", "RampartWall", "RampartTower")
@@ -65,6 +65,8 @@ def showcase(name):
         return EllipticCylinder(5, 3, 4)
     elif name == "Dome":
         return Dome(5)
+    elif name == "RoundedCuboid":
+        return RoundedCuboid(13, 5, 9)
     elif name == "Sphere":
         return Sphere(4)
     elif name == "Bench":
@@ -231,7 +233,7 @@ COMPONENT_NAMES = [
     "Foundation", "Floor", "SolidWall", "WindowedWall", "TimberFrameWall", "Column", "Balcony", "StraightStaircase", "Footbridge",
     "SingleDoor", "DoubleDoor", "Window", "ShutteredWindow", "Archway",
     "GableRoof", "ShedRoof", "FlatRoof", "PyramidRoof", "HipRoof", "ConeRoof",
-    "Disc", "Ellipse", "Cylinder", "EllipticCylinder", "Dome", "Sphere",
+    "Disc", "Ellipse", "Cylinder", "EllipticCylinder", "Dome", "Sphere", "RoundedCuboid",
     "Bench", "Chair", "Table", "Bed", "BookshelfWall", "Fireplace", "LanternPost", "Chest", "Barrel", "Furnace", "Sign", "WallSign", "Carpet", "Ladder", "DiningTable", "KitchenCounter",
     "Well", "FenceRing", "Path", "Tree", "RoundTree", "CropPlot", "FlowerBed", "MarketStall", "HayBaleStack", "Pergola", "Horse",
     "BattlementWall", "SquareTower", "Portcullis", "Gatehouse", "Drawbridge", "PalisadeWall", "PalisadeGate", "Watchtower", "RampartWall", "RampartTower",

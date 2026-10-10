@@ -173,7 +173,7 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `HipRoof(width, length, stair=..., ridge="minecraft:oak_planks")` | `[width, (min(width,length)+1)//2, length]` | Slopes on all four sides up to a ridge along the longer axis; corner stairs use outer shapes. Requires width, length >= 2. |
 | `ConeRoof(radius, stair=..., cap="minecraft:oak_planks", steep=False)` | `[2r+1, r+1, 2r+1]` (`steep`: height `2r+1`) | Round stair cone matching a `Cylinder(radius, ...)` footprint; diagonal ring cells and the apex are `cap` blocks. For a round dome roof use `Dome` from `lib/shapes.star`. |
 
-### `lib/shapes.star` (round shapes; symmetric, so rotation is a no-op)
+### `lib/shapes.star` (round shapes)
 
 Radii are rounded to r + 0.5 (`dx*dx + dz*dz <= r*r + r`), which gives
 smooth outlines with no lone one-block nub at the cardinal points. Footprints
@@ -189,6 +189,31 @@ radius directly on top of a `Cylinder`.
 | `EllipticCylinder(rx, rz, height, ...)` | `[2rx+1, height, 2rz+1]` | Oval tower body; same options as `Cylinder`. |
 | `Dome(radius, material="minecraft:glass", hollow=True, thickness=1)` | `[2r+1, r+1, 2r+1]` | Upper hemisphere; base ring equals `Cylinder`'s wall ring. |
 | `Sphere(radius, material="minecraft:stone", hollow=True, thickness=1)` | `[2r+1, 2r+1, 2r+1]` | Full sphere. |
+
+| `RoundedCuboid(width, height, length, radius=2, material="minecraft:air", rounding="bottom")` | `[width, height, length]` | Filled box with rounded horizontal corners and rounded bottom, top, or both (`"all"`). Air carves; other materials are structural fills. |
+
+`RoundedCuboid` dimensions and radius must be integers. Radius must be
+non-negative, width and length must exceed `2*radius`, and height must exceed
+`radius` (`2*radius` for `rounding="all"`). Radius zero makes a plain box.
+The central rectangle `[radius, width-radius) × [radius, length-radius)`
+is flat and spans the full height. Cells outside the rounded shape are omitted.
+
+```python
+load("../lib/shapes.star", "RoundedCuboid")
+
+# Open scoop: flat floor at y=0, widening toward the top.
+clearing = RoundedCuboid(31, 10, 25, radius=6)
+# Raised ground: build at y=7, within the central 19 × 13 rectangle.
+platform = RoundedCuboid(31, 7, 25, radius=6,
+                         material="minecraft:dirt", rounding="top")
+```
+
+For a clearing, place local y=0 one block above the intended ground surface;
+make the height reach above the terrain to remove. For a platform, local y=0
+is its base and the first building layer is y=height. Solid fills retain normal
+structural overlap checks. Carving runs after all structural fills, so keep
+structural buildings above/outside the carved volume. Shape dimensions are
+fixed; a larger allocated region does not stretch them.
 
 Helpers for custom round geometry return `[x, z]` cell lists: `disc_cells(r)`,
 `ellipse_cells(rx, rz)`, `ring_cells(r, thickness=1)`,

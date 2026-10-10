@@ -181,6 +181,46 @@ def Dome(radius, material="minecraft:glass", hollow=True, thickness=1):
     )
 
 
+def RoundedCuboid(width, height, length, radius=2, material="minecraft:air", rounding="bottom"):
+    """Filled rounded box. Bottom rounding makes a scoop; top rounding makes
+    a raised platform. Use rounding="all" to round both vertical ends.
+    Air carves existing structure; other materials use the structure phase.
+    """
+    _require(all([type(v) == "int" for v in [width, height, length, radius]]),
+             "RoundedCuboid dimensions and radius must be integers")
+    _require(width >= 1 and height >= 1 and length >= 1 and radius >= 0,
+             "RoundedCuboid requires positive dimensions and radius >= 0")
+    _require(rounding in ["bottom", "top", "all"],
+             "RoundedCuboid rounding must be bottom, top, or all")
+    vertical_margin = 2 * radius if rounding == "all" else radius
+    _require(width > 2 * radius and length > 2 * radius and height > vertical_margin,
+             "RoundedCuboid radius must leave a central flat region in every dimension")
+    parts = []
+    for y in range(height):
+        dy = max(radius - y, 0) if rounding != "top" else 0
+        if rounding != "bottom":
+            dy = max(dy, y - (height - 1 - radius))
+        cells = []
+        for x in range(width):
+            dx = max(radius - x, x - (width - 1 - radius), 0)
+            for z in range(length):
+                dz = max(radius - z, z - (length - 1 - radius), 0)
+                if 4 * (dx * dx + dy * dy + dz * dz) <= (2 * radius + 1) * (2 * radius + 1):
+                    cells.append([x, z])
+        if material == "minecraft:air" or material == "air":
+            parts += [carve_region([x, y, z_min], [x + 1, y + 1, z_max])
+                      for x, z_min, z_max in cell_runs(cells)]
+        else:
+            parts += fill_cells(cells, y, y + 1, block(material))
+    return component(
+        name="RoundedCuboid",
+        props={"width": width, "height": height, "length": length,
+               "radius": radius, "material": material, "rounding": rounding},
+        min_size=[width, height, length],
+        body=group(parts),
+    )
+
+
 def Sphere(radius, material="minecraft:stone", hollow=True, thickness=1):
     """Full sphere in a (2*radius+1) cube."""
     _require(radius >= 1 and thickness >= 1, "Sphere requires radius >= 1 and thickness >= 1")
