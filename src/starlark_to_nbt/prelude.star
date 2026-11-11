@@ -1,0 +1,81 @@
+# Tree constructors, evaluated into every module before user code.
+#
+# They are defined in Starlark rather than bound as Python callables because
+# starlark-pyo3 JSON-encodes the arguments and result of every host call, and
+# nested trees get re-encoded at each level. Keeping construction inside
+# Starlark means the tree crosses into Python once, as the entry result.
+#
+# Each returns a JSON-compatible tagged dict; schema.parse_node validates.
+
+def _tag(kind, **values):
+    out = {"kind": kind}
+    for key, value in values.items():
+        if value != None:
+            out[key] = value
+    return out
+
+def component(name, props, body, min_size = None, metadata = None, validators = None):
+    return _tag(
+        "component",
+        name = name,
+        props = props,
+        body = body,
+        min_size = min_size,
+        metadata = metadata,
+        validators = validators,
+    )
+
+def validator(name, assembly = None):
+    return _tag(name, assembly = assembly)
+
+def group(children):
+    return _tag("group", children = children)
+
+def fixed(value):
+    return _tag("fixed", value = value)
+
+def fill():
+    return _tag("fill")
+
+def split(axis, sizes, children):
+    return _tag("split", axis = axis, sizes = sizes, children = children)
+
+def inset(child, amount = None, x = None, y = None, z = None):
+    if amount != None:
+        amounts = {axis: [amount, amount] for axis in ("x", "y", "z")}
+    else:
+        amounts = {"x": x or [0, 0], "y": y or [0, 0], "z": z or [0, 0]}
+    return _tag("inset", amounts = amounts, child = child)
+
+def repeat(axis, count, child_extent, gap, child):
+    return _tag("repeat", axis = axis, count = count, child_extent = child_extent, gap = gap, child = child)
+
+def transform(translation, rotation_y, child_size, child):
+    return _tag("transform", translation = translation, rotation_y = rotation_y, child_size = child_size, child = child)
+
+def at(pos, child, rotation = 0, size = None):
+    return _tag("at", pos = pos, child = child, rotation = rotation, size = size)
+
+def block(block_type, block_state = None, nbt = None):
+    value = {"block_type": block_type, "block_state": block_state or {}}
+    if nbt != None:
+        value["nbt"] = nbt
+    return value
+
+def entity(entity_type, nbt = None, yaw = 0, pitch = 0):
+    return {"entity_type": entity_type, "nbt": nbt, "yaw": yaw, "pitch": pitch}
+
+def place_entity(pos, entity):
+    return _tag("place_entity", pos = pos, entity = entity)
+
+def place_block(pos, block, phase = "structure"):
+    return _tag("place_block", pos = pos, block = block, phase = phase)
+
+def fill_region(min, max, block, phase = "structure"):
+    return _tag("fill_region", box = {"min": min, "max": max}, block = block, phase = phase)
+
+def carve_region(min, max):
+    return _tag("carve_region", box = {"min": min, "max": max})
+
+def place_assembly(pos, name, size, blocks):
+    return _tag("place_assembly", pos = pos, name = name, size = size, blocks = blocks)

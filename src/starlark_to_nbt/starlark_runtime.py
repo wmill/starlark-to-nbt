@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import math
 import re
 from pathlib import Path
@@ -10,72 +11,6 @@ import starlark as sl
 from .ir import Node
 from .model import BuildError, Diagnostic, SourceRef
 from .schema import parse_node
-
-
-def _tag(kind: str, **values: Any) -> dict[str, Any]:
-    return {"kind": kind, **{key: value for key, value in values.items() if value is not None}}
-
-
-def component(name, props, body, min_size=None, metadata=None, validators=None):
-    return _tag(
-        "component", name=name, props=props, body=body, min_size=min_size,
-        metadata=metadata, validators=validators,
-    )
-
-
-def validator(name, assembly=None):
-    return _tag(name, assembly=assembly)
-
-
-def group(children):
-    return _tag("group", children=children)
-
-
-def fixed(value):
-    return _tag("fixed", value=value)
-
-
-def fill():
-    return _tag("fill")
-
-
-def split(axis, sizes, children):
-    return _tag("split", axis=axis, sizes=sizes, children=children)
-
-
-def inset(child, amount=None, x=None, y=None, z=None):
-    if amount is not None:
-        amounts = {axis: [amount, amount] for axis in ("x", "y", "z")}
-    else:
-        amounts = {"x": x or [0, 0], "y": y or [0, 0], "z": z or [0, 0]}
-    return _tag("inset", amounts=amounts, child=child)
-
-
-def repeat(axis, count, child_extent, gap, child):
-    return _tag("repeat", axis=axis, count=count, child_extent=child_extent, gap=gap, child=child)
-
-
-def transform(translation, rotation_y, child_size, child):
-    return _tag("transform", translation=translation, rotation_y=rotation_y, child_size=child_size, child=child)
-
-
-def at(pos, child, rotation=0, size=None):
-    return _tag("at", pos=pos, child=child, rotation=rotation, size=size)
-
-
-def block(block_type, block_state=None, nbt=None):
-    value = {"block_type": block_type, "block_state": block_state or {}}
-    if nbt is not None:
-        value["nbt"] = nbt
-    return value
-
-
-def entity(entity_type, nbt=None, yaw=0, pitch=0):
-    return {"entity_type": entity_type, "nbt": nbt, "yaw": yaw, "pitch": pitch}
-
-
-def place_entity(pos, entity):
-    return _tag("place_entity", pos=pos, entity=entity)
 
 
 def sign_nbt(lines=None, color="black", glowing=False,
@@ -122,22 +57,6 @@ def loot_nbt(table, seed=None, id="minecraft:chest"):
     return value
 
 
-def place_block(pos, block, phase="structure"):
-    return _tag("place_block", pos=pos, block=block, phase=phase)
-
-
-def fill_region(min, max, block, phase="structure"):
-    return _tag("fill_region", box={"min": min, "max": max}, block=block, phase=phase)
-
-
-def carve_region(min, max):
-    return _tag("carve_region", box={"min": min, "max": max})
-
-
-def place_assembly(pos, name, size, blocks):
-    return _tag("place_assembly", pos=pos, name=name, size=size, blocks=blocks)
-
-
 def isqrt(n):
     """Exact integer square root; prefer it over sqrt() for geometry."""
     if not isinstance(n, int) or n < 0:
@@ -158,14 +77,20 @@ MATH_FUNCTIONS: dict[str, Callable[..., Any]] = {
 }
 
 
+# Python host callables. Tree constructors live in prelude.star instead: every
+# host call is JSON-marshalled by starlark-pyo3, so only small, rarely called
+# helpers belong here.
 BOUND_FUNCTIONS: dict[str, Callable[..., Any]] = {
-    "component": component, "validator": validator, "group": group, "fixed": fixed, "fill": fill,
-    "split": split, "inset": inset, "repeat": repeat, "transform": transform, "at": at,
-    "block": block, "sign_nbt": sign_nbt, "container_nbt": container_nbt, "loot_nbt": loot_nbt,
-    "place_block": place_block, "fill_region": fill_region, "carve_region": carve_region,
-    "place_assembly": place_assembly, "entity": entity, "place_entity": place_entity,
+    "sign_nbt": sign_nbt, "container_nbt": container_nbt, "loot_nbt": loot_nbt,
     **MATH_FUNCTIONS,
 }
+
+_PRELUDE_PATH = Path(__file__).with_name("prelude.star")
+
+
+@functools.cache
+def _prelude_ast() -> sl.AstModule:
+    return sl.parse(str(_PRELUDE_PATH), _PRELUDE_PATH.read_text(encoding="utf-8"))
 
 
 def _new_module() -> sl.Module:
@@ -173,6 +98,7 @@ def _new_module() -> sl.Module:
     for name, function in BOUND_FUNCTIONS.items():
         module.add_callable(name, function)
     module["PI"] = math.pi
+    sl.eval(module, _prelude_ast(), sl.Globals.standard())
     return module
 
 
