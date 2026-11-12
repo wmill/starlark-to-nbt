@@ -588,4 +588,21 @@ Coordinates are +X east, +Y up, +Z south. Boxes are half-open.
   What remains on the Rust path is almost entirely starlark-pyo3 eval: 685k
   `json.loads` for moonspire, from the math builtins and result marshalling.
   That's Phase 6's target.
+- (Phase 5, service status as of 2026-11-12) The two minecraft-mcp-api
+  changes are made in its working tree but **not committed**, pending the
+  user's review:
+  - `starlark_service/cache.py`: `_core_fingerprint()` adds
+    `starlark_to_nbt.build_fingerprint()` to `lib_fingerprint`, and falls back
+    to the old key when the installed compiler predates it. Covered by a new
+    `test_lib_fingerprint_tracks_compiled_core`.
+  - `Dockerfile`: a `core-wheel` stage (python:3.13-slim + rustup 1.85.0 +
+    build-essential/zlib1g-dev) runs `pip wheel` on the submodule. The runtime
+    stage installs only that wheel.
+  - `.dockerignore`: excludes `starlark-to-nbt/target/` and stray
+    `_core*.so`.
+
+  Verified: the service suite passes (51) both on its current pin and against
+  this branch's Rust-backed core, with builds going through runner.py's
+  subprocess. **Not verified: the Docker build**, because the Docker daemon
+  wasn't running. Build the image before bumping the submodule.
 - (record further deviations, benchmark numbers, and gzip-parity outcome here)
