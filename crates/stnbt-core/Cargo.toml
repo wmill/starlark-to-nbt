@@ -1,0 +1,9 @@
+[package]
+name = "stnbt-core"
+description = "Core pipeline for starlark-to-nbt: IR validation, layout, lowering, execution, and structure NBT serialization"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]

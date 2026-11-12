@@ -13,6 +13,8 @@ uv sync --dev                          # Install runtime and test dependencies
 uv run pytest                          # Run the full test suite
 uv run pytest -q tests/test_end_to_end.py            # Run one test file
 uv run pytest tests/test_end_to_end.py::test_name    # Run a single test
+cargo test --workspace                 # Rust core tests (crates/; see docs/rust-core-plan.md)
+uv run python scripts/golden.py --check  # Parity vs tests/golden/manifest.json (also run by pytest)
 
 # Build the reference example (writes church.nbt plus debug JSON stages)
 uv run starlark-to-nbt build examples/church.star \

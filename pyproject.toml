@@ -18,11 +18,26 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.9,<2.0"]
+build-backend = "maturin"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/starlark_to_nbt"]
+[tool.maturin]
+# Mixed Rust/Python project: the Rust core is compiled into the
+# starlark_to_nbt._core extension module next to the Python sources.
+manifest-path = "crates/stnbt-py/Cargo.toml"
+python-source = "src"
+module-name = "starlark_to_nbt._core"
+
+[tool.uv]
+# Rebuild the extension on `uv sync`/`uv run` whenever Rust sources change.
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "Cargo.lock" },
+    { file = "crates/**/Cargo.toml" },
+    { file = "crates/**/*.rs" },
+    { file = "crates/**/*.star" },
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

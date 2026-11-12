@@ -1,0 +1,14 @@
+[package]
+name = "stnbt-cli"
+description = "Native starlark-to-nbt command line"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "starlark-to-nbt"
+path = "src/main.rs"
+
+[dependencies]
+stnbt-core.workspace = true

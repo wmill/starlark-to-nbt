@@ -5,3 +5,6 @@ __pycache__/
 build/
 *.nbt
 training-samples/
+target/
+src/starlark_to_nbt/*.so
+src/starlark_to_nbt/*.pyd
