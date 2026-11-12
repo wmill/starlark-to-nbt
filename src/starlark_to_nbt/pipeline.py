@@ -12,7 +12,7 @@ from .layout import resolve, resolved_to_dict
 from .lowering import entities_to_dict, lower_all, operations_to_dict
 from .model import Box, BuildError, Point, fail
 from .serialize import write_json, write_structure_nbt
-from .starlark_runtime import evaluate_file, evaluate_file_raw, evaluate_source, evaluate_source_raw
+from .starlark_runtime import evaluate_file, evaluate_source
 from .support import support_diagnostics
 from .validators import validator_diagnostics
 
@@ -23,8 +23,8 @@ DEFAULT_ENGINE = "rust"
 
 def engine() -> str:
     """The active build engine: `STARLARK_TO_NBT_ENGINE`, default
-    `DEFAULT_ENGINE`. Starlark evaluation is Python either way; the engine
-    picks who validates, lays out, executes, and serializes."""
+    `DEFAULT_ENGINE`. "rust" evaluates and builds entirely in Rust; "python"
+    is the original pipeline (starlark-pyo3 + the Python stages)."""
     value = os.environ.get("STARLARK_TO_NBT_ENGINE", DEFAULT_ENGINE)
     if value not in ENGINES:
         raise ValueError(f"STARLARK_TO_NBT_ENGINE must be one of {', '.join(ENGINES)}, got {value!r}")
@@ -46,7 +46,9 @@ def build_file(path: str | Path, entry: str = "build", props: dict[str, Any] | N
     props = props or {}
     if engine() == "rust":
         from . import _rust
-        return _rust.build(evaluate_file_raw(path, entry, props), props, root_size, str(Path(path)))
+        source_path = Path(path)
+        return _rust.build_source(source_path.read_text(encoding="utf-8"), str(source_path), entry, props,
+                                  root_size, source_path.resolve().parent, None, None)
     component_ir = evaluate_file(path, entry, props)
     return _finish_build(component_ir, props, root_size)
 
@@ -59,9 +61,7 @@ def build_source(source: str, entry: str = "build", props: dict[str, Any] | None
     props = props or {}
     if engine() == "rust":
         from . import _rust
-        raw = evaluate_source_raw(source, filename, entry, props,
-                                  base_dir=base_dir, loader_root=loader_root, mounts=mounts)
-        return _rust.build(raw, props, root_size, filename)
+        return _rust.build_source(source, filename, entry, props, root_size, base_dir, loader_root, mounts)
     component_ir = evaluate_source(source, filename, entry, props,
                                    base_dir=base_dir, loader_root=loader_root, mounts=mounts)
     return _finish_build(component_ir, props, root_size)

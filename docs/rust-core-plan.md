@@ -16,7 +16,7 @@
 - [x] Phase 3 — execute + support + validators
 - [x] Phase 4 — serialization (NBT, gzip, meta/debug JSON)
 - [x] Phase 5 — Python integration behind an engine switch, then flip the default
-- [ ] Phase 6 — Starlark eval in Rust (starlark-rust) + native CLI
+- [x] Phase 6 — Starlark eval in Rust (starlark-rust) + native CLI
 - [ ] Phase 7 — retire the Python internals, port unit tests, update docs
 
 Update this checklist and the "Notes / deviations" log at the end of each phase.
@@ -605,4 +605,48 @@ Coordinates are +X east, +Y up, +Z south. Boxes are half-open.
   this branch's Rust-backed core, with builds going through runner.py's
   subprocess. **Not verified: the Docker build**, because the Docker daemon
   wasn't running. Build the image before bumping the submodule.
+- (Phase 6) **Toolchain: Rust 1.99.1**, pinned via `.tool-versions` (asdf;
+  the user's global default stays 1.85) and `rust-toolchain.toml` (rustup,
+  Docker). It was needed because starlark 0.13 and 0.14 both pull
+  `allocative_derive` 0.3.6, which uses let-chains (Rust ≥ 1.88). The
+  workspace `rust-version` is now 1.88, and the service Dockerfile
+  (uncommitted) installs 1.99.1.
+- (Phase 6) `stnbt-core/src/eval/` uses starlark 0.14.2 with
+  `Dialect::Standard` and `Globals::standard()`, which matches
+  starlark-pyo3's defaults (verified: no f-strings, type annotations,
+  top-level if/for, or json/struct/math modules). The prelude (constructors
+  via `include_str!` of the shared `prelude.star`, plus `helpers.star` for
+  `sign_nbt`/`container_nbt`/`loot_nbt`) is frozen once per process, and
+  every module, loaded ones included, `import_public_symbols` it. Math
+  builtins are natives (`natives.rs`): `round`/`floor`/`ceil` return ints,
+  and domain errors raise as in Python. The loader is a line-for-line port
+  of `_Loader`: dir stack, cache, `load_cycle`, confined "module not found",
+  `lib` + mounts, mounted modules loading from `base_dir`, and the first
+  failure re-raised under `<load>`.
+- (Phase 6) Value conversion mirrors starlark-pyo3: tuple → list, non-finite
+  float → None. Non-string dict keys are `invalid_ir`, not Python-style int
+  keys; the corpus has none. A missing entry function is `starlark_error`
+  "Variable `build` not found". Starlark error *text* comes from the same
+  engine but is not compared (only the code and path are).
+- (Phase 6) Parity: `tests/test_rust_eval_parity.py` (475, parity) shows
+  every corpus case evaluating to an identical raw tree (unsorted JSON).
+  `tests/test_native_cli.py` (441, parity) checks the binary against the
+  golden manifest for every example/showcase case, plus stderr and exit codes
+  identical to `cli.py`. 6 eval unit tests cover the loader paths and builtin
+  semantics. The engine's `component_ir` (test-only) re-evaluates in Rust on
+  demand instead of holding the raw tree.
+- (Phase 6) The default engine is now all Rust: `_core.build_source` runs
+  eval → schema → build with the GIL released. Moonspire timings:
+
+  | Path | Time |
+  |---|---|
+  | native binary | 0.13s |
+  | `uv run starlark-to-nbt` | 0.19s (interpreter startup) |
+  | before Phase 5 | 1.66s |
+  | at the start of all this | 3.83s |
+
+  bsp_dungeon takes 0.10s native and keep 0.03s.
+  `scripts/rebuild_examples_native.sh` rebuilds all 23 examples in 1.25s.
+  Gate: 3657 passed / 8 skipped (default), 984 (python engine, non-parity),
+  58 Rust tests, clippy clean, and the service suite (51) against this branch.
 - (record further deviations, benchmark numbers, and gzip-parity outcome here)

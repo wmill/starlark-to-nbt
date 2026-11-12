@@ -1,0 +1,6 @@
+# The starlark crate's dependencies need Rust >= 1.88 (let-chains). asdf reads
+# .tool-versions; rustup (CI, the starlark-service Docker build) reads this.
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"
+components = ["clippy"]

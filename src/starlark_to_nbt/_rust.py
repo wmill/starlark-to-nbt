@@ -1,7 +1,8 @@
 """The Rust engine behind the Python API.
 
-`build()` runs the Rust core on a raw tree from the Starlark runtime and
-returns a `RustBuildResult`. Its attributes match `pipeline.BuildResult`:
+`build_source()` evaluates, validates, and builds entirely in Rust (no
+Python values cross the boundary until asked for). `build()` takes a raw
+tree evaluated elsewhere. Both return a `RustBuildResult`. Its attributes match `pipeline.BuildResult`:
 `volume`, `metadata`, `entities`, `operations`, `component_ir`, `resolved`.
 They're backed by a `_core.Build` handle and turn into the usual Python
 objects lazily, so the hot path (build, then write) never materializes
@@ -69,6 +70,8 @@ class RustBuildResult:
     """`pipeline.BuildResult`'s interface over a Rust build."""
 
     def __init__(self, handle, raw_tree: Any, source_file: str | None):
+        """`raw_tree` is the evaluated tree, or a zero-argument callable that
+        re-evaluates it; it's only needed for the test-facing `component_ir`."""
         self._handle = handle
         self._raw_tree = raw_tree
         self._source_file = source_file
@@ -107,7 +110,8 @@ class RustBuildResult:
     def component_ir(self):
         # Test-facing only; the Python schema still exists until Phase 7.
         from .schema import parse_node
-        return parse_node(self._raw_tree, source_file=self._source_file)
+        tree = self._raw_tree() if callable(self._raw_tree) else self._raw_tree
+        return parse_node(tree, source_file=self._source_file)
 
     @cached_property
     def resolved(self):
@@ -134,3 +138,23 @@ def build(raw_tree: Any, props: dict[str, Any], root_size: Point | None,
     except _core.CoreBuildError as exc:
         raise diagnostics_from_core(exc.args[0]) from None
     return RustBuildResult(handle, raw_tree, source_file)
+
+
+def build_source(source: str, filename: str, entry: str, props: dict[str, Any], root_size: Point | None,
+                 base_dir: str | Path | None, loader_root: str | Path | None,
+                 mounts: dict[str, str | Path] | None) -> RustBuildResult:
+    loader = {
+        "base_dir": Path(base_dir) if base_dir is not None else None,
+        "loader_root": Path(loader_root) if loader_root is not None else None,
+        "mounts": {name: Path(path) for name, path in mounts.items()} if mounts else None,
+    }
+    try:
+        handle = _core.build_source(source, filename, entry, props,
+                                    root_size.to_list() if root_size else None, **loader)
+    except _core.CoreBuildError as exc:
+        raise diagnostics_from_core(exc.args[0]) from None
+
+    def raw_tree():
+        return _core.evaluate_source(source, filename, entry, props, **loader)
+
+    return RustBuildResult(handle, raw_tree, filename)

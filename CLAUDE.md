@@ -15,6 +15,8 @@ uv run pytest -m "not parity"          # Skip the slow Rust-vs-Python corpus par
 uv run pytest -q tests/test_end_to_end.py            # Run one test file
 uv run pytest tests/test_end_to_end.py::test_name    # Run a single test
 cargo test --workspace                 # Rust core tests (crates/; see docs/rust-core-plan.md)
+cargo run --release -p stnbt-cli -- build examples/church.star --output church.nbt   # Native binary
+scripts/rebuild_examples_native.sh     # Rebuild every example with the native binary
 uv run python scripts/golden.py --check  # Parity vs tests/golden/manifest.json (also run by pytest)
 
 # Build the reference example (writes church.nbt plus debug JSON stages)
@@ -27,7 +29,7 @@ No linter or formatter is configured; follow existing PEP 8-style formatting. Ru
 
 ## Architecture
 
-**Rust core migration in progress** (`docs/rust-core-plan.md`): stages 2–7 below also exist in Rust (`crates/stnbt-core`), exposed as `starlark_to_nbt._core`. The Rust engine is the default; `STARLARK_TO_NBT_ENGINE=python` selects the Python pipeline described below, which stays the reference until Phase 7 deletes it. Starlark evaluation (stage 1) is still Python. `starlark_to_nbt.build_fingerprint()` identifies the engine and compiled core for output caches.
+**Rust core migration in progress** (`docs/rust-core-plan.md`): every stage below also exists in Rust (`crates/stnbt-core`, with evaluation in `src/eval/` on the same starlark-rust engine starlark-pyo3 wraps), exposed to Python as `starlark_to_nbt._core` and as the native `starlark-to-nbt` binary (`crates/stnbt-cli`). The Rust engine is the default; `STARLARK_TO_NBT_ENGINE=python` selects the Python pipeline described below, which stays the reference until Phase 7 deletes it. `src/starlark_to_nbt/prelude.star` is shared by both engines (the Rust one `include_str!`s it); the nbt helpers live in Python (`starlark_runtime.py`) and in Starlark (`crates/stnbt-core/src/eval/helpers.star`), so keep the two in step. `starlark_to_nbt.build_fingerprint()` identifies the engine and compiled core for output caches. The repo pins Rust 1.99.1 (`.tool-versions` for asdf, `rust-toolchain.toml` for rustup).
 
 The code is a strictly staged pipeline in `src/starlark_to_nbt/`, orchestrated by `pipeline.build_file()` (called by `cli.py`). Each stage's output type is the next stage's input:
 

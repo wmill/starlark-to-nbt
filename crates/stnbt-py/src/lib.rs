@@ -312,6 +312,59 @@ fn build<'py>(py: Python<'py>, tree: &Bound<'py, PyAny>, props: &Bound<'py, PyAn
     Ok(Build::new(node, result))
 }
 
+fn load_options(
+    base_dir: Option<std::path::PathBuf>,
+    loader_root: Option<std::path::PathBuf>,
+    mounts: Option<std::collections::BTreeMap<String, std::path::PathBuf>>,
+) -> stnbt_core::eval::LoadOptions {
+    stnbt_core::eval::LoadOptions { base_dir, loader_root, mounts: mounts.unwrap_or_default().into_iter().collect() }
+}
+
+fn props_dict(props: &Bound<'_, PyAny>) -> PyResult<Dict> {
+    match convert::to_val(props)? {
+        Val::Dict(d) => Ok(d),
+        _ => Err(pyo3::exceptions::PyTypeError::new_err("props must be a dict")),
+    }
+}
+
+/// Evaluate Starlark in Rust and return the raw tree (for parity tests).
+#[pyfunction]
+#[pyo3(signature = (source, filename, entry, props, base_dir=None, loader_root=None, mounts=None))]
+#[allow(clippy::too_many_arguments)]
+fn evaluate_source<'py>(
+    py: Python<'py>, source: &str, filename: &str, entry: &str, props: &Bound<'py, PyAny>,
+    base_dir: Option<std::path::PathBuf>, loader_root: Option<std::path::PathBuf>,
+    mounts: Option<std::collections::BTreeMap<String, std::path::PathBuf>>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let props = props_dict(props)?;
+    let opts = load_options(base_dir, loader_root, mounts);
+    let tree = py.detach(|| stnbt_core::eval::evaluate_source(source, filename, entry, &props, &opts));
+    convert::from_val(py, &tree.map_err(|e| core_error(py, &e))?)
+}
+
+/// Evaluate, validate, and build entirely in Rust. Raises
+/// `CoreBuildError(diagnostics)` on failure.
+#[pyfunction]
+#[pyo3(signature = (source, filename, entry, props, root_size=None, base_dir=None, loader_root=None, mounts=None))]
+#[allow(clippy::too_many_arguments)]
+fn build_source(
+    py: Python<'_>, source: &str, filename: &str, entry: &str, props: &Bound<'_, PyAny>,
+    root_size: Option<[i32; 3]>, base_dir: Option<std::path::PathBuf>, loader_root: Option<std::path::PathBuf>,
+    mounts: Option<std::collections::BTreeMap<String, std::path::PathBuf>>,
+) -> PyResult<Build> {
+    let props = props_dict(props)?;
+    let opts = load_options(base_dir, loader_root, mounts);
+    let size = root_size.map(|[x, y, z]| stnbt_core::model::Point::new(x, y, z));
+    let built = py.detach(|| -> Result<_, stnbt_core::model::BuildError> {
+        let tree = stnbt_core::eval::evaluate_source(source, filename, entry, &props, &opts)?;
+        let node = stnbt_core::schema::parse_node(&tree, Some(filename))?;
+        let result = stnbt_core::pipeline::build(&node, &props, size)?;
+        Ok((node, result))
+    });
+    let (node, result) = built.map_err(|e| core_error(py, &e))?;
+    Ok(Build::new(node, result))
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(version, m)?)?;
@@ -320,6 +373,8 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(build_tree, m)?)?;
     m.add_function(wrap_pyfunction!(write_tree, m)?)?;
     m.add_function(wrap_pyfunction!(build, m)?)?;
+    m.add_function(wrap_pyfunction!(evaluate_source, m)?)?;
+    m.add_function(wrap_pyfunction!(build_source, m)?)?;
     m.add_function(wrap_pyfunction!(build_fingerprint, m)?)?;
     m.add_class::<Build>()?;
     m.add("CoreBuildError", m.py().get_type::<CoreBuildError>())?;

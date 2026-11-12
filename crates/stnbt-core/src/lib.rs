@@ -6,6 +6,7 @@
 
 pub mod blocks;
 pub mod debug;
+pub mod eval;
 pub mod execute;
 pub mod ir;
 pub mod json;

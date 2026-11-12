@@ -5,7 +5,7 @@ members = ["crates/stnbt-core", "crates/stnbt-cli", "crates/stnbt-py"]
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.88"
 license = "MIT"
 
 [workspace.dependencies]
