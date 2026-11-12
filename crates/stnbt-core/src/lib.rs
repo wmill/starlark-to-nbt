@@ -4,7 +4,11 @@
 //! `src/starlark_to_nbt/`; see `docs/rust-core-plan.md` for the phase plan and
 //! the parity rules each stage must satisfy.
 
+pub mod blocks;
+pub mod debug;
 pub mod ir;
+pub mod layout;
+pub mod lowering;
 pub mod model;
 pub mod schema;
 pub mod val;

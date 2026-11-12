@@ -8,6 +8,7 @@ license.workspace = true
 
 [dependencies]
 indexmap = "2.14.2"
+rustc-hash = "2.1.3"
 
 [dev-dependencies]
 serde_json = { version = "1.0.154", features = ["preserve_order"] }

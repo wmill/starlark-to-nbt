@@ -12,7 +12,7 @@
       per-call JSON marshalling. Slowest example went 3.83s → 1.96s.
 - [x] Phase 0 — workspace scaffolding + golden parity manifest
 - [x] Phase 1 — core types, diagnostics, schema (Val → IR)
-- [ ] Phase 2 — layout + lowering
+- [x] Phase 2 — layout + lowering
 - [ ] Phase 3 — execute + support + validators
 - [ ] Phase 4 — serialization (NBT, gzip, meta/debug JSON)
 - [ ] Phase 5 — Python integration behind an engine switch, then flip the default
@@ -447,4 +447,34 @@ Coordinates are +X east, +Y up, +Z south. Boxes are half-open.
   `tests/test_rust_schema_parity.py` also checks every library tree (136
   tests). Library cases are skipped with a notice when the directory is
   absent (override with `STARLARK_LIBRARY_DIR`).
+- (Phase 2) `blocks::BlockTable` interns on (type, *sorted* state, nbt
+  repr); `BlockId::AIR` is id 0. Sorted state is required, not just allowed:
+  rotation reorders connection keys, and Python's dict equality ignores order.
+  `LoweringResult` carries the table, and operations hold `BlockId`s.
+- (Phase 2) Lowering caches the world block per (source `BlockSpec` address,
+  transform-stack `Arc` address). Both live in trees that outlive lowering.
+  Provenance is one `Arc` per component. A leaf with no component above it
+  gets its own provenance, as in Python.
+- (Phase 2) `debug.rs` builds the `operations.json`/`entities.json` shapes, and
+  `ResolvedNode::to_val` builds `resolved.json`. Phase 4 should reuse them.
+- (Phase 2) `_core.lower_tree(tree, root_size, source_file)` runs schema →
+  layout → lowering. `tests/test_rust_lowering_parity.py` (495 tests) checks
+  it against Python: the entire golden corpus (resolved tree, every write and
+  block, entities, validator placements), 560 seeded integer nudges, and a
+  hand-written case per layout/lowering diagnostic code, with full diagnostic
+  equality including region, coordinates, and details. `tests/_corpus.py`
+  exposes the corpus as raw trees for later parity tests.
+- (Phase 2) Benchmark: `cargo run --release -p stnbt-core --example bench_stages -- tree.json`
+  (dump the tree with `scripts/dump_tree.py`). On moonspire (57k ops):
+
+  | Stage | Rust | Python |
+  |---|---|---|
+  | schema | 14ms | 210ms |
+  | layout | 6ms | 33ms |
+  | lowering | 4ms | 478ms |
+
+  The 57k operations intern to 42 distinct blocks. Schema is now the largest
+  Rust stage; that's acceptable.
+- (Phase 2) The Python suite went from 54s to 75s with the parity tests. Phase 7
+  deletes the Python stages these tests compare against, so the cost goes away then.
 - (record further deviations, benchmark numbers, and gzip-parity outcome here)

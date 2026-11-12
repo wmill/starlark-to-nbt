@@ -247,3 +247,65 @@ pub(crate) fn block_val(b: &BlockSpec) -> Val {
         ("block_nbt", opt(b.block_nbt.clone().map(Val::Dict))),
     ])
 }
+
+// ---- Lowered operations (lowering -> execute) ----
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OpKind {
+    PlaceBlock,
+    FillRegion,
+    CarveRegion,
+    PlaceAssembly,
+}
+
+impl OpKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            OpKind::PlaceBlock => "place_block",
+            OpKind::FillRegion => "fill_region",
+            OpKind::CarveRegion => "carve_region",
+            OpKind::PlaceAssembly => "place_assembly",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BlockWrite {
+    pub pos: Point,
+    pub block: crate::blocks::BlockId,
+}
+
+#[derive(Clone, Debug)]
+pub struct BlockOperation {
+    pub phase: Phase,
+    pub kind: OpKind,
+    pub writes: Vec<BlockWrite>,
+    /// Shared by every operation of one component.
+    pub provenance: std::sync::Arc<crate::model::Provenance>,
+    pub assembly_name: Option<String>,
+    pub sequence: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct EntityPlacement {
+    pub pos: Point,
+    pub entity: EntitySpec,
+    pub provenance: std::sync::Arc<crate::model::Provenance>,
+    pub sequence: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct ValidatorPlacement {
+    pub validator: ValidatorSpec,
+    pub provenance: std::sync::Arc<crate::model::Provenance>,
+    pub sequence: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct LoweringResult {
+    pub operations: Vec<BlockOperation>,
+    pub entities: Vec<EntityPlacement>,
+    pub validators: Vec<ValidatorPlacement>,
+    /// Every block id in `operations` indexes this table.
+    pub blocks: crate::blocks::BlockTable,
+}
