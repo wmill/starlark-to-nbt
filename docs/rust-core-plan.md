@@ -13,7 +13,7 @@
 - [x] Phase 0 — workspace scaffolding + golden parity manifest
 - [x] Phase 1 — core types, diagnostics, schema (Val → IR)
 - [x] Phase 2 — layout + lowering
-- [ ] Phase 3 — execute + support + validators
+- [x] Phase 3 — execute + support + validators
 - [ ] Phase 4 — serialization (NBT, gzip, meta/debug JSON)
 - [ ] Phase 5 — Python integration behind an engine switch, then flip the default
 - [ ] Phase 6 — Starlark eval in Rust (starlark-rust) + native CLI
@@ -477,4 +477,25 @@ Coordinates are +X east, +Y up, +Z south. Boxes are half-open.
   Rust stage; that's acceptable.
 - (Phase 2) The Python suite went from 54s to 75s with the parity tests. Phase 7
   deletes the Python stages these tests compare against, so the cost goes away then.
+- (Phase 3) `execute.rs`, `support.rs`, `validators.rs`, `pipeline.rs`
+  (`finish_build(node, root)`: everything after schema, including combined
+  support + validator diagnostics). Voxels hold `BlockId` + `Arc<Provenance>`,
+  so the STRUCTURE identical check is an id compare. Support offsets are
+  computed once per distinct block, and only attachables are sorted.
+- (Phase 3) `entity_root_overflow` cannot be reached through the pipeline:
+  every assigned region sits inside the root, and lowering checks those
+  first. A Rust unit test covers it.
+- (Phase 3) `_core.build_tree(tree, root_size, source_file)` runs the whole
+  post-eval pipeline. `tests/test_rust_execute_parity.py` (493 tests) checks
+  it against Python's `_finish_build`: every corpus case's sparse volume
+  (position, block, owner, phase), entities and metadata; 360 seeded nudges;
+  and a hand-written case per execute/support/validator code. Diagnostics
+  are compared in full, including `source`. The diagnostic helper now lives
+  in `tests/_corpus.py`.
+- (Phase 3) Moonspire: execute takes 0.7ms in Rust against 81ms in Python, and
+  support + validators 0.07ms against 23ms. Rust's whole post-eval pipeline
+  before serialization is about 24ms.
+- (Phase 3) The three corpus parity files carry `pytest.mark.parity`.
+  `uv run pytest -m "not parity"` runs in about 42s; the full suite (about
+  2m20s) remains the phase gate.
 - (record further deviations, benchmark numbers, and gzip-parity outcome here)

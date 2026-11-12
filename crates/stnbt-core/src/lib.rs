@@ -6,12 +6,16 @@
 
 pub mod blocks;
 pub mod debug;
+pub mod execute;
 pub mod ir;
 pub mod layout;
 pub mod lowering;
 pub mod model;
+pub mod pipeline;
 pub mod schema;
+pub mod support;
 pub mod val;
+pub mod validators;
 
 /// Crate version, exposed so the CLI and the Python shim can report which core they run.
 pub fn version() -> &'static str {

@@ -21,6 +21,9 @@ from starlark_to_nbt.model import BuildError
 from starlark_to_nbt.pipeline import _jsonable
 from starlark_to_nbt.schema import parse_node
 
+pytestmark = pytest.mark.parity
+
+
 ROOT = Path(__file__).resolve().parents[1]
 SHOWCASE = ROOT / "lib" / "showcase.star"
 MUTATIONS_PER_TREE = 60

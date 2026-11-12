@@ -83,3 +83,14 @@ def load_case(name: str) -> Case:
     tree = _raw(script.read_text(encoding="utf-8"), str(script), saved.get("entry") or "build", props,
                 base_dir=ROOT / "scripts", loader_root=ROOT, mounts={"library": LIBRARY})
     return Case(name, str(script), tree, props, saved.get("root_size"))
+
+
+def diagnostics_dicts(exc) -> list[dict]:
+    """A BuildError's diagnostics in the shape `_core` returns them."""
+    return [{
+        "code": d.code, "component_path": d.component_path, "message": d.message,
+        "region": d.region.to_dict() if d.region else None,
+        "coordinates": d.coordinates.to_list() if d.coordinates else None,
+        "details": d.details,
+        "source": [d.source.file, d.source.line] if d.source else None,
+    } for d in exc.diagnostics]

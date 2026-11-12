@@ -11,6 +11,7 @@ Declarative Minecraft Java structure generation: Starlark scripts describe compo
 ```sh
 uv sync --dev                          # Install runtime and test dependencies
 uv run pytest                          # Run the full test suite
+uv run pytest -m "not parity"          # Skip the slow Rust-vs-Python corpus parity tests
 uv run pytest -q tests/test_end_to_end.py            # Run one test file
 uv run pytest tests/test_end_to_end.py::test_name    # Run a single test
 cargo test --workspace                 # Rust core tests (crates/; see docs/rust-core-plan.md)

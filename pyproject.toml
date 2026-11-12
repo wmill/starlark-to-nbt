@@ -42,3 +42,6 @@ cache-keys = [
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+    "parity: Rust-vs-Python corpus parity checks (slow; skip with -m 'not parity')",
+]

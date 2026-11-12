@@ -7,7 +7,7 @@
 
 use std::time::Instant;
 
-use stnbt_core::{layout, lowering, model::{Point, Region}, schema, val::Val};
+use stnbt_core::{execute, layout, lowering, model::{Point, Region}, schema, support, validators, val::Val};
 
 fn convert(v: serde_json::Value) -> Val {
     match v {
@@ -37,9 +37,19 @@ fn main() {
     let lowered = lowering::lower_all(&resolved).unwrap();
     let t_lower = t.elapsed();
     let writes: usize = lowered.operations.iter().map(|o| o.writes.len()).sum();
+    let (ops, distinct) = (lowered.operations.len(), lowered.blocks.len());
+    let t = Instant::now();
+    let volume = execute::execute(&lowered.operations, root, lowered.entities.clone(), &lowered.blocks).unwrap();
+    let t_execute = t.elapsed();
+    let t = Instant::now();
+    let metadata = match &node { stnbt_core::ir::Node::Component(c) => c.metadata.unwrap_or_default(), _ => Default::default() };
+    let mut diags = support::support_diagnostics(&volume, root, metadata, &lowered.blocks);
+    diags.extend(validators::validator_diagnostics(&lowered.validators, &lowered.operations, &volume, root, metadata, &lowered.blocks));
+    let t_checks = t.elapsed();
+    assert!(diags.is_empty(), "{diags:?}");
     println!(
-        "schema {t_schema:?}  layout {t_layout:?}  lowering {t_lower:?}  ({} ops, {writes} writes, {} distinct blocks)",
-        lowered.operations.len(),
-        lowered.blocks.len()
+        "schema {t_schema:?}  layout {t_layout:?}  lowering {t_lower:?}  execute {t_execute:?}  support+validators {t_checks:?}\n\
+         ({ops} ops, {writes} writes, {} voxels, {distinct} distinct blocks)",
+        volume.voxels.len()
     );
 }

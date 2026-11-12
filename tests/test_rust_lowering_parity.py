@@ -14,7 +14,7 @@ import random
 
 import pytest
 
-from _corpus import case_names, load_case
+from _corpus import case_names, diagnostics_dicts, load_case
 from starlark_to_nbt import _core
 from starlark_to_nbt.layout import resolve, resolved_to_dict
 from starlark_to_nbt.lowering import entities_to_dict, lower_all, operations_to_dict
@@ -22,14 +22,8 @@ from starlark_to_nbt.model import BuildError, Box, Point
 from starlark_to_nbt.pipeline import _root_size
 from starlark_to_nbt.schema import parse_node
 
+pytestmark = pytest.mark.parity
 
-def _diagnostics(exc: BuildError) -> list[dict]:
-    return [{
-        "code": d.code, "component_path": d.component_path, "message": d.message,
-        "region": d.region.to_dict() if d.region else None,
-        "coordinates": d.coordinates.to_list() if d.coordinates else None,
-        "details": d.details,
-    } for d in exc.diagnostics]
 
 
 def _python(tree, root_size, source_file):
@@ -37,7 +31,7 @@ def _python(tree, root_size, source_file):
         resolved = resolve(parse_node(tree, source_file=source_file), Box.from_size(Point(*root_size)))
         lowered = lower_all(resolved)
     except BuildError as exc:
-        return "error", json.dumps(_diagnostics(exc), sort_keys=True)
+        return "error", json.dumps(diagnostics_dicts(exc), sort_keys=True)
     return "ok", json.dumps({
         "resolved": resolved_to_dict(resolved),
         "operations": operations_to_dict(lowered.operations),

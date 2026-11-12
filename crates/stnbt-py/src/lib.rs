@@ -50,6 +50,10 @@ fn diagnostics_val(err: &stnbt_core::model::BuildError) -> Val {
         m.insert("region".into(), d.region.as_ref().map_or(Val::Null, region_val));
         m.insert("coordinates".into(), d.coordinates.map_or(Val::Null, |p| p.to_val()));
         m.insert("details".into(), Val::Dict(d.details.clone()));
+        m.insert("source".into(), d.source.as_ref().map_or(Val::Null, |src| Val::List(vec![
+            Val::Str(src.file.clone()),
+            src.line.map_or(Val::Null, |l| Val::Int(l.into())),
+        ])));
         Val::Dict(m)
     }).collect())
 }
@@ -91,10 +95,50 @@ fn lower_tree<'py>(py: Python<'py>, tree: &Bound<'py, PyAny>, root_size: [i32; 3
     }
 }
 
+/// Run schema -> layout -> lowering -> execute -> support/validators.
+///
+/// Returns `("ok", {"voxels", "entities", "metadata"})`, where voxels are
+/// `[pos, block, component_path, phase]` in (y, z, x) order, or
+/// `("error", [diagnostic dicts])`. Used by the execute parity tests.
+#[pyfunction]
+#[pyo3(signature = (tree, root_size, source_file=None))]
+fn build_tree<'py>(py: Python<'py>, tree: &Bound<'py, PyAny>, root_size: [i32; 3], source_file: Option<&str>) -> PyResult<(&'static str, Bound<'py, PyAny>)> {
+    use stnbt_core::{debug, model::{Point, Region}, pipeline, schema};
+    let value = convert::to_val(tree)?;
+    let run = || -> Result<Val, stnbt_core::model::BuildError> {
+        let node = schema::parse_node(&value, source_file)?;
+        let root = Region::from_size(Point::new(root_size[0], root_size[1], root_size[2]), Point::ZERO)
+            .map_err(|m| stnbt_core::model::fail("invalid_box", m, "<root>"))?;
+        let result = pipeline::finish_build(&node, root)?;
+        let voxels = result.volume.sorted_points().into_iter().map(|p| {
+            let v = &result.volume.voxels[&p];
+            Val::List(vec![
+                p.to_val(),
+                debug::block_to_val(result.blocks.get(v.block)),
+                Val::Str(v.provenance.component_path.clone()),
+                Val::Str(v.phase.name().into()),
+            ])
+        }).collect();
+        let mut metadata = Dict::new();
+        metadata.insert("ground_level".into(), Val::Int(result.metadata.ground_level.into()));
+        metadata.insert("y_offset".into(), Val::Int(result.metadata.y_offset().into()));
+        let mut out = Dict::new();
+        out.insert("voxels".into(), Val::List(voxels));
+        out.insert("entities".into(), debug::entities_to_val(&result.volume.entities));
+        out.insert("metadata".into(), Val::Dict(metadata));
+        Ok(Val::Dict(out))
+    };
+    match run() {
+        Ok(v) => Ok(("ok", convert::from_val(py, &v)?)),
+        Err(e) => Ok(("error", convert::from_val(py, &diagnostics_val(&e))?)),
+    }
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(version, m)?)?;
     m.add_function(wrap_pyfunction!(parse_ir, m)?)?;
     m.add_function(wrap_pyfunction!(lower_tree, m)?)?;
+    m.add_function(wrap_pyfunction!(build_tree, m)?)?;
     Ok(())
 }
