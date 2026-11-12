@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum
 from pathlib import Path
@@ -11,9 +12,23 @@ from .layout import resolve, resolved_to_dict
 from .lowering import entities_to_dict, lower_all, operations_to_dict
 from .model import Box, BuildError, Point, fail
 from .serialize import write_json, write_structure_nbt
-from .starlark_runtime import evaluate_file, evaluate_source
+from .starlark_runtime import evaluate_file, evaluate_file_raw, evaluate_source, evaluate_source_raw
 from .support import support_diagnostics
 from .validators import validator_diagnostics
+
+
+ENGINES = ("python", "rust")
+DEFAULT_ENGINE = "rust"
+
+
+def engine() -> str:
+    """The active build engine: `STARLARK_TO_NBT_ENGINE`, default
+    `DEFAULT_ENGINE`. Starlark evaluation is Python either way; the engine
+    picks who validates, lays out, executes, and serializes."""
+    value = os.environ.get("STARLARK_TO_NBT_ENGINE", DEFAULT_ENGINE)
+    if value not in ENGINES:
+        raise ValueError(f"STARLARK_TO_NBT_ENGINE must be one of {', '.join(ENGINES)}, got {value!r}")
+    return value
 
 
 @dataclass(slots=True)
@@ -29,6 +44,9 @@ class BuildResult:
 def build_file(path: str | Path, entry: str = "build", props: dict[str, Any] | None = None,
                root_size: Point | None = None) -> BuildResult:
     props = props or {}
+    if engine() == "rust":
+        from . import _rust
+        return _rust.build(evaluate_file_raw(path, entry, props), props, root_size, str(Path(path)))
     component_ir = evaluate_file(path, entry, props)
     return _finish_build(component_ir, props, root_size)
 
@@ -39,6 +57,11 @@ def build_source(source: str, entry: str = "build", props: dict[str, Any] | None
                  loader_root: str | Path | None = None,
                  mounts: dict[str, str | Path] | None = None) -> BuildResult:
     props = props or {}
+    if engine() == "rust":
+        from . import _rust
+        raw = evaluate_source_raw(source, filename, entry, props,
+                                  base_dir=base_dir, loader_root=loader_root, mounts=mounts)
+        return _rust.build(raw, props, root_size, filename)
     component_ir = evaluate_source(source, filename, entry, props,
                                    base_dir=base_dir, loader_root=loader_root, mounts=mounts)
     return _finish_build(component_ir, props, root_size)
@@ -70,6 +93,9 @@ def _finish_build(component_ir: Node, props: dict[str, Any], root_size: Point | 
 
 
 def write_build_outputs(result: BuildResult, nbt_path: str | Path, debug_dir: str | Path | None = None) -> None:
+    if not isinstance(result, BuildResult):  # a _rust.RustBuildResult
+        result.write_outputs(nbt_path, debug_dir)
+        return
     write_structure_nbt(result.volume, nbt_path)
     write_json(result.metadata.to_dict(), Path(nbt_path).with_suffix(".meta.json"))
     if debug_dir is None:

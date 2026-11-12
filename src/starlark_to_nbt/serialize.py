@@ -21,6 +21,9 @@ def write_json(value: Any, path: str | Path) -> None:
 
 
 def write_structure_nbt(volume: SparseVolume, path: str | Path) -> None:
+    if not isinstance(volume, SparseVolume):  # a _rust.RustVolume
+        volume._result.write_structure_nbt(path)
+        return
     # Only written voxels are emitted; untouched cells are absent from the
     # template, so pasting the structure leaves the existing terrain there.
     # Carved cells were written as explicit air and still clear their cell.

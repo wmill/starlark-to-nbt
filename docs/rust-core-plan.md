@@ -15,7 +15,7 @@
 - [x] Phase 2 — layout + lowering
 - [x] Phase 3 — execute + support + validators
 - [x] Phase 4 — serialization (NBT, gzip, meta/debug JSON)
-- [ ] Phase 5 — Python integration behind an engine switch, then flip the default
+- [x] Phase 5 — Python integration behind an engine switch, then flip the default
 - [ ] Phase 6 — Starlark eval in Rust (starlark-rust) + native CLI
 - [ ] Phase 7 — retire the Python internals, port unit tests, update docs
 
@@ -540,4 +540,52 @@ Coordinates are +X east, +Y up, +Z south. Boxes are half-open.
   that is the Python → `Val` conversion of the 570k-slot tree, which Phase 6
   removes. The Rust stages themselves take ~24ms, plus 7ms of NBT encoding
   and ~11ms of gzip.
+- (Phase 5) **The Rust engine is the default** (`pipeline.DEFAULT_ENGINE`).
+  `STARLARK_TO_NBT_ENGINE=python|rust` is read on every call. On the Rust
+  path, Python evaluates Starlark (`starlark_runtime.evaluate_*_raw`) and
+  `_core.build(tree, props, root_size, source_file)` returns a `Build`
+  handle. `_rust.RustBuildResult` / `RustVolume` give it `BuildResult`'s
+  attribute surface: `block_at` and the writers go straight to Rust, while
+  `voxels`, `operations`, `entities`, `component_ir` and `resolved`
+  materialize lazily (`component_ir`/`resolved` use the Python schema and
+  layout, which is test-only and goes in Phase 7). `write_build_outputs`
+  and `serialize.write_structure_nbt` dispatch on the result type, so
+  runner.py works unchanged. Rust failures raise `_core.CoreBuildError`,
+  which becomes a regular `BuildError` with full `Diagnostic`s.
+- (Phase 5) Rust now also selects the root size (`pipeline::root_size`, a
+  port of `_root_size`). A non-integer width/height/length prop is a new
+  `invalid_root_size` code; Python crashed in `int()`. `resolved.json` is
+  recomputed when debug output is requested, so `BuildResult` no longer
+  carries it.
+- (Phase 5) **Build fingerprint** (the user chose it over widening the
+  service's globs): `crates/stnbt-py/build.rs` FNV-hashes every file under
+  `crates/`, the workspace `Cargo.toml`/`Cargo.lock`, and `prelude.star` into
+  `_core.build_fingerprint()`. `starlark_to_nbt.build_fingerprint()`
+  returns `"<engine>-<version>-<hash>"`. The service-side change is
+  separate; see the next entry.
+- (Phase 5) **minecraft-mcp-api needs two changes before its submodule is
+  bumped past 574f8d3.**
+  1. `cache.lib_fingerprint` must include `starlark_to_nbt.build_fingerprint()`.
+  2. The Dockerfile (`python:3.13-slim` + `pip install ./starlark-to-nbt`)
+     must provide a Rust toolchain, since maturin builds the extension.
+  These have been in the way since Phase 0; see the service status entry
+  below.
+- (Phase 5) Gate results: the full suite passes on the default (Rust) engine
+  (2734 passed, 8 large-volume skips), and the non-parity suite passes with
+  `STARLARK_TO_NBT_ENGINE=python` (977). A probe confirmed 1046/1046 suite
+  builds went through Rust. `tests/test_engine.py` covers the default, the
+  switch, the fingerprint, identical CLI outputs (NBT, meta, all debug
+  files) from both engines, result-API equality, and diagnostic mapping.
+  Golden check: 0 drift.
+- (Phase 5) CLI benchmarks, best of 3, both engines byte-identical:
+
+  | Example | Python | Rust |
+  |---|---|---|
+  | moonspire | 1.66s | 0.60s |
+  | bsp_dungeon | 0.87s | 0.35s |
+  | keep | 0.12s | 0.08s |
+
+  What remains on the Rust path is almost entirely starlark-pyo3 eval: 685k
+  `json.loads` for moonspire, from the math builtins and result marshalling.
+  That's Phase 6's target.
 - (record further deviations, benchmark numbers, and gzip-parity outcome here)

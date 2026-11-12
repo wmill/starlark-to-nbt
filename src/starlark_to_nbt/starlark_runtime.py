@@ -198,6 +198,17 @@ def evaluate_source(source: str, filename: str, entry: str, props: dict[str, Any
                     base_dir: str | Path | None = None,
                     loader_root: str | Path | None = None,
                     mounts: dict[str, str | Path] | None = None) -> Node:
+    raw = evaluate_source_raw(source, filename, entry, props,
+                              base_dir=base_dir, loader_root=loader_root, mounts=mounts)
+    return parse_node(raw, source_file=filename)
+
+
+def evaluate_source_raw(source: str, filename: str, entry: str, props: dict[str, Any],
+                        base_dir: str | Path | None = None,
+                        loader_root: str | Path | None = None,
+                        mounts: dict[str, str | Path] | None = None) -> Any:
+    """Evaluate the entry function and return its raw tagged-dict tree,
+    unvalidated (the Rust engine validates it itself)."""
     if not _ENTRY_NAME.fullmatch(entry):
         raise BuildError(Diagnostic("invalid_entry", f"entry {entry!r} is not a valid identifier", entry,
                                     SourceRef(filename)))
@@ -221,10 +232,16 @@ def evaluate_source(source: str, filename: str, entry: str, props: dict[str, Any
         if loader is not None and loader.error is not None:
             raise loader.error from exc
         raise BuildError(Diagnostic("starlark_error", str(exc), entry, SourceRef(filename))) from exc
-    return parse_node(result, source_file=filename)
+    return result
 
 
 def evaluate_file(path: str | Path, entry: str = "build", props: dict[str, Any] | None = None) -> Node:
     source_path = Path(path)
     return evaluate_source(source_path.read_text(encoding="utf-8"), str(source_path), entry, props or {},
                            base_dir=source_path.resolve().parent)
+
+
+def evaluate_file_raw(path: str | Path, entry: str = "build", props: dict[str, Any] | None = None) -> Any:
+    source_path = Path(path)
+    return evaluate_source_raw(source_path.read_text(encoding="utf-8"), str(source_path), entry, props or {},
+                               base_dir=source_path.resolve().parent)

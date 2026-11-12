@@ -192,8 +192,8 @@ pub fn dense_val(volume: &SparseVolume, blocks: &crate::blocks::BlockTable) -> V
 }
 
 /// Python `write_build_outputs`: the NBT, `<stem>.meta.json` beside it, and
-/// with `debug_dir` the per-stage JSON. The resolved tree is only kept when
-/// `finish_build` was asked for debug output.
+/// with `debug_dir` the per-stage JSON. The resolved tree is recomputed for
+/// `resolved.json` (cheap, and it borrows the IR, so results don't keep it).
 pub fn write_build_outputs(node: &Node, result: &BuildResult, nbt_path: &Path, debug_dir: Option<&Path>) -> Result<(), BuildError> {
     write_structure_nbt(&result.volume, &result.blocks, nbt_path)?;
     write_json(&metadata_val(result), &nbt_path.with_extension("meta.json"))?;
@@ -202,8 +202,7 @@ pub fn write_build_outputs(node: &Node, result: &BuildResult, nbt_path: &Path, d
     };
     std::fs::create_dir_all(dir).map_err(|e| output_error(dir, e))?;
     write_json(&node.to_val(), &dir.join("component-ir.json"))?;
-    let resolved = result.resolved.as_ref().expect("finish_build(debug = true) keeps the resolved tree");
-    write_json(resolved, &dir.join("resolved.json"))?;
+    write_json(&crate::layout::resolve(node, result.volume.bounds)?.to_val(), &dir.join("resolved.json"))?;
     write_json(&debug::operations_to_val(&result.operations, &result.blocks), &dir.join("operations.json"))?;
     write_json(&debug::entities_to_val(&result.volume.entities), &dir.join("entities.json"))?;
     write_json(&dense_val(&result.volume, &result.blocks), &dir.join("dense.json"))
