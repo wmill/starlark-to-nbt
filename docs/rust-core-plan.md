@@ -14,7 +14,7 @@
 - [x] Phase 1 — core types, diagnostics, schema (Val → IR)
 - [x] Phase 2 — layout + lowering
 - [x] Phase 3 — execute + support + validators
-- [ ] Phase 4 — serialization (NBT, gzip, meta/debug JSON)
+- [x] Phase 4 — serialization (NBT, gzip, meta/debug JSON)
 - [ ] Phase 5 — Python integration behind an engine switch, then flip the default
 - [ ] Phase 6 — Starlark eval in Rust (starlark-rust) + native CLI
 - [ ] Phase 7 — retire the Python internals, port unit tests, update docs
@@ -287,6 +287,15 @@ Each phase lists the files to port, the Rust tests to add, and the gate it must 
   `STARLARK_TO_NBT_ENGINE=rust uv run pytest`. The per-stage unit tests that
   call `execute`/`resolve`/`lower_all` directly still exercise Python code,
   which is fine until Phase 7.
+- **Service cache fingerprint (must do).** minecraft-mcp-api's
+  `starlark_service/cache.py::lib_fingerprint` hashes only `lib/*.star` and
+  `src/starlark_to_nbt/**/*.py`. Once builds run in Rust, changes to
+  `crates/**` (and `prelude.star`) would not bust its artifact cache. Fix it
+  in the same change that flips the default. Either expose `_core.version()`
+  plus a build fingerprint (e.g. a hash of the crate sources baked in at
+  compile time) and have `lib_fingerprint` include it, or widen its globs to
+  `crates/**/*.rs` + `src/**/*.star`. This needs a minecraft-mcp-api change,
+  so confirm with the user.
 - Gate: all tests pass under both engines, `golden.py --check` passes under the
   Rust engine, and a benchmark is recorded in the log. Then **flip the default
   to rust**.
@@ -498,4 +507,37 @@ Coordinates are +X east, +Y up, +Z south. Boxes are half-open.
 - (Phase 3) The three corpus parity files carry `pytest.mark.parity`.
   `uv run pytest -m "not parity"` runs in about 42s; the full suite (about
   2m20s) remains the phase gate.
+- (Phase 4) `nbt.rs` is a hand-written writer, byte-identical to nbtlib.
+  `json.rs` is `json.dumps(indent=2, sort_keys=True)` byte for byte
+  (ensure_ascii, surrogate pairs, Python float repr, NaN/Infinity).
+  `serialize.rs` writes the structure NBT, gzip, `.meta.json`, and all five
+  debug files. `finish_build(node, root, debug)` keeps `resolved.json` only
+  when `debug` is set.
+- (Phase 4) **Gzip parity is byte-identical**, compressed bytes included.
+  flate2's `zlib` backend links the same zlib 1.2.12 that Python reports
+  (macOS). On another platform, or a Python with a different zlib, only the
+  decompressed payload is guaranteed. The golden manifest hashes decompressed
+  bytes for that reason.
+- (Phase 4) **Deliberate output change: gzip level 9 → 6**, in both Python and
+  Rust. On structure NBT, zlib's level 9 is ~20× slower *and* larger
+  (moonspire: 205ms / 159KB at 9, 11ms / 129KB at 6). Decompressed output is
+  unchanged: `tests/test_at.py`'s reference digests were re-pointed at the
+  payload, after confirming that level-9 recompression reproduced the old
+  file digests. The XFL header byte is now 0.
+- (Phase 4) Small deviations from Python. A mixed-type nbt list is a
+  `serialize_error` ("Int item should be a String tag"); Python raised an
+  uncaught TypeError. A nested list of differently typed lists is accepted;
+  nbtlib rejected it, but it's valid NBT. A string over 65535 bytes is a
+  `serialize_error`; Python crashed with struct.error. I/O failures are a new
+  `output_error` code.
+- (Phase 4) `_core.write_tree(...)` writes real outputs.
+  `tests/test_rust_serialize_parity.py` (641 tests, marked parity) checks
+  byte-identical gzip, decompressed NBT, and meta for the whole corpus, and
+  all five debug files for every case with root volume ≤ 40k (8 larger cases
+  are skipped). Moonspire, the largest, was checked once by hand: all seven
+  files identical, including the 22MB `dense.json`.
+- (Phase 4) Moonspire end to end through `write_tree`: 100ms. About 80ms of
+  that is the Python → `Val` conversion of the 570k-slot tree, which Phase 6
+  removes. The Rust stages themselves take ~24ms, plus 7ms of NBT encoding
+  and ~11ms of gzip.
 - (record further deviations, benchmark numbers, and gzip-parity outcome here)

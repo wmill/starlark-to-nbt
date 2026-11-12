@@ -109,7 +109,7 @@ fn build_tree<'py>(py: Python<'py>, tree: &Bound<'py, PyAny>, root_size: [i32; 3
         let node = schema::parse_node(&value, source_file)?;
         let root = Region::from_size(Point::new(root_size[0], root_size[1], root_size[2]), Point::ZERO)
             .map_err(|m| stnbt_core::model::fail("invalid_box", m, "<root>"))?;
-        let result = pipeline::finish_build(&node, root)?;
+        let result = pipeline::finish_build(&node, root, false)?;
         let voxels = result.volume.sorted_points().into_iter().map(|p| {
             let v = &result.volume.voxels[&p];
             Val::List(vec![
@@ -134,11 +134,36 @@ fn build_tree<'py>(py: Python<'py>, tree: &Bound<'py, PyAny>, root_size: [i32; 3
     }
 }
 
+/// Build a raw tree and write its outputs: the structure NBT, the
+/// `.meta.json` sidecar, and with `debug_dir` the per-stage JSON.
+///
+/// Returns `None` on success or `("error", [diagnostic dicts])`. Used by
+/// the serialization parity tests; Phase 5 replaces it with real builds.
+#[pyfunction]
+#[pyo3(signature = (tree, root_size, source_file, nbt_path, debug_dir=None))]
+fn write_tree<'py>(py: Python<'py>, tree: &Bound<'py, PyAny>, root_size: [i32; 3], source_file: Option<&str>,
+                   nbt_path: std::path::PathBuf, debug_dir: Option<std::path::PathBuf>) -> PyResult<Option<(&'static str, Bound<'py, PyAny>)>> {
+    use stnbt_core::{model::{Point, Region}, pipeline, schema, serialize};
+    let value = convert::to_val(tree)?;
+    let run = || -> Result<(), stnbt_core::model::BuildError> {
+        let node = schema::parse_node(&value, source_file)?;
+        let root = Region::from_size(Point::new(root_size[0], root_size[1], root_size[2]), Point::ZERO)
+            .map_err(|m| stnbt_core::model::fail("invalid_box", m, "<root>"))?;
+        let result = pipeline::finish_build(&node, root, debug_dir.is_some())?;
+        serialize::write_build_outputs(&node, &result, &nbt_path, debug_dir.as_deref())
+    };
+    match run() {
+        Ok(()) => Ok(None),
+        Err(e) => Ok(Some(("error", convert::from_val(py, &diagnostics_val(&e))?))),
+    }
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(version, m)?)?;
     m.add_function(wrap_pyfunction!(parse_ir, m)?)?;
     m.add_function(wrap_pyfunction!(lower_tree, m)?)?;
     m.add_function(wrap_pyfunction!(build_tree, m)?)?;
+    m.add_function(wrap_pyfunction!(write_tree, m)?)?;
     Ok(())
 }

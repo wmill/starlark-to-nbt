@@ -7,7 +7,7 @@
 
 use std::time::Instant;
 
-use stnbt_core::{execute, layout, lowering, model::{Point, Region}, schema, support, validators, val::Val};
+use stnbt_core::{execute, serialize, layout, lowering, model::{Point, Region}, schema, support, validators, val::Val};
 
 fn convert(v: serde_json::Value) -> Val {
     match v {
@@ -47,6 +47,13 @@ fn main() {
     diags.extend(validators::validator_diagnostics(&lowered.validators, &lowered.operations, &volume, root, metadata, &lowered.blocks));
     let t_checks = t.elapsed();
     assert!(diags.is_empty(), "{diags:?}");
+    let t = Instant::now();
+    let payload = serialize::structure_nbt(&volume, &lowered.blocks).unwrap();
+    let t_nbt = t.elapsed();
+    let t = Instant::now();
+    let gz = serialize::gzip(&payload);
+    let t_gzip = t.elapsed();
+    println!("nbt {t_nbt:?} ({} bytes)  gzip {t_gzip:?} ({} bytes)", payload.len(), gz.len());
     println!(
         "schema {t_schema:?}  layout {t_layout:?}  lowering {t_lower:?}  execute {t_execute:?}  support+validators {t_checks:?}\n\
          ({ops} ops, {writes} writes, {} voxels, {distinct} distinct blocks)",

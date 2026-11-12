@@ -3,7 +3,8 @@
 //! check and declared validators. Support and validator diagnostics are
 //! collected into one error.
 //!
-//! Root-size selection (`_root_size`) and output writing join in Phases 4–5.
+//! Output writing lives in `serialize::write_build_outputs`; root-size
+//! selection (`_root_size`) joins in Phase 5.
 
 use crate::blocks::BlockTable;
 use crate::execute::{execute, SparseVolume};
@@ -22,9 +23,12 @@ pub struct BuildResult {
     /// Every `BlockId` in `volume` and `operations` indexes this table.
     pub blocks: BlockTable,
     pub metadata: BuildMetadata,
+    /// `resolved.json` content, kept only when `finish_build` is asked for
+    /// debug output (the resolved tree borrows the IR, so it isn't stored).
+    pub resolved: Option<crate::val::Val>,
 }
 
-pub fn finish_build(node: &Node, root: Region) -> Result<BuildResult, BuildError> {
+pub fn finish_build(node: &Node, root: Region, debug: bool) -> Result<BuildResult, BuildError> {
     let resolved = resolve(node, root)?;
     let lowered = lower_all(&resolved)?;
     let volume = execute(&lowered.operations, root, lowered.entities, &lowered.blocks)?;
@@ -37,5 +41,6 @@ pub fn finish_build(node: &Node, root: Region) -> Result<BuildResult, BuildError
     if !diagnostics.is_empty() {
         return Err(BuildError::new(diagnostics));
     }
-    Ok(BuildResult { volume, operations: lowered.operations, blocks: lowered.blocks, metadata })
+    let resolved = debug.then(|| resolved.to_val());
+    Ok(BuildResult { volume, operations: lowered.operations, blocks: lowered.blocks, metadata, resolved })
 }
