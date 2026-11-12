@@ -49,6 +49,31 @@ Python unit tests (the ones that build IR objects by hand) are ported to Rust
 
 Target: moonspire under 0.3s end to end. Every build must still be deterministic.
 
+## Compatibility scope (user, 2026-11-11)
+
+The only scripts this tool must run are `examples/*.star` and the saved
+scripts in `../../minecraft-mcp-api/starlark-library/<name>/v<N>.star` (39
+versions). Nobody else uses it. So:
+
+- **The corpus is the gate.** `scripts/golden.py` builds all of it: examples,
+  showcase components at all four rotations, and every library version with
+  its saved entry/props/root_size, exactly as the service's `runner.py` does.
+  Output must stay byte-identical (decompressed) unless a change is intentional.
+- **Don't replicate Python quirks for inputs the corpus never produces.**
+  Exact diagnostic *codes* and *paths* still matter, because they are LLM
+  feedback. Matching message text is cheap during migration, so the parity
+  tests keep checking it, but it's fine to improve messages deliberately later.
+- **External API contract.** `minecraft-mcp-api/starlark-service/starlark_service/runner.py`
+  vendors this repo as a git submodule and uses only these:
+  - `pipeline.build_source(source, entry, props, root_size, base_dir, loader_root, mounts)`
+  - `serialize.write_structure_nbt(result.volume, path)`
+  - `result.volume.bounds.size`, `result.volume.voxels.values()` → `.block.block_type`,
+    `result.volume.entities`, `result.metadata.ground_level` / `.y_offset`
+  - `model.BuildError`, `model.Diagnostic` (fields), `model.Point`
+  
+  Keep that working through Phase 7, or change runner.py in the same breath.
+  Everything else in the Python API is test-only, so tests can change with it.
+
 ## Architecture
 
 ```
@@ -244,7 +269,8 @@ Each phase lists the files to port, the Rust tests to add, and the gate it must 
   `build_source` evaluate with the existing Python runtime, then call either
   Python `_finish_build` or `_core.finish_build`. Keep `evaluate_source`
   returning the raw tree on the Rust path (split `parse_node` out of it).
-- **`BuildResult` compatibility.** The tests read:
+- **`BuildResult` compatibility.** runner.py reads the attributes listed in
+  "Compatibility scope", and those must stay. The tests also read:
   - `result.volume.block_at(...)` (≈116 uses)
   - `.voxels` (len, iteration, `[point].block`)
   - `.bounds`
@@ -392,14 +418,13 @@ Coordinates are +X east, +Y up, +Z south. Boxes are half-open.
 - (Phase 1) Python `Box` is `model::Region` (avoids shadowing `std::boxed::Box`).
   `Transform.source_size` is mandatory (Python allowed `None`; nothing used it).
 - (Phase 1) `Val` equality follows Python (`1 == 1.0 == True`, order-free
-  dicts). **Phase 2 interning must respect this**: two blocks whose nbt
-  differs only as `1` vs `1.0` are "identical" for STRUCTURE rewrites in
-  Python, even though they serialize differently. Intern on exact structure
-  and fall back to `PartialEq` when ids differ but types match.
-- (Phase 1) `Val::Dict` keys are `String`. That's safe because starlark-pyo3
-  JSON-marshals results (non-str keys arrive stringified). **Phase 6's
-  starlark → `Val` converter must stringify keys the way `json.dumps` does**
-  (`1` → `"1"`, `True` → `"true"`, `None` → `"null"`, floats via repr).
+  dicts). Given the compatibility scope, Phase 2 may intern blocks on exact
+  structure and treat `1` vs `1.0` in nbt as different blocks. No corpus
+  script depends on that; the golden gate would catch it if one did.
+- (Phase 1) `Val::Dict` keys are `String`. starlark-pyo3 JSON-marshals
+  results, so non-str keys arrive stringified today. Phase 6's starlark → `Val`
+  converter may simply reject non-string keys with a clear diagnostic, unless
+  the corpus turns out to need stringification (the golden gate will show it).
 - (Phase 1) Small approximations: `rotate_sixteenth` parses with
   `trim().parse::<i128>()` (no `1_0` or non-ASCII digits, unlike Python
   `int()`), and `py_str_repr` uses an approximate `isprintable` table. Both
@@ -416,4 +441,10 @@ Coordinates are +X east, +Y up, +Z south. Boxes are half-open.
   diagnostic, and a hand-written case for every reachable schema message.
   Two messages are unreachable from Rust by design: "object keys must be
   strings" and "props must contain only JSON-compatible values".
+- (2026-11-11) The golden corpus now includes all 39 starlark-library
+  versions (475 builds + 7 failures). Each library build matched its saved
+  `block_count` and `size` in meta.json before being recorded.
+  `tests/test_rust_schema_parity.py` also checks every library tree (136
+  tests). Library cases are skipped with a notice when the directory is
+  absent (override with `STARLARK_LIBRARY_DIR`).
 - (record further deviations, benchmark numbers, and gzip-parity outcome here)

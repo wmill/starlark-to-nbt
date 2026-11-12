@@ -32,6 +32,8 @@ def test_core_extension_matches_package_version():
 def test_outputs_match_golden_manifest():
     golden = _golden_module()
     expected = json.loads(golden.MANIFEST.read_text(encoding="utf-8"))
+    if not golden.LIBRARY.is_dir():
+        expected["builds"] = {k: v for k, v in expected["builds"].items() if not k.startswith("library/")}
     current = golden.generate()
     for section in ("builds", "failures"):
         assert current[section].keys() == expected[section].keys(), section

@@ -3,6 +3,13 @@
 Builds a fixed corpus through the public pipeline API and records, per case,
 the sha256 of the *decompressed* structure NBT plus the .meta.json contents.
 Known-bad inputs record their diagnostic codes and component paths instead.
+
+The corpus is everything the tool is expected to run: examples/, every
+showcase component at all four rotations, and the saved scripts in
+minecraft-mcp-api's starlark-library (built exactly as its runner.py does,
+with each version's saved entry/props/root_size). Set STARLARK_LIBRARY_DIR
+to point elsewhere. If that directory is absent, library cases are skipped
+in both modes, with a notice.
 Because it only uses pipeline.build_file/build_source/write_build_outputs,
 the same script checks whichever engine is active.
 
@@ -15,18 +22,21 @@ import argparse
 import gzip
 import hashlib
 import json
+import os
 import re
 import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
-from starlark_to_nbt.model import BuildError
+from starlark_to_nbt.model import BuildError, Point
 from starlark_to_nbt.pipeline import BuildResult, build_file, build_source, write_build_outputs
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "tests" / "golden" / "manifest.json"
 SHOWCASE = ROOT / "lib" / "showcase.star"
+LIBRARY = Path(os.environ.get(
+    "STARLARK_LIBRARY_DIR", ROOT.parents[1] / "minecraft-mcp-api" / "starlark-library"))
 
 # Inline sources that must fail. Each entry exercises a different stage.
 FAILURES: dict[str, str] = {
@@ -77,6 +87,24 @@ def _cases() -> dict[str, Callable[[], BuildResult]]:
         for rotation in (90, 180, 270):
             cases[f"showcase/{name}@{rotation}"] = lambda n=name, r=rotation: build_file(
                 SHOWCASE, entry="rotated", props={"name": n, "rotation": r})
+    for name, build in _library_cases().items():
+        cases[name] = build
+    return cases
+
+
+def _library_cases() -> dict[str, Callable[[], BuildResult]]:
+    if not LIBRARY.is_dir():
+        return {}
+    cases: dict[str, Callable[[], BuildResult]] = {}
+    for meta_path in sorted(LIBRARY.glob("*/meta.json")):
+        for version in json.loads(meta_path.read_text(encoding="utf-8"))["versions"]:
+            script = meta_path.parent / f"v{version['version']}.star"
+            root_size = version.get("root_size")
+            # Mirrors minecraft-mcp-api starlark_service/runner.py.
+            cases[f"library/{meta_path.parent.name}/{script.stem}"] = lambda s=script, v=version, r=root_size: build_source(
+                s.read_text(encoding="utf-8"), entry=v.get("entry") or "build", props=v.get("props") or {},
+                root_size=Point(*r) if r else None, filename=str(s),
+                base_dir=ROOT / "scripts", loader_root=ROOT, mounts={"library": LIBRARY})
     return cases
 
 
@@ -122,6 +150,9 @@ def main() -> int:
         print(f"wrote {len(current['builds'])} builds, {len(current['failures'])} failures to {MANIFEST}")
         return 0
     expected = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    if not LIBRARY.is_dir():
+        print(f"notice: {LIBRARY} not found; skipping library cases")
+        expected["builds"] = {k: v for k, v in expected["builds"].items() if not k.startswith("library/")}
     drift = []
     for section in ("builds", "failures"):
         for name in sorted(expected[section].keys() | current[section].keys()):

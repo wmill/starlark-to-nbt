@@ -246,3 +246,22 @@ HANDWRITTEN = {
 def test_handwritten_cases_agree(name):
     tree = HANDWRITTEN[name]
     assert _rust(tree, "case.star") == _python(tree, "case.star")
+
+
+def _library_scripts():
+    library = ROOT.parents[1] / "minecraft-mcp-api" / "starlark-library"
+    return sorted(library.glob("*/v*.star")) if library.is_dir() else []
+
+
+@pytest.mark.parametrize("script", _library_scripts(), ids=lambda p: f"{p.parent.name}/{p.stem}")
+def test_library_scripts_parse_identically(script):
+    """Saved minecraft-mcp-api scripts, loaded the way its runner.py loads them."""
+    original = starlark_runtime.parse_node
+    starlark_runtime.parse_node = lambda value, source_file=None: value
+    try:
+        tree = starlark_runtime.evaluate_source(
+            script.read_text(encoding="utf-8"), str(script), "build", {},
+            base_dir=ROOT / "scripts", loader_root=ROOT, mounts={"library": script.parents[1]})
+    finally:
+        starlark_runtime.parse_node = original
+    assert _rust(tree, str(script)) == _python(tree, str(script))

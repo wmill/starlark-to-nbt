@@ -192,6 +192,318 @@
       "nbt_bytes": 58100,
       "nbt_sha256": "82d9a9c213f3b1963551a1518e153f74f2f5b8feed403588337a304f6fdbfbf2"
     },
+    "library/arcane_observatory_tower/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 22094,
+      "nbt_sha256": "22caa378ae571dda78783bfd800b75e1c9ec7bd3d0730a56b81a98446595682a"
+    },
+    "library/arcanum_city_walls/v1": {
+      "meta": {
+        "ground_level": 2,
+        "y_offset": -2
+      },
+      "nbt_bytes": 406727,
+      "nbt_sha256": "9e86555e8d8bb593080ced566d41893f48f8ebf216b3bf006390b882551ac135"
+    },
+    "library/arcanum_spire/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 51430,
+      "nbt_sha256": "b9be7fc8326e1ec2641e8f795d7ccd9b065e866aff1f2e576e2574f1caaa6387"
+    },
+    "library/ash_and_anvil_smithy/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 46861,
+      "nbt_sha256": "790b00b0499c873f2b9a799c8dc86dccaf01e3377b3be578fa781bacfb41ddab"
+    },
+    "library/ash_and_anvil_smithy/v2": {
+      "meta": {
+        "ground_level": 2,
+        "y_offset": -2
+      },
+      "nbt_bytes": 46939,
+      "nbt_sha256": "1635e85f08d8852602b9f615e0bbada96fcf20e08d91efdb6e2c2e4247aa3c55"
+    },
+    "library/astral_armillary_observatory/v1": {
+      "meta": {
+        "ground_level": 8,
+        "y_offset": -8
+      },
+      "nbt_bytes": 459705,
+      "nbt_sha256": "9bacc50a3b9d18e4a80e1c00dc5ac18a689ba9d50386156aff1c452e4f970493"
+    },
+    "library/astral_lantern_walk/v1": {
+      "meta": {
+        "ground_level": 8,
+        "y_offset": -8
+      },
+      "nbt_bytes": 104245,
+      "nbt_sha256": "bed471cf2843a9f9a75bce6c2889f0fbec8161d7984c3134de7ad1f470cbe2a7"
+    },
+    "library/astral_lantern_walk/v2": {
+      "meta": {
+        "ground_level": 8,
+        "y_offset": -8
+      },
+      "nbt_bytes": 104245,
+      "nbt_sha256": "bed471cf2843a9f9a75bce6c2889f0fbec8161d7984c3134de7ad1f470cbe2a7"
+    },
+    "library/astral_observatory/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 38864,
+      "nbt_sha256": "75d9d4cfc400c40542b79b7d0bdc7a5b42cc6e83b5b163232022a248e9cddd89"
+    },
+    "library/cheese_festival_square/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 54595,
+      "nbt_sha256": "3afcfb6660bf2cbfa0c4271e271afae668b115071990d88549b289a8f0df6aa8"
+    },
+    "library/cheese_row/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 22855,
+      "nbt_sha256": "921811e7c12c885a8ef3cc51740a705c3fee6995b8bdfd5fda7f30f4164298a6"
+    },
+    "library/cheese_wheel/v1": {
+      "meta": {
+        "ground_level": 0,
+        "y_offset": 0
+      },
+      "nbt_bytes": 11235,
+      "nbt_sha256": "f498f135c3c6816a9d30d0559757f8ff91a6dc2bbf097b0d2f3c3e1cca1517e8"
+    },
+    "library/cheese_wheel/v2": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 11328,
+      "nbt_sha256": "c8697d4d0879e0f42863b2b479d071cc34c92d9f0357417eb546ad337ae465e5"
+    },
+    "library/cheese_wheel_bakery/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 49343,
+      "nbt_sha256": "86f97e15abca9429e635373b6aca4d4c347374262c57afb3bc95167446bfd010"
+    },
+    "library/cheesedanish_garden_retreat/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 32533,
+      "nbt_sha256": "ac96c8f922bf7a043f62e1aba991cb39fbcd140ad22b71da903c9801b38d59d5"
+    },
+    "library/copper_kettle_inn/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 82953,
+      "nbt_sha256": "2bff0ef4e28fd96d1c835fc6aec37cc74569f472d97a67c9da99abc8de1215f7"
+    },
+    "library/crystal_island/v1": {
+      "meta": {
+        "ground_level": 0,
+        "y_offset": 0
+      },
+      "nbt_bytes": 27680,
+      "nbt_sha256": "99441f3fbc2b50cd311b4c9814aca7e79f402b503162d79fe572f58f43edf305"
+    },
+    "library/danish_windmill/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 37569,
+      "nbt_sha256": "79a64906b52881978c73c396cd06ddecaf9542573b32e895b73a61e66e0642d9"
+    },
+    "library/guild_island/v1": {
+      "meta": {
+        "ground_level": 10,
+        "y_offset": -10
+      },
+      "nbt_bytes": 2052131,
+      "nbt_sha256": "562b5fd162d3347f9240bf7734374c80b2be9061b34f1ea6fad3faaf4749cfae"
+    },
+    "library/harbour_pier/v1": {
+      "meta": {
+        "ground_level": 7,
+        "y_offset": -7
+      },
+      "nbt_bytes": 30221,
+      "nbt_sha256": "20b21482543b4817ce441cfaaaa059e0590a81dc9d6c57cafd2ce08e2a61bbb1"
+    },
+    "library/hedge_maze/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 131358,
+      "nbt_sha256": "9513c11025c84a00cbdd581551908777ed9e178d0f2fefb4bc2fa65cd1b04c9c"
+    },
+    "library/high_elf_spire_court/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 66670,
+      "nbt_sha256": "90e79b0cbc4ece2d6785b68e8f68114b062fb7cbe3f002474cd4161b317ae3ea"
+    },
+    "library/hillside_terrace/v1": {
+      "meta": {
+        "ground_level": 14,
+        "y_offset": -14
+      },
+      "nbt_bytes": 693529,
+      "nbt_sha256": "95bd063d90facb2c589f476bc2a52928fca5ff01b00af6837dd273907c557665"
+    },
+    "library/hot_air_balloon/v1": {
+      "meta": {
+        "ground_level": 0,
+        "y_offset": 0
+      },
+      "nbt_bytes": 41629,
+      "nbt_sha256": "8a75fe759f9c6eec2ffa5d0890d112e30d87a0204fcc6ab154faa3e47f381291"
+    },
+    "library/lunar_orrery/v1": {
+      "meta": {
+        "ground_level": 0,
+        "y_offset": 0
+      },
+      "nbt_bytes": 6848,
+      "nbt_sha256": "d35faaa57e8d1d8e74ff3b740fc68a3cae287082cc830012498a819228b59471"
+    },
+    "library/mage_cottage/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 9205,
+      "nbt_sha256": "8c7c600f778f8126d85c3f7761e7e439fffa78323d2b3787d36adb7670fa7bb3"
+    },
+    "library/moonwell_garden/v1": {
+      "meta": {
+        "ground_level": 5,
+        "y_offset": -5
+      },
+      "nbt_bytes": 92657,
+      "nbt_sha256": "a2554705bd6f1d2f41c476dae86e675e300765625bd9178ae3c0a8e77312ac28"
+    },
+    "library/moonwell_garden/v2": {
+      "meta": {
+        "ground_level": 5,
+        "y_offset": -5
+      },
+      "nbt_bytes": 92657,
+      "nbt_sha256": "a2554705bd6f1d2f41c476dae86e675e300765625bd9178ae3c0a8e77312ac28"
+    },
+    "library/nyhavn_townhouses/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 95400,
+      "nbt_sha256": "5ff2b62dd4431af40d1d49e8d747809adcd0c813d874fe929eb4110689980cbe"
+    },
+    "library/round_tower_and_hut/v1": {
+      "meta": {
+        "ground_level": 0,
+        "y_offset": 0
+      },
+      "nbt_bytes": 23662,
+      "nbt_sha256": "98f5e146be4a100ed4120536261db602883df81c99e129ab35c1523ae41ff1a0"
+    },
+    "library/southwatch_market_green/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 22149,
+      "nbt_sha256": "e0467b18190321c6b6b2e73f1554de31f5005bb4fc8dbc0722911e9c17c22576"
+    },
+    "library/starbloom_arcade/v1": {
+      "meta": {
+        "ground_level": 7,
+        "y_offset": -7
+      },
+      "nbt_bytes": 538018,
+      "nbt_sha256": "3262996111deff54482df798c400940c4256d4762ddecd06004177694f2326c7"
+    },
+    "library/striped_lighthouse/v1": {
+      "meta": {
+        "ground_level": 5,
+        "y_offset": -5
+      },
+      "nbt_bytes": 64770,
+      "nbt_sha256": "7a953ead643ba809ca81ed980b926bb3ff57cc5f9459145be86319dfbb7a9e7b"
+    },
+    "library/viking_longhouse/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 30418,
+      "nbt_sha256": "ee86fac9024c62a5bb3d37785c45d378d67cfb99b373b7d7e0ea8717978ec561"
+    },
+    "library/wayfarer_stable/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 53698,
+      "nbt_sha256": "407e78a70560575b86b42275b48fb11d6f7663c71e450dc46b08807f3469c379"
+    },
+    "library/wayfarer_stable/v2": {
+      "meta": {
+        "ground_level": 2,
+        "y_offset": -2
+      },
+      "nbt_bytes": 62408,
+      "nbt_sha256": "e610dcece787201c4ebfeaeaf8600d632eb796fd95a57f74ecdc0f58b410c100"
+    },
+    "library/wizard_harbor_island/v1": {
+      "meta": {
+        "ground_level": 1,
+        "y_offset": -1
+      },
+      "nbt_bytes": 501785,
+      "nbt_sha256": "5418ef7bf371ef464f5d6688557dd00b29b00884dec26a1ce356564e8258e8b2"
+    },
+    "library/ziggy_hill/v1": {
+      "meta": {
+        "ground_level": 0,
+        "y_offset": 0
+      },
+      "nbt_bytes": 2065824,
+      "nbt_sha256": "33c8eea570e0908114b9ef60e50fdf7e82abdfee9b9e58a69c722f216376fd13"
+    },
+    "library/ziggy_poodle/v1": {
+      "meta": {
+        "ground_level": 0,
+        "y_offset": 0
+      },
+      "nbt_bytes": 944035,
+      "nbt_sha256": "565f1907d1bbcae280df50250d6934146bc81ad4ce6ec57a70624189f0c28db8"
+    },
     "showcase/AndGate": {
       "meta": {
         "ground_level": 0,
