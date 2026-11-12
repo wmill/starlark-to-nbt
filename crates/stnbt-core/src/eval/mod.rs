@@ -3,9 +3,9 @@
 //! It uses the same engine as starlark-pyo3 (facebook/starlark-rust), with
 //! the Standard dialect and Standard globals that starlark-pyo3 uses by
 //! default, plus:
-//! - the tree constructors (`src/starlark_to_nbt/prelude.star`, shared with
-//!   the Python runtime) and the nbt helpers (`helpers.star`), evaluated
-//!   once into a frozen module that every module imports;
+//! - the tree constructors (`prelude.star`) and the nbt helpers
+//!   (`helpers.star`), evaluated once into a frozen module that every
+//!   module imports;
 //! - the math builtins (`natives.rs`), as globals.
 //!
 //! `load()` resolves relative to the loading file. With a `loader_root`,
@@ -37,7 +37,7 @@ use starlark::values::{Heap, UnpackValue, Value};
 use crate::model::{BuildError, Diagnostic, SourceRef};
 use crate::val::{py_str_repr, Dict, Val};
 
-const PRELUDE: &str = include_str!("../../../../src/starlark_to_nbt/prelude.star");
+const PRELUDE: &str = include_str!("prelude.star");
 const HELPERS: &str = include_str!("helpers.star");
 
 fn globals() -> &'static Globals {

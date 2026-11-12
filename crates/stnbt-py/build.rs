@@ -1,8 +1,8 @@
 //! Bakes a fingerprint of everything that determines build output into the
 //! extension, as `STNBT_BUILD_FINGERPRINT`.
 //!
-//! It covers every file under `crates/`, the workspace `Cargo.toml` and
-//! `Cargo.lock`, and `src/starlark_to_nbt/prelude.star`. Output caches (the
+//! It covers every file under `crates/` (the Starlark prelude included) and
+//! the workspace `Cargo.toml` and `Cargo.lock`. Output caches (the
 //! minecraft-mcp-api starlark-service) combine it with their own hash of
 //! `lib/` and the Python sources. FNV-1a keeps it stable across toolchains.
 
@@ -28,7 +28,7 @@ fn main() {
     let root = manifest.join("../..").canonicalize().expect("workspace root exists");
     let mut files = Vec::new();
     collect(&root.join("crates"), &mut files);
-    for extra in ["Cargo.toml", "Cargo.lock", "src/starlark_to_nbt/prelude.star"] {
+    for extra in ["Cargo.toml", "Cargo.lock"] {
         let path = root.join(extra);
         println!("cargo:rerun-if-changed={}", path.display());
         if path.is_file() {

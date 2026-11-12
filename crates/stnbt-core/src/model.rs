@@ -526,6 +526,20 @@ mod tests {
         assert_eq!(r.block_nbt, Some(nbt));
     }
 
+    // Ported from tests/test_transform_execution.py.
+    #[test]
+    fn four_quarter_turns_return_points_and_facing_to_start() {
+        let t = Transform { translation: Point::ZERO, rotation: Rotation::R90, source_size: Point::new(2, 1, 2) };
+        let mut p = Point::ZERO;
+        let mut b = block("minecraft:oak_stairs", &[("facing", "south")]);
+        for _ in 0..4 {
+            p = t.apply_point(p);
+            b = b.transformed(&t);
+        }
+        assert_eq!(p, Point::ZERO);
+        assert_eq!(b.block_state["facing"], "south");
+    }
+
     #[test]
     fn apply_point_matches_python_formulas() {
         let size = Point::new(4, 2, 3);

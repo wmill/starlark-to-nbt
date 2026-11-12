@@ -1,19 +1,18 @@
 [project]
 name = "starlark-to-nbt"
 version = "0.1.0"
-description = "Add your description here"
+description = "Declarative Minecraft structure NBT from Starlark, built by a Rust core"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = [
-    "nbtlib>=2.0.4",
-    "starlark-pyo3>=2026.1",
-]
+dependencies = []
 
 [project.scripts]
 starlark-to-nbt = "starlark_to_nbt.cli:main"
 
 [dependency-groups]
 dev = [
+    # Tests decode the structure NBT the Rust core writes.
+    "nbtlib>=2.0.4",
     "pytest>=8.4",
 ]
 
@@ -43,5 +42,5 @@ cache-keys = [
 pythonpath = ["src"]
 testpaths = ["tests"]
 markers = [
-    "parity: Rust-vs-Python corpus parity checks (slow; skip with -m 'not parity')",
+    "parity: slow corpus gates (the native binary against the golden manifest; skip with -m 'not parity')",
 ]

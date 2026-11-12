@@ -5,7 +5,6 @@ from pathlib import Path
 import nbtlib
 import pytest
 
-from starlark_to_nbt.execute import dense_to_dict
 from starlark_to_nbt.model import BuildError, Point
 from starlark_to_nbt.pipeline import build_file, write_build_outputs
 from starlark_to_nbt.serialize import DATA_VERSION_1_21_7, write_structure_nbt
@@ -46,9 +45,7 @@ def test_church_vertical_slice_and_deterministic_nbt(tmp_path):
     assert result.volume.block_at(Point(5, 9, 9)).block_type == "minecraft:oak_planks"
     assert all(result.volume.bounds.contains_point(write.pos) for op in result.operations for write in op.writes)
 
-    dense = dense_to_dict(result.volume)
-    assert dense["order"] == "y,z,x"
-    assert dense["size"] == [11, 10, 19]
+    assert result.volume.bounds.size.to_list() == [11, 10, 19]
 
     first = tmp_path / "first.nbt"
     second = tmp_path / "second.nbt"
@@ -646,20 +643,22 @@ def test_redstone_showcase_is_labeled_interactive_and_deterministic(tmp_path):
 
 
 def test_container_helpers_pack_items_and_loot():
-    from starlark_to_nbt.starlark_runtime import container_nbt, loot_nbt
+    from starlark_to_nbt.pipeline import evaluate_source
 
-    value = container_nbt(["minecraft:apple", {"id": "minecraft:bread", "count": 3},
-                           {"slot": 8, "id": "minecraft:coal"}, "minecraft:stick"],
-                          id="minecraft:barrel")
+    def helper(expr):
+        return evaluate_source(f"def build():\n    return {expr}\n")
+
+    value = helper('container_nbt(["minecraft:apple", {"id": "minecraft:bread", "count": 3}, '
+                   '{"slot": 8, "id": "minecraft:coal"}, "minecraft:stick"], id="minecraft:barrel")')
     assert value == {"id": "minecraft:barrel", "Items": [
         {"Slot": 0, "id": "minecraft:apple", "count": 1},
         {"Slot": 1, "id": "minecraft:bread", "count": 3},
         {"Slot": 8, "id": "minecraft:coal", "count": 1},
         {"Slot": 9, "id": "minecraft:stick", "count": 1},
     ]}
-    with pytest.raises(ValueError, match="container item"):
-        container_nbt([{"id": "minecraft:coal", "Count": 4}])
-    assert loot_nbt("minecraft:chests/simple_dungeon", seed=7) == {
+    with pytest.raises(BuildError, match="container item"):
+        helper('container_nbt([{"id": "minecraft:coal", "Count": 4}])')
+    assert helper('loot_nbt("minecraft:chests/simple_dungeon", seed=7)') == {
         "id": "minecraft:chest", "LootTable": "minecraft:chests/simple_dungeon", "LootTableSeed": 7,
     }
 

@@ -1,5 +1,10 @@
 # Rust core rewrite — starlark-to-nbt
 
+> **Status: complete (2026-11-12).** The pipeline is Rust; this document is
+> now the record of how it was ported and why it behaves as it does. See the
+> Notes / deviations log for every intentional difference from the old Python
+> implementation.
+>
 > **Resuming this work?** Read "Status" first, then the current phase. Each phase
 > ends green (all tests pass, parity holds) and is committed, so the last
 > committed phase is the restart point. Branch: `feature/rust-core`.
@@ -17,7 +22,7 @@
 - [x] Phase 4 — serialization (NBT, gzip, meta/debug JSON)
 - [x] Phase 5 — Python integration behind an engine switch, then flip the default
 - [x] Phase 6 — Starlark eval in Rust (starlark-rust) + native CLI
-- [ ] Phase 7 — retire the Python internals, port unit tests, update docs
+- [x] Phase 7 — retire the Python internals, port unit tests, update docs
 
 Update this checklist and the "Notes / deviations" log at the end of each phase.
 
@@ -649,4 +654,50 @@ Coordinates are +X east, +Y up, +Z south. Boxes are half-open.
   `scripts/rebuild_examples_native.sh` rebuilds all 23 examples in 1.25s.
   Gate: 3657 passed / 8 skipped (default), 984 (python engine, non-parity),
   58 Rust tests, clippy clean, and the service suite (51) against this branch.
-- (record further deviations, benchmark numbers, and gzip-parity outcome here)
+- (Phase 7) **Python internals retired.** Deleted `schema`, `layout`,
+  `lowering`, `execute`, `support`, `validators`, `starlark_runtime`, and
+  `_rust.py`, plus the engine switch (`STARLARK_TO_NBT_ENGINE`). The
+  package's runtime dependencies (starlark-pyo3, nbtlib) are gone too;
+  nbtlib is now dev-only, for decoding NBT in tests. The wheel is
+  `starlark_to_nbt/{__init__,cli,ir,model,pipeline,serialize}.py` +
+  `_core.abi3.so`, with no `Requires-Dist`.
+  - `pipeline.py` is the public API: `build_file`, `build_source`,
+    `evaluate_source` (raw tree), `write_build_outputs`, and `BuildResult`
+    (lazy `volume`/`entities`/`operations`, plus `root_props`, which replaces
+    the test-only `component_ir.props`).
+  - `model.py`/`ir.py` keep only result and diagnostic types.
+  - `serialize.py` is `DATA_VERSION_1_21_7` + `write_structure_nbt`.
+  - `build_fingerprint()` is now `rust-<version>-<hash>`, with no engine
+    choice; the string format is unchanged.
+- (Phase 7) `prelude.star` moved to `crates/stnbt-core/src/eval/` (`build.rs`
+  covers it via `crates/`). The shim was pruned to `version`,
+  `build_fingerprint`, `evaluate_source`, `build_source`, `Build`, and
+  `CoreBuildError`; the parity-only entry points are gone.
+- (Phase 7) Tests:
+  - Deleted the Python-stage unit tests (`test_schema_layout`,
+    `test_rotation_states`, `test_transform_execution`, `test_support`, and
+    the unit half of `test_validators`). Their cases were ported to Rust in
+    Phases 1–3; the last one (four quarter-turns return a point to itself)
+    was added to `model.rs` now.
+  - Deleted the five `test_rust_*_parity.py` files, which compared against
+    the Python stages.
+  - `test_engine.py` became `test_api.py` (the runner.py contract,
+    determinism, fingerprint, and diagnostics).
+  - `test_entities`, `test_end_to_end`, `test_build_source`, and
+    `test_shapes` now go through builds or `evaluate_source` instead of
+    internals.
+  - The golden manifest and the native-CLI golden test remain the output gate.
+- (Phase 7) Gate:
+  - Python: 1370 passed in 36s (it was 156s with the parity suites).
+  - Rust: 59 tests; clippy clean.
+  - Golden: 0 drift across 482 cases.
+  - minecraft-mcp-api service suite: 51 passed against this tree.
+  - Docs: CLAUDE.md, AGENTS.md, and README describe the Rust layout.
+- Follow-ups, not done:
+  - Strings are written as standard UTF-8, not Java's modified UTF-8. This
+    only matters for NUL and non-BMP characters.
+  - Diagnostics still lack Starlark line numbers for build-rule errors. Now
+    that eval is in Rust, the call stack is reachable, so this could be
+    added.
+  - The `Val` → schema conversion is now the largest Rust stage (~14ms on
+    moonspire).

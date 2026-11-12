@@ -1,91 +1,11 @@
+"""Declared validators end to end. The door validator's unit cases live in
+crates/stnbt-core/src/validators.rs."""
 from __future__ import annotations
 
 import pytest
 
-from starlark_to_nbt.execute import execute
-from starlark_to_nbt.ir import (
-    BlockOperation, BlockWrite, BuildMetadata, DoorSupportedOnBothSides, Phase,
-    ValidatorPlacement,
-)
-from starlark_to_nbt.model import BlockSpec, Box, BuildError, Point, Provenance
+from starlark_to_nbt.model import BuildError
 from starlark_to_nbt.pipeline import build_file
-from starlark_to_nbt.validators import validator_diagnostics
-
-BOUNDS = Box.from_size(Point(7, 4, 7))
-ROOT = Provenance("Root", BOUNDS)
-DOOR_OWNER = Provenance("Root/body/Door", BOUNDS)
-STONE = BlockSpec("minecraft:stone")
-
-
-def door_operation(facing: str = "south", name: str = "door") -> BlockOperation:
-    states = {"facing": facing, "hinge": "left", "open": "false", "powered": "false"}
-    return BlockOperation(Phase.FIXTURE, "place_assembly", (
-        BlockWrite(Point(3, 1, 3), BlockSpec("minecraft:oak_door", {**states, "half": "lower"})),
-        BlockWrite(Point(3, 2, 3), BlockSpec("minecraft:oak_door", {**states, "half": "upper"})),
-    ), DOOR_OWNER, name, 1)
-
-
-def structure_operation(points: list[Point], block: BlockSpec = STONE) -> BlockOperation:
-    return BlockOperation(
-        Phase.STRUCTURE, "test", tuple(BlockWrite(point, block) for point in points),
-        DOOR_OWNER, sequence=0,
-    )
-
-
-def diagnostics(operations: list[BlockOperation], ground_level: int = 0):
-    volume = execute(operations, BOUNDS)
-    placement = ValidatorPlacement(DoorSupportedOnBothSides("door"), ROOT)
-    return validator_diagnostics(
-        [placement], operations, volume, BOUNDS, BuildMetadata(ground_level),
-    )
-
-
-def test_door_with_full_height_jambs_and_clear_passage_passes():
-    jambs = [Point(x, y, 3) for x in (2, 4) for y in (1, 2)]
-    assert diagnostics([structure_operation(jambs), door_operation()]) == []
-
-
-def test_door_reports_missing_jamb_and_blocked_passage_cells():
-    jambs = [Point(2, 1, 3), Point(2, 2, 3), Point(4, 1, 3)]
-    obstruction = BlockOperation(
-        Phase.STRUCTURE, "test", (BlockWrite(Point(3, 2, 4), STONE),),
-        DOOR_OWNER, sequence=0,
-    )
-    errors = diagnostics([structure_operation(jambs), obstruction, door_operation()])
-    assert [error.code for error in errors] == ["door_not_supported", "doorway_obstructed"]
-    assert errors[0].details["side"] == "left"
-    assert errors[0].details["half"] == "upper"
-    assert errors[1].details["direction"] == "front"
-
-
-def test_door_validator_uses_rotated_facing_for_jambs():
-    jambs = [Point(3, y, z) for z in (2, 4) for y in (1, 2)]
-    assert diagnostics([structure_operation(jambs), door_operation("east")]) == []
-
-
-def test_unwritten_buried_jambs_are_terrain_when_passage_is_explicit_air():
-    air = BlockSpec("minecraft:air")
-    passage = [Point(3, y, z) for y in (1, 2) for z in (2, 4)]
-    assert diagnostics(
-        [structure_operation(passage, air), door_operation()], ground_level=4,
-    ) == []
-
-
-def test_validator_rejects_malformed_target_and_ignores_out_of_scope_assembly():
-    malformed = BlockOperation(
-        Phase.FIXTURE, "place_assembly", (BlockWrite(Point(1, 1, 1), STONE),),
-        DOOR_OWNER, "door", 0,
-    )
-    outside = BlockOperation(
-        Phase.FIXTURE, "place_assembly", (BlockWrite(Point(5, 1, 5), STONE),),
-        Provenance("Other", BOUNDS), "door", 2,
-    )
-    errors = diagnostics([malformed, outside])
-    assert [error.code for error in errors] == ["invalid_validator_target"]
-
-
-def test_validator_reports_selector_with_no_targets():
-    assert [error.code for error in diagnostics([])] == ["validator_no_targets"]
 
 
 def test_declared_validator_fails_the_build_pipeline(tmp_path):
@@ -114,43 +34,3 @@ def test_declared_validator_fails_the_build_pipeline(tmp_path):
     assert {diagnostic.code for diagnostic in error.value.diagnostics} == {
         "door_not_supported",
     }
-
-
-def double_door_operation(facing="south", defect=None):
-    front = {"north": Point(0, 0, -1), "south": Point(0, 0, 1),
-             "east": Point(1, 0, 0), "west": Point(-1, 0, 0)}[facing]
-    side = Point(front.z, 0, -front.x)
-    writes = []
-    for column in range(2):
-        pos = Point(3, 1, 3) + (side if column else Point(0, 0, 0))
-        if column and defect == "separated":
-            pos += side
-        for height, half in [(0, "lower"), (1, "upper")]:
-            states = {"facing": facing, "half": half,
-                      "hinge": "left" if column == 0 or defect == "hinges" else "right",
-                      "open": "false", "powered": "false"}
-            if column and height and defect == "mismatched_half":
-                states["facing"] = "up"
-            writes.append(BlockWrite(pos + Point(0, height, 0), BlockSpec("minecraft:oak_door", states)))
-    return BlockOperation(Phase.FIXTURE, "place_assembly", tuple(writes), DOOR_OWNER, "door", 1), front, side
-
-
-@pytest.mark.parametrize("facing", ["north", "east", "south", "west"])
-def test_double_doors_check_outer_jambs_and_each_approach_lane(facing):
-    door, front, side = double_door_operation(facing)
-    origin = Point(3, 1, 3)
-    jambs = [origin + offset + Point(0, height, 0)
-             for offset in (Point(-side.x, 0, -side.z), side + side) for height in (0, 1)]
-    assert diagnostics([structure_operation(jambs), door]) == []
-    assert {d.code for d in diagnostics([structure_operation(jambs[:-1]), door])} == {"door_not_supported"}
-    for column in (Point(0, 0, 0), side):
-        for direction in (front, Point(-front.x, 0, -front.z)):
-            obstruction = origin + column + direction
-            errors = diagnostics([structure_operation(jambs + [obstruction]), door])
-            assert [d.code for d in errors] == ["doorway_obstructed"]
-
-
-@pytest.mark.parametrize("defect", ["separated", "hinges", "mismatched_half"])
-def test_double_door_validator_rejects_malformed_pairs(defect):
-    door, _, _ = double_door_operation(defect=defect)
-    assert [d.code for d in diagnostics([door])] == ["invalid_validator_target"]

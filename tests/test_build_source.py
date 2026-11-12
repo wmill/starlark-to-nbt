@@ -4,9 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from starlark_to_nbt.execute import SparseVolume, Voxel
-from starlark_to_nbt.ir import Phase
-from starlark_to_nbt.model import BlockSpec, Box, BuildError, Point, Provenance
+from starlark_to_nbt.model import BuildError, Point
 from starlark_to_nbt.pipeline import build_source
 from starlark_to_nbt.serialize import write_structure_nbt
 
@@ -60,7 +58,7 @@ def test_confined_loader_works_against_repo_lib():
     )
     result = build_source(source, root_size=Point(1, 1, 1),
                           base_dir=REPO_ROOT / "scripts", loader_root=REPO_ROOT)
-    assert result.component_ir.props["count"] == 1024
+    assert result.root_props["count"] == 1024
 
 
 def _diagnostic(source: str, **kwargs):
@@ -132,13 +130,14 @@ def test_non_positive_root_size_is_a_diagnostic():
 
 
 def test_unserializable_block_nbt_is_a_diagnostic(tmp_path):
-    bounds = Box.from_size(Point(1, 1, 1))
-    provenance = Provenance("<root>", bounds)
-    spec = BlockSpec("minecraft:chest", {}, {"bad": object()})
-    volume = SparseVolume(bounds, {Point(0, 0, 0): Voxel(spec, provenance, Phase.STRUCTURE)})
+    # NBT Int tags are 32-bit, so this validates but cannot be written.
+    source = ('def build():\n    return component("C", {}, place_block([0, 0, 0], block("minecraft:chest", '
+              'nbt={"bad": 2147483648})), min_size=[1, 1, 1])\n')
+    result = build_source(source)
     with pytest.raises(BuildError) as info:
-        write_structure_nbt(volume, tmp_path / "out.nbt")
+        write_structure_nbt(result.volume, tmp_path / "out.nbt")
     assert info.value.diagnostics[0].code == "serialize_error"
+    assert info.value.diagnostics[0].message == "Int(2147483648) is out of range"
 
 
 def _library(tmp_path):

@@ -1,23 +1,11 @@
+"""Result types: what a finished build exposes to Python (see pipeline.BuildResult)."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any, TypeAlias
+from typing import Any
 
-from .model import Axis, BlockSpec, Box, Point, Provenance, SourceRef, Transform
-
-
-@dataclass(frozen=True, slots=True)
-class Fixed:
-    value: int
-
-
-@dataclass(frozen=True, slots=True)
-class Fill:
-    pass
-
-
-SizeExpr: TypeAlias = Fixed | Fill
+from .model import BlockSpec, Point, Provenance
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,119 +18,6 @@ class BuildMetadata:
 
     def to_dict(self) -> dict[str, int]:
         return {"ground_level": self.ground_level, "y_offset": self.y_offset}
-
-
-@dataclass(frozen=True, slots=True)
-class DoorSupportedOnBothSides:
-    assembly: str
-
-
-ValidatorSpec: TypeAlias = DoorSupportedOnBothSides
-
-
-@dataclass(frozen=True, slots=True)
-class Component:
-    name: str
-    props: dict[str, Any]
-    body: Node
-    min_size: Point | None = None
-    source: SourceRef | None = None
-    metadata: BuildMetadata | None = None
-    validators: tuple[ValidatorSpec, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
-class Group:
-    children: tuple[Node, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class Split:
-    axis: Axis
-    sizes: tuple[SizeExpr, ...]
-    children: tuple[Node, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class Inset:
-    amounts: dict[Axis, tuple[int, int]]
-    child: Node
-
-
-@dataclass(frozen=True, slots=True)
-class Repeat:
-    axis: Axis
-    count: int
-    child_extent: int
-    gap: int
-    child: Node
-
-
-@dataclass(frozen=True, slots=True)
-class TransformNode:
-    translation: Point
-    rotation_y: int
-    child_size: Point
-    child: Node
-
-
-@dataclass(frozen=True, slots=True)
-class PlaceBlock:
-    pos: Point
-    block: BlockSpec
-    phase: str
-
-
-@dataclass(frozen=True, slots=True)
-class EntitySpec:
-    entity_type: str
-    nbt: dict[str, Any] | None = None
-    yaw: float = 0.0
-    pitch: float = 0.0
-
-
-@dataclass(frozen=True, slots=True)
-class PlaceEntity:
-    pos: Point
-    entity: EntitySpec
-
-
-@dataclass(frozen=True, slots=True)
-class FillRegion:
-    box: Box
-    block: BlockSpec
-    phase: str = "structure"
-
-
-@dataclass(frozen=True, slots=True)
-class CarveRegion:
-    box: Box
-
-
-@dataclass(frozen=True, slots=True)
-class AssemblyBlock:
-    pos: Point
-    block: BlockSpec
-
-
-@dataclass(frozen=True, slots=True)
-class PlaceAssembly:
-    pos: Point
-    name: str
-    size: Point
-    blocks: tuple[AssemblyBlock, ...]
-
-
-Node: TypeAlias = Component | Group | Split | Inset | Repeat | TransformNode | PlaceBlock | PlaceEntity | FillRegion | CarveRegion | PlaceAssembly
-
-
-@dataclass(frozen=True, slots=True)
-class ResolvedNode:
-    node: Node
-    region: Box
-    path: str
-    world_transforms: tuple[Transform, ...] = ()
-    children: tuple[ResolvedNode, ...] = ()
 
 
 class Phase(IntEnum):
@@ -168,6 +43,14 @@ class BlockOperation:
 
 
 @dataclass(frozen=True, slots=True)
+class EntitySpec:
+    entity_type: str
+    nbt: dict[str, Any] | None = None
+    yaw: float = 0.0
+    pitch: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
 class EntityPlacement:
     pos: Point
     entity: EntitySpec
@@ -176,14 +59,7 @@ class EntityPlacement:
 
 
 @dataclass(frozen=True, slots=True)
-class ValidatorPlacement:
-    validator: ValidatorSpec
+class Voxel:
+    block: BlockSpec
     provenance: Provenance
-    sequence: int = 0
-
-
-@dataclass(frozen=True, slots=True)
-class LoweringResult:
-    operations: list[BlockOperation]
-    entities: list[EntityPlacement]
-    validators: list[ValidatorPlacement]
+    phase: Phase

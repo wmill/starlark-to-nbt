@@ -9,20 +9,13 @@ import json
 import sys
 from pathlib import Path
 
-from starlark_to_nbt import starlark_runtime
-from starlark_to_nbt.pipeline import _root_size
-from starlark_to_nbt.schema import parse_node
+from starlark_to_nbt.pipeline import build_file, evaluate_source
 
 
 def main() -> None:
     source, out = Path(sys.argv[1]), Path(sys.argv[2])
-    original = starlark_runtime.parse_node
-    starlark_runtime.parse_node = lambda value, source_file=None: value
-    try:
-        tree = starlark_runtime.evaluate_file(source)
-    finally:
-        starlark_runtime.parse_node = original
-    root = _root_size(parse_node(tree), {})
+    tree = evaluate_source(source.read_text(encoding="utf-8"), str(source), base_dir=source.resolve().parent)
+    root = build_file(source).volume.bounds.size
     out.write_text(json.dumps({"tree": tree, "root_size": root.to_list()}), encoding="utf-8")
 
 

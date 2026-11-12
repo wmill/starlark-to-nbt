@@ -1,9 +1,8 @@
 //! Python <-> `Val` conversion, in one recursive pass each way.
 //!
-//! Python input comes from starlark-pyo3, which marshals through JSON, so it
-//! is already JSON-shaped: str keys, no tuples, ints that fit in i64.
-//! Anything else is rejected with a TypeError/OverflowError rather than
-//! guessed at.
+//! Python input is build props (CLI-coerced or JSON from the service): str
+//! keys, ints that fit in i64. Anything else is rejected with a
+//! TypeError/OverflowError rather than guessed at.
 
 use pyo3::exceptions::{PyOverflowError, PyTypeError};
 use pyo3::prelude::*;

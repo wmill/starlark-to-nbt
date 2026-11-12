@@ -11,7 +11,6 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -61,9 +60,8 @@ def test_native_cli_matches_golden(name, binary, tmp_path):
 
 
 def _python_cli(*args: str) -> subprocess.CompletedProcess:
-    env = {**os.environ, "STARLARK_TO_NBT_ENGINE": "python"}
     console_script = Path(sys.executable).parent / "starlark-to-nbt"
-    return subprocess.run([console_script, *args], capture_output=True, text=True, env=env)
+    return subprocess.run([console_script, *args], capture_output=True, text=True)
 
 
 @pytest.mark.parametrize("source", [

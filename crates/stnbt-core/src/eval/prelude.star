@@ -1,11 +1,7 @@
-# Tree constructors, evaluated into every module before user code.
-#
-# They are defined in Starlark rather than bound as Python callables because
-# starlark-pyo3 JSON-encodes the arguments and result of every host call, and
-# nested trees get re-encoded at each level. Keeping construction inside
-# Starlark means the tree crosses into Python once, as the entry result.
-#
-# Each returns a JSON-compatible tagged dict; schema.parse_node validates.
+# Tree constructors, imported into every module before user code (see
+# eval/mod.rs). Each returns a JSON-compatible tagged dict that
+# schema::parse_node validates; the tree crosses into Rust once, as the
+# entry function's result.
 
 def _tag(kind, **values):
     out = {"kind": kind}

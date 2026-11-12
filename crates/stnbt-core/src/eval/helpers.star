@@ -1,6 +1,5 @@
-# Block- and entity-data helpers for the Rust runtime. The Python runtime
-# defines these as Python callables in starlark_runtime.py; keep the two in
-# step until Phase 7 of docs/rust-core-plan.md removes the Python one.
+# Block- and entity-data helpers, imported into every module alongside the
+# tree constructors in prelude.star.
 
 def sign_nbt(lines = None, color = "black", glowing = False, back_lines = None, back_color = "black", back_glowing = False, waxed = True):
     """Sign block-entity data for block(..., nbt=...). Messages are plain
