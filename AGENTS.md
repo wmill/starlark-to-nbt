@@ -3,30 +3,38 @@
 ## Purpose and Project Layout
 
 This project turns declarative Starlark components into deterministic, sparse
-Minecraft Java 1.21.7 structure NBT files. Python source lives in
-`src/starlark_to_nbt/`; Starlark code lives in `examples/` and `lib/`.
+Minecraft Java 1.21.7 structure NBT files. The pipeline is Rust in `crates/`;
+`src/starlark_to_nbt/` is the Python API over it (built with maturin as one
+package); Starlark code lives in `examples/` and `lib/`.
 
-The pipeline is deliberately staged, with `pipeline.py` orchestrating:
+The pipeline is deliberately staged in `crates/stnbt-core/src/`, with
+`pipeline.rs` orchestrating:
 
-1. `starlark_runtime.py` evaluates `.star` files, resolves `load()` calls, and
-   exposes host constructors that return JSON-compatible tagged dictionaries.
-2. `schema.py` validates those dictionaries and creates the immutable IR types
-   in `ir.py`. Validation must finish before spatial layout begins.
-3. `layout.py` assigns half-open `model.Box` regions to components.
-4. `lowering.py` produces phased block operations and applies transforms,
+1. `eval/` evaluates `.star` files on starlark-rust, resolves `load()` calls,
+   and provides the tree constructors (`eval/prelude.star`), block-entity
+   helpers (`eval/helpers.star`), and math builtins (`eval/natives.rs`), all
+   of which return JSON-compatible tagged data.
+2. `schema.rs` validates that data into the IR in `ir.rs`. Validation must
+   finish before spatial layout begins.
+3. `layout.rs` assigns half-open `model::Region` boxes to components.
+4. `lowering.rs` produces phased block operations and applies transforms,
    including rotation of directional block states.
-5. `execute.py` applies `STRUCTURE`, `CARVE`, then `FIXTURE` operations to a
+5. `execute.rs` applies `STRUCTURE`, `CARVE`, then `FIXTURE` operations to a
    sparse volume and enforces overlap rules and assembly atomicity.
-   `support.py` then validates the finished volume: redstone attachables
+   `support.rs` then validates the finished volume: redstone attachables
    (dust, repeaters, comparators, torches, levers, buttons, pressure plates)
    must have a solid block on their attachment side or the build fails with
-   `unsupported_block`.
-6. `serialize.py` writes debug JSON and sparse structure NBT, including
-   per-block block-entity NBT. Untouched cells are omitted; deliberately carved
-   cells remain explicit air.
+   `unsupported_block`. `validators.rs` runs validators components declare.
+6. `serialize.rs` writes sparse structure NBT (`nbt.rs`), including per-block
+   block-entity NBT, plus the meta sidecar and debug JSON (`json.rs`).
+   Untouched cells are omitted; deliberately carved cells remain explicit air.
 
-Shared geometry, block, transform, and diagnostic types live in `model.py`.
-The CLI entry point is `cli.py` (`starlark-to-nbt`).
+Shared geometry, block, transform, and diagnostic types live in `model.rs`.
+`crates/stnbt-py` is the PyO3 binding (`starlark_to_nbt._core`) and
+`crates/stnbt-cli` the native binary. In Python, `pipeline.py` holds the
+public API (`build_file`, `build_source`, `evaluate_source`,
+`write_build_outputs`, `BuildResult`) and `cli.py` the `starlark-to-nbt` entry
+point.
 
 The reusable component library is grouped in `lib/*.star`; its prompt-ready DSL
 and component reference is `docs/component-catalog.md`. `lib/showcase.star`
@@ -37,15 +45,18 @@ files in `examples/` are representative composed builds and procedural cases.
 
 ## Development Commands
 
-Use `uv` for the environment and all Python commands:
+Use `uv` for the environment and Python commands (`uv sync` and `uv run`
+rebuild the Rust extension when crate sources change) and `cargo` for Rust:
 
 ```sh
 uv sync --dev
 uv run pytest
-uv run pytest -q tests/test_end_to_end.py
+uv run pytest -m "not parity"          # skip the native-binary golden gate
 uv run pytest tests/test_end_to_end.py::test_name
+cargo test --workspace
+cargo clippy --workspace --all-targets
 uv run python -m py_compile src/starlark_to_nbt/*.py
-./scripts/rebuild_examples.sh
+./scripts/rebuild_examples.sh          # or rebuild_examples_native.sh
 ```
 
 Build the reference example with inspectable intermediate output:
@@ -62,11 +73,13 @@ do not commit them unless a task explicitly calls for fixtures or examples.
 
 ## Coding Conventions and Invariants
 
-Use four-space indentation, type annotations, and Python 3.13+ syntax. Follow
-the existing PEP 8-style formatting; no formatter or linter is configured.
-Prefer frozen, slotted dataclasses for IR and geometry values. Use
-`snake_case` for modules, functions, and variables, `PascalCase` for classes and
-component types, and `UPPER_SNAKE_CASE` for constants.
+Rust follows rustfmt-style formatting and must stay clippy-clean; keep
+`stnbt-core` free of Python and put conversion in `stnbt-py`. Python uses
+four-space indentation, type annotations, and Python 3.13+ syntax, following
+the existing PEP 8-style formatting, with frozen, slotted dataclasses for
+result types. Use `snake_case` for modules, functions, and variables,
+`PascalCase` for types and component types, and `UPPER_SNAKE_CASE` for
+constants. Rust toolchain: 1.99.1 (`rust-toolchain.toml`).
 
 Preserve these boundaries and invariants:
 
@@ -96,7 +109,10 @@ Preserve these boundaries and invariants:
   deterministic `.meta.json` sidecar; do not add custom placement tags to the
   standard structure NBT.
 - Output must be deterministic. Serialization changes should preserve stable
-  palette/block ordering, metadata JSON, and reproducible gzip bytes.
+  palette/block ordering, metadata JSON, and reproducible gzip bytes. The
+  golden manifest (`tests/golden/manifest.json`, `scripts/golden.py`) pins
+  output for every example, library component, and minecraft-mcp-api
+  starlark-library script; regenerate it only for intentional changes.
 
 Starlark library components conventionally draw from `[0, 0, 0]`, face `+Z` at
 rotation zero, and declare a `min_size` matching what they actually draw.
@@ -106,20 +122,25 @@ changes.
 
 ## Testing Expectations
 
-Tests describe behavior rather than mirroring every source module:
+Rust unit tests sit beside each stage in `crates/stnbt-core/src/`
+(validation messages, layout, rotation, lowering, execution, support,
+validators, NBT/JSON formats, and the `load()` resolver). Python tests in
+`tests/` describe behavior through the public API:
 
-- `test_schema_layout.py`: validation and spatial invariants
-- `test_transform_execution.py`: transforms, phases, conflicts, and assemblies
-- `test_rotation_states.py`: directional block-state rotation
-- `test_runtime_load.py`: `load()` resolution, caching, cycles, and diagnostics
-- `test_library.py`: every library component standalone and under rotation
 - `test_end_to_end.py`: decoded NBT, block-entity data, metadata sidecars, and
   reference-build assertions
+- `test_library.py`: every library component standalone and under rotation
+- `test_runtime_load.py`, `test_build_source.py`: `load()` resolution, loader
+  roots and mounts, and diagnostics
+- `test_api.py`: the Python API contract minecraft-mcp-api relies on
+- `test_golden.py`, `test_native_cli.py`: byte-for-byte output for the whole
+  corpus, through the API and through the native binary
 
 Add the narrowest regression test that demonstrates a change. Pipeline,
 execution, or serialization changes should also include an end-to-end assertion
 against decoded NBT. Run the focused test while iterating, then the full suite
-before handing off. If imports or annotations changed, also run `py_compile`.
+before handing off, plus `cargo test --workspace` and clippy for Rust changes.
+If Python imports or annotations changed, also run `py_compile`.
 
 ## Commits and Pull Requests
 

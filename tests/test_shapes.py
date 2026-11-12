@@ -8,9 +8,8 @@ import nbtlib
 import pytest
 
 from starlark_to_nbt.model import BuildError, Point
-from starlark_to_nbt.pipeline import build_file
+from starlark_to_nbt.pipeline import build_file, evaluate_source
 from starlark_to_nbt.serialize import write_structure_nbt
-from starlark_to_nbt.starlark_runtime import evaluate_source
 
 LIB = Path(__file__).parents[1] / "lib"
 SHOWCASE = LIB / "showcase.star"
@@ -27,7 +26,7 @@ def build():
     return component(name="Probe", props={{"value": {expr}}}, min_size=[1, 1, 1],
                      body=place_block([0, 0, 0], block("minecraft:stone")))
 '''
-    return evaluate_source(source, "<probe>", "build", {}, base_dir=LIB).props["value"]
+    return evaluate_source(source, "<probe>", "build", {}, base_dir=LIB)["props"]["value"]
 
 
 def _cells(expr: str) -> set[tuple[int, int]]:

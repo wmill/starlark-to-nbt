@@ -1,8 +1,10 @@
 Declarative Minecraft Java structure generation with Starlark components.
 
-The MVP evaluates Starlark into a validated component IR, resolves spatial layout,
-lowers components into phased block operations, executes them into a sparse voxel
-map, and writes a Minecraft 1.21.7 structure NBT file.
+A Rust core evaluates Starlark into a validated component IR, resolves spatial
+layout, lowers components into phased block operations, executes them into a
+sparse voxel map, and writes a Minecraft 1.21.7 structure NBT file. It ships as
+a Python package (`starlark_to_nbt`, built with maturin) and as a native binary.
+Building needs Rust 1.99.1 (pinned in `rust-toolchain.toml`).
 
 ```sh
 uv sync --dev
@@ -25,6 +27,10 @@ uv run starlark-to-nbt build examples/moonspire_magical_city.star --output moons
 # Rebuild every example into build/<example-name>.nbt:
 ./scripts/rebuild_examples.sh
 
+# The same, with the native binary:
+cargo run --release -p stnbt-cli -- build examples/church.star --output church.nbt
+./scripts/rebuild_examples_native.sh
+
 # Build a single library component by name:
 uv run starlark-to-nbt build lib/showcase.star --arg name=GableRoof --output roof.nbt
 ```
@@ -39,4 +45,4 @@ preserves terrain.
 `docs/component-catalog.md` documents the DSL and every library component in a
 form suitable for LLM prompting.
 
-Run the test suite with `uv run pytest`.
+Run the tests with `uv run pytest` and `cargo test --workspace`.

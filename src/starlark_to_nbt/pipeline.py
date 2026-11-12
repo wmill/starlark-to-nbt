@@ -1,36 +1,129 @@
+"""The public build API, over the Rust core (`starlark_to_nbt._core`).
+
+`build_file` / `build_source` evaluate a Starlark script and run the whole
+pipeline in Rust: validation, layout, lowering, execution, the support
+check, and validators. They return a `BuildResult`, whose `volume`,
+`entities`, and `operations` become Python objects only on first access.
+`block_at` and the writers go straight to Rust, so build-then-write never
+materializes them.
+
+minecraft-mcp-api's starlark-service (runner.py) relies on `build_source`
+(with `base_dir`/`loader_root`/`mounts`), `BuildResult.volume.bounds`,
+`.volume.voxels`, `.volume.entities`, `.metadata`, and
+`serialize.write_structure_nbt`; keep those stable.
+"""
 from __future__ import annotations
 
-from dataclasses import dataclass, fields, is_dataclass
-from enum import Enum
+from functools import cached_property
 from pathlib import Path
 from typing import Any
 
-from .execute import SparseVolume, dense_to_dict, execute
-from .ir import BlockOperation, BuildMetadata, Component, EntityPlacement, Node, ResolvedNode
-from .layout import resolve, resolved_to_dict
-from .lowering import entities_to_dict, lower_all, operations_to_dict
-from .model import Box, BuildError, Point, fail
-from .serialize import write_json, write_structure_nbt
-from .starlark_runtime import evaluate_file, evaluate_source
-from .support import support_diagnostics
-from .validators import validator_diagnostics
+from . import _core
+from .ir import BlockOperation, BlockWrite, BuildMetadata, EntityPlacement, EntitySpec, Phase, Voxel
+from .model import BlockSpec, Box, BuildError, Diagnostic, Point, Provenance, SourceRef
 
 
-@dataclass(slots=True)
+def _box(pair) -> Box:
+    low, high = pair
+    return Box(Point(*low), Point(*high))
+
+
+def _build_error(items: list[dict[str, Any]]) -> BuildError:
+    return BuildError([
+        Diagnostic(
+            item["code"], item["message"], item["component_path"],
+            source=SourceRef(item["source"][0], item["source"][1]) if item["source"] else None,
+            region=Box(Point(*item["region"]["min"]), Point(*item["region"]["max"])) if item["region"] else None,
+            coordinates=Point(*item["coordinates"]) if item["coordinates"] else None,
+            details=item["details"],
+        )
+        for item in items
+    ])
+
+
+class Volume:
+    """The finished sparse volume: written cells only; unwritten cells read as air."""
+
+    def __init__(self, result: BuildResult):
+        self._result = result
+        self._handle = result._handle
+        self.bounds = _box(self._handle.bounds())
+
+    def block_at(self, point: Point) -> BlockSpec:
+        return self._result._blocks[self._handle.block_at(point.x, point.y, point.z)]
+
+    @cached_property
+    def voxels(self) -> dict[Point, Voxel]:
+        """Written cells, in y/z/x order."""
+        blocks, provenances = self._result._blocks, self._result._provenances
+        return {
+            Point(x, y, z): Voxel(blocks[block], provenances[prov], Phase(phase))
+            for x, y, z, block, prov, phase in self._handle.voxels()
+        }
+
+    @property
+    def entities(self) -> list[EntityPlacement]:
+        return self._result.entities
+
+
 class BuildResult:
-    component_ir: Node
-    resolved: ResolvedNode
-    operations: list[BlockOperation]
-    entities: list[EntityPlacement]
-    volume: SparseVolume
-    metadata: BuildMetadata
+    def __init__(self, handle):
+        self._handle = handle
+        self.volume = Volume(self)
+        self.metadata = BuildMetadata(handle.ground_level())
+
+    @cached_property
+    def _blocks(self) -> list[BlockSpec]:
+        return [BlockSpec(block_type, state, nbt) for block_type, state, nbt in self._handle.blocks()]
+
+    @cached_property
+    def _provenances(self) -> list[Provenance]:
+        return [
+            Provenance(path, _box(region), SourceRef(source[0], source[1]) if source else None)
+            for path, region, source in self._handle.provenances()
+        ]
+
+    @cached_property
+    def root_props(self) -> dict[str, Any] | None:
+        """The root component's props (None if the root isn't a component)."""
+        return self._handle.root_props()
+
+    @cached_property
+    def entities(self) -> list[EntityPlacement]:
+        provenances = self._provenances
+        return [
+            EntityPlacement(Point(*pos), EntitySpec(entity_type, nbt, yaw, pitch), provenances[prov], sequence)
+            for pos, entity_type, nbt, yaw, pitch, prov, sequence in self._handle.entities()
+        ]
+
+    @cached_property
+    def operations(self) -> list[BlockOperation]:
+        blocks, provenances = self._blocks, self._provenances
+        return [
+            BlockOperation(Phase(phase), kind, tuple(BlockWrite(Point(x, y, z), blocks[b]) for x, y, z, b in writes),
+                           provenances[prov], assembly, sequence)
+            for phase, kind, writes, prov, assembly, sequence in self._handle.operations()
+        ]
+
+    def write_structure_nbt(self, path: str | Path) -> None:
+        try:
+            self._handle.write_structure_nbt(Path(path))
+        except _core.CoreBuildError as exc:
+            raise _build_error(exc.args[0]) from None
+
+    def write_outputs(self, nbt_path: str | Path, debug_dir: str | Path | None = None) -> None:
+        try:
+            self._handle.write_outputs(Path(nbt_path), Path(debug_dir) if debug_dir is not None else None)
+        except _core.CoreBuildError as exc:
+            raise _build_error(exc.args[0]) from None
 
 
-def build_file(path: str | Path, entry: str = "build", props: dict[str, Any] | None = None,
-               root_size: Point | None = None) -> BuildResult:
-    props = props or {}
-    component_ir = evaluate_file(path, entry, props)
-    return _finish_build(component_ir, props, root_size)
+def _loader(base_dir, loader_root, mounts) -> dict[str, Any]:
+    return {
+        "base_dir": Path(base_dir) if base_dir is not None else None,
+        "loader_root": Path(loader_root) if loader_root is not None else None,
+        "mounts": {name: Path(path) for name, path in mounts.items()} if mounts else None,
+    }
 
 
 def build_source(source: str, entry: str = "build", props: dict[str, Any] | None = None,
@@ -38,83 +131,39 @@ def build_source(source: str, entry: str = "build", props: dict[str, Any] | None
                  base_dir: str | Path | None = None,
                  loader_root: str | Path | None = None,
                  mounts: dict[str, str | Path] | None = None) -> BuildResult:
-    props = props or {}
-    component_ir = evaluate_source(source, filename, entry, props,
-                                   base_dir=base_dir, loader_root=loader_root, mounts=mounts)
-    return _finish_build(component_ir, props, root_size)
-
-
-def _finish_build(component_ir: Node, props: dict[str, Any], root_size: Point | None) -> BuildResult:
-    if root_size is None:
-        root_size = _root_size(component_ir, props)
+    """Build a script. Relative `load()`s resolve from `base_dir` (default
+    `loader_root`). With `loader_root`, loads are confined to its `lib/` and
+    to `mounts`, which map extra top-level names to outside directories."""
     try:
-        root_box = Box.from_size(root_size)
-    except ValueError as exc:
-        raise fail("invalid_box", str(exc)) from exc
-    resolved = resolve(component_ir, root_box)
-    lowered = lower_all(resolved)
-    operations = lowered.operations
-    volume = execute(operations, root_box, lowered.entities)
-    metadata = (
-        component_ir.metadata
-        if isinstance(component_ir, Component) and component_ir.metadata
-        else BuildMetadata()
-    )
-    diagnostics = support_diagnostics(volume, root_box, metadata)
-    diagnostics.extend(validator_diagnostics(
-        lowered.validators, operations, volume, root_box, metadata,
-    ))
-    if diagnostics:
-        raise BuildError(diagnostics)
-    return BuildResult(component_ir, resolved, operations, lowered.entities, volume, metadata)
+        handle = _core.build_source(source, filename, entry, props or {},
+                                    root_size.to_list() if root_size else None,
+                                    **_loader(base_dir, loader_root, mounts))
+    except _core.CoreBuildError as exc:
+        raise _build_error(exc.args[0]) from None
+    return BuildResult(handle)
+
+
+def build_file(path: str | Path, entry: str = "build", props: dict[str, Any] | None = None,
+               root_size: Point | None = None) -> BuildResult:
+    source_path = Path(path)
+    return build_source(source_path.read_text(encoding="utf-8"), entry, props, root_size,
+                        filename=str(source_path), base_dir=source_path.resolve().parent)
+
+
+def evaluate_source(source: str, filename: str = "<input>", entry: str = "build",
+                    props: dict[str, Any] | None = None,
+                    base_dir: str | Path | None = None,
+                    loader_root: str | Path | None = None,
+                    mounts: dict[str, str | Path] | None = None) -> Any:
+    """Evaluate a script's entry function and return its raw tagged-dict tree,
+    unvalidated. Useful for probing helper functions from tests."""
+    try:
+        return _core.evaluate_source(source, filename, entry, props or {}, **_loader(base_dir, loader_root, mounts))
+    except _core.CoreBuildError as exc:
+        raise _build_error(exc.args[0]) from None
 
 
 def write_build_outputs(result: BuildResult, nbt_path: str | Path, debug_dir: str | Path | None = None) -> None:
-    write_structure_nbt(result.volume, nbt_path)
-    write_json(result.metadata.to_dict(), Path(nbt_path).with_suffix(".meta.json"))
-    if debug_dir is None:
-        return
-    directory = Path(debug_dir)
-    directory.mkdir(parents=True, exist_ok=True)
-    write_json(_jsonable(result.component_ir), directory / "component-ir.json")
-    write_json(resolved_to_dict(result.resolved), directory / "resolved.json")
-    write_json(operations_to_dict(result.operations), directory / "operations.json")
-    write_json(entities_to_dict(result.entities), directory / "entities.json")
-    write_json(dense_to_dict(result.volume), directory / "dense.json")
-
-
-def _root_size(node: Node, props: dict[str, Any]) -> Point:
-    if all(key in props for key in ("width", "height", "length")):
-        requested = Point(int(props["width"]), int(props["height"]), int(props["length"]))
-        min_size = getattr(node, "min_size", None)
-        if min_size is not None:
-            return Point(
-                max(requested.x, min_size.x),
-                max(requested.y, min_size.y),
-                max(requested.z, min_size.z),
-            )
-        return requested
-    min_size = getattr(node, "min_size", None)
-    if min_size is not None:
-        return min_size
-    raise fail("missing_root_size",
-               "root_size is required when width, height, and length props are not all supplied")
-
-
-def _jsonable(value: Any) -> Any:
-    if isinstance(value, Point):
-        return value.to_list()
-    if isinstance(value, Box):
-        return value.to_dict()
-    if isinstance(value, Enum):
-        return value.value
-    if is_dataclass(value):
-        result = {"kind": type(value).__name__}
-        for item in fields(value):
-            result[item.name] = _jsonable(getattr(value, item.name))
-        return result
-    if isinstance(value, dict):
-        return {str(key): _jsonable(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_jsonable(item) for item in value]
-    return value
+    """Write the structure NBT, `<stem>.meta.json` beside it, and with
+    `debug_dir` the per-stage debug JSON."""
+    result.write_outputs(nbt_path, debug_dir)

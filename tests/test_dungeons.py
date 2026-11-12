@@ -21,7 +21,7 @@ STONE_BRICKS = {
 
 def test_compact_dungeon_has_topology_stats_atomic_doors_and_supported_lights():
     result = build_file(SHOWCASE, props={"name": "BspDungeon"})
-    props = result.component_ir.props
+    props = result.root_props
     assert props["room_count"] >= 2
     assert props["connection_count"] == props["room_count"] - 1
     doors = [op for op in result.operations if op.assembly_name == "bsp_dungeon_door"]
@@ -172,7 +172,7 @@ def test_reference_is_sparse_connected_and_has_surface_metadata(tmp_path):
 
 def test_reference_rooms_are_furnished_by_type():
     result = build_file(EXAMPLE)
-    props = result.component_ir.props
+    props = result.root_props
     assert props["mob_room_count"] > 0
     assert props["furnished_room_count"] > props["mob_room_count"]
 
@@ -207,8 +207,8 @@ def test_reference_rooms_are_furnished_by_type():
 
 def test_reference_dungeon_has_seeded_height_biased_weathering():
     result = build_file(EXAMPLE)
-    assert result.component_ir.props["mossy_percent"] == 0.15
-    assert result.component_ir.props["cracked_percent"] == 0.07
+    assert result.root_props["mossy_percent"] == 0.15
+    assert result.root_props["cracked_percent"] == 0.07
 
     by_height = {}
     names = []
@@ -258,8 +258,8 @@ def test_entrance_disabled_uses_exact_low_footprint(tmp_path):
     )
     result = build_file(source)
     assert result.volume.bounds.size == Point(20, 6, 20)
-    assert result.component_ir.props["surface_level"] == 0
-    assert result.component_ir.props["burial_depth"] == 4
+    assert result.root_props["surface_level"] == 0
+    assert result.root_props["burial_depth"] == 4
 
 
 @pytest.mark.parametrize("props", [
@@ -292,8 +292,8 @@ def test_invalid_dungeon_controls_fail_through_starlark_diagnostics(props):
 def test_entrance_has_continuous_floor_enclosed_stairs_and_wide_connected_paths(props):
     result = build_file(EXAMPLE, props={"width": 48, "length": 48, **props})
     volume = result.volume
-    level = result.component_ir.props["surface_level"]
-    height = result.component_ir.props["room_height"]
+    level = result.root_props["surface_level"]
+    height = result.root_props["room_height"]
     center = result.volume.bounds.size.x // 2
     for x in (center - 1, center):
         for z in (0, 1, 2):

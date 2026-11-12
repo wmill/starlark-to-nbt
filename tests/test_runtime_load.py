@@ -89,7 +89,7 @@ def test_random_utility_is_bounded_independent_and_wraps(tmp_path):
     )
 
     result = build_file(tmp_path / "main.star", root_size=Point(1, 1, 1))
-    props = result.component_ir.props
+    props = result.root_props
     assert props["count"] == 1024
     assert props["bounded"] is True
     assert props["final_value"] == props["table_final"]

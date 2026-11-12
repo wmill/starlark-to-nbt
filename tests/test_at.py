@@ -1,5 +1,6 @@
 """Positioning helpers preserve explicit-transform geometry and validation."""
 
+import gzip
 import hashlib
 from pathlib import Path
 
@@ -52,13 +53,15 @@ def test_at_invalid_inputs(expression, code):
 
 
 @pytest.mark.parametrize("name,digest", [
-    ("cottage", "aa9a8b99497fe716523b5c4d83823e98b438fed406ccefb1a268b5cb00264dd0"),
-    ("market_square", "9e7b5f79953b9f46f841a0bc357457dbbdc6bc5bfd1a93c2d956bbb0cd6d8345"),
+    ("cottage", "1678c24bc780d4dc7ed1c558e2e841152a192ec9126e5b0207c4bfc30b69da94"),
+    ("market_square", "5bff934fcdbe156b1d8a4726382f31cbb71808d82fbdb7d9d4ed1f309d444181"),
 ])
 def test_converted_examples_preserve_reference_nbt(tmp_path, name, digest):
-    # Baselines captured from the original explicit-transform examples.
+    # Baselines captured from the original explicit-transform examples. They
+    # hash the decompressed payload, so a gzip level change doesn't move them
+    # (the original gzip-level-9 file digests were aa9a8b99... and 9e7b5f79...).
     result = build_file(ROOT / "examples" / f"{name}.star")
     output = tmp_path / "example.nbt"
     write_structure_nbt(result.volume, output)
-    assert hashlib.sha256(output.read_bytes()).hexdigest() == digest
+    assert hashlib.sha256(gzip.decompress(output.read_bytes())).hexdigest() == digest
     assert len(nbtlib.load(output)["blocks"]) == len(result.volume.voxels)

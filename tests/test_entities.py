@@ -4,43 +4,37 @@ import nbtlib
 import pytest
 
 from starlark_to_nbt.model import BuildError, Point
-from starlark_to_nbt.pipeline import build_file
-from starlark_to_nbt.schema import parse_node
+from starlark_to_nbt.pipeline import build_file, build_source
 from starlark_to_nbt.serialize import write_structure_nbt
-from starlark_to_nbt.starlark_runtime import evaluate_source
 
 
-def placement(entity):
-    return {"kind": "place_entity", "pos": [0, 0, 0], "entity": entity}
+def _entity_build(entity: str) -> str:
+    return f'def build():\n    return component("Pen", {{}}, place_entity([0, 0, 0], {entity}), min_size=[1, 1, 1])\n'
 
 
 def test_entity_schema_validates_id_orientation_nbt_and_reserved_fields():
-    node = parse_node(placement({"entity_type": "minecraft:horse", "yaw": 12, "pitch": -45,
-                                 "nbt": {"Tame": True, "Tags": ["royal"]}}))
-    assert node.entity.yaw == 12.0
-    assert node.entity.nbt["Tags"] == ["royal"]
+    result = build_source(_entity_build(
+        'entity("minecraft:horse", nbt={"Tame": True, "Tags": ["royal"]}, yaw=12, pitch=-45)'))
+    assert result.entities[0].entity.yaw == 12.0
+    assert result.entities[0].entity.nbt["Tags"] == ["royal"]
     for entity in [
-        {"entity_type": "horse"},
-        {"entity_type": "minecraft:horse", "yaw": float("inf")},
-        {"entity_type": "minecraft:horse", "pitch": 91},
-        {"entity_type": "minecraft:horse", "nbt": {"UUID": [1, 2, 3, 4]}},
+        'entity("horse")',
+        'entity("minecraft:horse", pitch=91)',
+        'entity("minecraft:horse", nbt={"UUID": [1, 2, 3, 4]})',
     ]:
-        with pytest.raises(BuildError):
-            parse_node(placement(entity))
+        with pytest.raises(BuildError) as info:
+            build_source(_entity_build(entity))
+        assert info.value.diagnostics[0].code == "invalid_ir", entity
 
 
 def test_runtime_constructors_and_nested_rotation():
-    source = '''
+    source = """
 def build():
     pony = component("Pony", {}, place_entity([1, 0, 2], entity("minecraft:horse", yaw=5)), min_size=[3, 2, 4])
     inner = transform([0, 0, 0], 90, [3, 2, 4], pony)
     return component("Root", {}, transform([0, 0, 0], 90, [4, 2, 3], inner), min_size=[3, 2, 4])
-'''
-    node = evaluate_source(source, "entity.star", "build", {})
-    from starlark_to_nbt.layout import resolve
-    from starlark_to_nbt.lowering import lower_all
-    from starlark_to_nbt.model import Box
-    result = lower_all(resolve(node, Box.from_size(Point(3, 2, 4))))
+"""
+    result = build_source(source, root_size=Point(3, 2, 4))
     assert len(result.entities) == 1
     assert result.entities[0].entity.yaw == 185
 
