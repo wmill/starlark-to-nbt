@@ -4,6 +4,11 @@
 //! `src/starlark_to_nbt/`; see `docs/rust-core-plan.md` for the phase plan and
 //! the parity rules each stage must satisfy.
 
+pub mod ir;
+pub mod model;
+pub mod schema;
+pub mod val;
+
 /// Crate version, exposed so the CLI and the Python shim can report which core they run.
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")

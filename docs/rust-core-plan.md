@@ -11,7 +11,7 @@
       `src/starlark_to_nbt/prelude.star`, which removed most of starlark-pyo3's
       per-call JSON marshalling. Slowest example went 3.83s → 1.96s.
 - [x] Phase 0 — workspace scaffolding + golden parity manifest
-- [ ] Phase 1 — core types, diagnostics, schema (Val → IR)
+- [x] Phase 1 — core types, diagnostics, schema (Val → IR)
 - [ ] Phase 2 — layout + lowering
 - [ ] Phase 3 — execute + support + validators
 - [ ] Phase 4 — serialization (NBT, gzip, meta/debug JSON)
@@ -377,7 +377,6 @@ Coordinates are +X east, +Y up, +Z south. Boxes are half-open.
   Target: moonspire under 0.3s.
 
 ## Notes / deviations log
-- (Phase 1) Coordinates narrowed to i32: out-of-range ints → `invalid_ir`.
 - (Phase 0) Toolchain pin deferred to Phase 6: rustc 1.85 (asdf-managed) is
   enough until the `starlark` crate arrives. The workspace sets
   `rust-version = "1.85"` + resolver 3 so cargo picks compatible versions.
@@ -387,4 +386,34 @@ Coordinates are +X east, +Y up, +Z south. Boxes are half-open.
 - (Phase 0) The golden gate also runs inside pytest (`tests/test_golden.py`,
   ~8s): 436 builds + 7 failure cases. Failure cases compare code, path, and
   message (not message for `starlark_error`).
+- (Phase 1) Coordinates and all schema ints narrowed to i32: out-of-range
+  → `invalid_ir` "expected an integer between -2147483648 and 2147483647".
+  Arithmetic past ±2^31 is not guarded (Minecraft worlds are ±3·10^7).
+- (Phase 1) Python `Box` is `model::Region` (avoids shadowing `std::boxed::Box`).
+  `Transform.source_size` is mandatory (Python allowed `None`; nothing used it).
+- (Phase 1) `Val` equality follows Python (`1 == 1.0 == True`, order-free
+  dicts). **Phase 2 interning must respect this**: two blocks whose nbt
+  differs only as `1` vs `1.0` are "identical" for STRUCTURE rewrites in
+  Python, even though they serialize differently. Intern on exact structure
+  and fall back to `PartialEq` when ids differ but types match.
+- (Phase 1) `Val::Dict` keys are `String`. That's safe because starlark-pyo3
+  JSON-marshals results (non-str keys arrive stringified). **Phase 6's
+  starlark → `Val` converter must stringify keys the way `json.dumps` does**
+  (`1` → `"1"`, `True` → `"true"`, `None` → `"null"`, floats via repr).
+- (Phase 1) Small approximations: `rotate_sixteenth` parses with
+  `trim().parse::<i128>()` (no `1_0` or non-ASCII digits, unlike Python
+  `int()`), and `py_str_repr` uses an approximate `isprintable` table. Both
+  only matter for pathological input.
+- (Phase 1) `_core.parse_ir(tree, source_file)` → `("ok", jsonable)` or
+  `("error", [(code, path, message)])`. The Python → `Val` converter
+  (`crates/stnbt-py/src/convert.rs`) raises TypeError on non-str dict keys
+  and OverflowError past i64. `Node::to_val` mirrors `pipeline._jsonable`
+  (including `Inset` amounts keyed `"Axis.X"`), so Phase 4's
+  `component-ir.json` can reuse it.
+- (Phase 1) Schema parity is enforced by `tests/test_rust_schema_parity.py`
+  (97 tests): identical IR for every example and showcase tree, ~6.2k
+  seeded random mutations plus ~1k layout-targeted ones agreeing on the first
+  diagnostic, and a hand-written case for every reachable schema message.
+  Two messages are unreachable from Rust by design: "object keys must be
+  strings" and "props must contain only JSON-compatible values".
 - (record further deviations, benchmark numbers, and gzip-parity outcome here)
