@@ -6,7 +6,7 @@
 //! Output writing lives in `serialize::write_build_outputs`.
 
 use crate::blocks::BlockTable;
-use crate::execute::{execute, SparseVolume};
+use crate::execute::{execute_staged, SparseVolume, StageLayer};
 use crate::ir::{BlockOperation, BuildMetadata, Node};
 use crate::layout::resolve;
 use crate::lowering::lower_all;
@@ -23,6 +23,9 @@ pub struct BuildResult {
     /// Every `BlockId` in `volume` and `operations` indexes this table.
     pub blocks: BlockTable,
     pub metadata: BuildMetadata,
+    /// Install stages in order, when the build uses more than one
+    /// (`stage=`); empty otherwise. `volume` is the state after all of them.
+    pub stages: Vec<StageLayer>,
 }
 
 /// Python's `int()` on a root-size prop. The CLI coerces `--arg` values to
@@ -69,7 +72,7 @@ pub fn build(node: &Node, props: &Dict, root_size_override: Option<Point>) -> Re
 pub fn finish_build(node: &Node, root: Region) -> Result<BuildResult, BuildError> {
     let resolved = resolve(node, root)?;
     let lowered = lower_all(&resolved)?;
-    let volume = execute(&lowered.operations, root, lowered.entities, &lowered.blocks)?;
+    let (volume, stages) = execute_staged(&lowered.operations, root, lowered.entities, &lowered.blocks)?;
     let metadata = match node {
         Node::Component(c) => c.metadata.unwrap_or_default(),
         _ => BuildMetadata::default(),
@@ -79,7 +82,7 @@ pub fn finish_build(node: &Node, root: Region) -> Result<BuildResult, BuildError
     if !diagnostics.is_empty() {
         return Err(BuildError::new(diagnostics));
     }
-    Ok(BuildResult { volume, operations: lowered.operations, blocks: lowered.blocks, metadata })
+    Ok(BuildResult { volume, operations: lowered.operations, blocks: lowered.blocks, metadata, stages })
 }
 
 #[cfg(test)]

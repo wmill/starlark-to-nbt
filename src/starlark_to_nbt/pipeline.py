@@ -9,8 +9,8 @@ materializes them.
 
 minecraft-mcp-api's starlark-service (runner.py) relies on `build_source`
 (with `base_dir`/`loader_root`/`mounts`), `BuildResult.volume.bounds`,
-`.volume.voxels`, `.volume.entities`, `.metadata`, and
-`serialize.write_structure_nbt`; keep those stable.
+`.volume.voxels`, `.volume.entities`, `.metadata`, `.stages`,
+`.write_stage_nbt`, and `serialize.write_structure_nbt`; keep those stable.
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from . import _core
-from .ir import BlockOperation, BlockWrite, BuildMetadata, EntityPlacement, EntitySpec, Phase, Voxel
+from .ir import BlockOperation, BlockWrite, BuildMetadata, EntityPlacement, EntitySpec, Phase, Stage, Voxel
 from .model import BlockSpec, Box, BuildError, Diagnostic, Point, Provenance, SourceRef
 
 
@@ -70,7 +70,10 @@ class BuildResult:
     def __init__(self, handle):
         self._handle = handle
         self.volume = Volume(self)
-        self.metadata = BuildMetadata(handle.ground_level())
+        self.metadata = BuildMetadata(handle.ground_level(), handle.stage_delay_ticks())
+        # Install stages in order; empty unless the script uses `stage=`
+        # with more than one value. `volume` is the state after all of them.
+        self.stages = [Stage(stage, count) for stage, count in handle.stages()]
 
     @cached_property
     def _blocks(self) -> list[BlockSpec]:
@@ -108,6 +111,14 @@ class BuildResult:
     def write_structure_nbt(self, path: str | Path) -> None:
         try:
             self._handle.write_structure_nbt(Path(path))
+        except _core.CoreBuildError as exc:
+            raise _build_error(exc.args[0]) from None
+
+    def write_stage_nbt(self, stage: int, path: str | Path) -> None:
+        """Write one install stage's cells as structure NBT. Every stage file
+        has the root box's size, so they share one coordinate frame."""
+        try:
+            self._handle.write_stage_nbt(stage, Path(path))
         except _core.CoreBuildError as exc:
             raise _build_error(exc.args[0]) from None
 

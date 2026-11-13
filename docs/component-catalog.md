@@ -65,6 +65,34 @@ Operations execute in three phases, in order:
 Multi-block objects that must be placed all-or-nothing (doors, beds) use
 `place_assembly`, which validates and places atomically.
 
+## Staged installation (`stage=`)
+
+A single paste writes every block at once, and the block updates that follow
+can trip redstone mid-construction: observers fire, pistons extend before
+their circuit exists. Builds that need an install order give their
+operations `stage=N` (0..63, default 0) on `place_block`, `fill_region`,
+`carve_region`, or `place_assembly`.
+
+- Operations run in (stage, phase, source) order: every phase of stage 0,
+  then every phase of stage 1, and so on. The overlap rules above apply
+  within a stage. A write may replace **any** cell last written by an
+  earlier stage, so a later stage can swap a placeholder for the real block.
+- A build that uses more than one stage writes one extra structure NBT per
+  stage (`OUT.stage<N>.nbt`, each the root box's size) holding just the cells
+  that stage wrote. `OUT.meta.json` gains `stages` (in install order) and
+  `stage_delay_ticks`. The main NBT still holds the finished state, for
+  previews and inspection; pasting it in one go is exactly what staging avoids.
+- Placement tools put the stages down in order, `stage_delay_ticks` server
+  ticks apart (root `metadata={"stage_delay_ticks": n}`, 1..100, default 2).
+  Entities arrive with the last stage.
+
+```python
+glass = block("minecraft:white_stained_glass")
+parts = [place_block(pos, glass) for pos in OBSERVERS]      # stage 0: placeholders
+for i, pos in enumerate(OBSERVERS):                          # then one per tick pair
+    parts.append(place_block(pos, block("minecraft:observer", {"facing": "down"}), stage = i + 1))
+```
+
 ## DSL reference
 
 Start with `docs/quickstart.md` for a complete custom scene and the MCP workflow.
@@ -88,10 +116,10 @@ and bounds checks as `transform`: pos is the minimum rotated footprint corner;
 | `sign_nbt(lines=None, color="black", glowing=False, back_lines=None, back_color="black", back_glowing=False, waxed=True)` | Sign block-entity data for `block(..., nbt=...)`: up to four `lines` of front text, dye `color`, glow-ink `glowing`. Signs are waxed by default so pasted text is not editable. |
 | `container_nbt(items=None, id="minecraft:chest")` | Container block-entity data (chest, barrel, furnace, hopper, ...). `items` entries are item ids or `{"id", "count", "slot", "components"}` dicts; omitted slots are assigned in order. Set `id` to the container's block id. |
 | `loot_nbt(table, seed=None, id="minecraft:chest")` | Container that rolls the named loot table (e.g. `"minecraft:chests/simple_dungeon"`) when first opened. |
-| `place_block(pos, block, phase="structure")` | Single block; `phase` is `"structure"` or `"fixture"`. |
-| `fill_region(min, max, block, phase="structure")` | Box fill. |
-| `carve_region(min, max)` | Box of air (CARVE phase). |
-| `place_assembly(pos, name, size, blocks)` | Atomic multi-block placement; `blocks` is a list of `{"pos": [...], "block": block(...)}` offsets inside `size`. |
+| `place_block(pos, block, phase="structure", stage=0)` | Single block; `phase` is `"structure"` or `"fixture"`; `stage` orders installation (see Staged installation). |
+| `fill_region(min, max, block, phase="structure", stage=0)` | Box fill. |
+| `carve_region(min, max, stage=0)` | Box of air (CARVE phase). |
+| `place_assembly(pos, name, size, blocks, stage=0)` | Atomic multi-block placement; `blocks` is a list of `{"pos": [...], "block": block(...)}` offsets inside `size`. |
 
 `load("relative/path.star", "Name", ...)` imports symbols from another file,
 resolved relative to the loading file. Standard Starlark applies: `def`,
@@ -510,7 +538,7 @@ Failures raise diagnostics with a stable code, the component path, and the
 offending coordinates/region: `component_too_small`, `split_overflow`,
 `split_underflow`, `repeat_overflow`, `inset_collapsed`, `transform_overflow`,
 `component_overflow`, `root_overflow`, `block_conflict`, `assembly_overflow`,
-`invalid_metadata`, `metadata_not_root`, `load_error`, `load_cycle`,
+`invalid_metadata`, `metadata_not_root`, `invalid_stage`, `load_error`, `load_cycle`,
 `invalid_validator`, `validator_no_targets`, `invalid_validator_target`,
 `door_not_supported`, `doorway_obstructed`, `starlark_error`,
 `missing_component_size` (`at` needs an explicit size or a child with `min_size`),

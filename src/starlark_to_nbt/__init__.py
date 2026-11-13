@@ -1,6 +1,6 @@
 """Declarative Minecraft structures authored in Starlark, built by a Rust core."""
 
-from .ir import BuildMetadata
+from .ir import DEFAULT_STAGE_DELAY_TICKS, BuildMetadata, Stage
 from .pipeline import BuildResult, build_file, build_source, evaluate_source
 
 
@@ -12,4 +12,4 @@ def build_fingerprint() -> str:
     return f"rust-{_core.version()}-{_core.build_fingerprint()}"
 
 
-__all__ = ["BuildMetadata", "BuildResult", "build_file", "build_fingerprint", "build_source", "evaluate_source"]
+__all__ = ["DEFAULT_STAGE_DELAY_TICKS", "BuildMetadata", "Stage", "BuildResult", "build_file", "build_fingerprint", "build_source", "evaluate_source"]
