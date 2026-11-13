@@ -30,6 +30,9 @@ pub fn operations_to_val(operations: &[BlockOperation], blocks: &BlockTable) -> 
     Val::List(operations.iter().map(|op| {
         let mut d = Dict::with_capacity(7);
         d.insert("phase".into(), s(op.phase.name()));
+        if op.stage != 0 {
+            d.insert("stage".into(), Val::Int(op.stage.into()));
+        }
         d.insert("kind".into(), s(op.kind.as_str()));
         d.insert("sequence".into(), Val::Int(op.sequence as i64));
         d.insert("componentPath".into(), s(&op.provenance.component_path));

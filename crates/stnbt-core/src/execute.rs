@@ -1,11 +1,18 @@
 //! Applying operations to a sparse volume (port of `execute.py`).
 //!
-//! Operations run in (phase, sequence) order: STRUCTURE, then CARVE, then
-//! FIXTURE. In STRUCTURE, rewriting a cell with the identical block is
-//! allowed and a differing block is a `block_conflict`. FIXTURE rejects any
-//! overlap with a non-air cell. CARVE overwrites. An operation's writes are
+//! Operations run in (stage, phase, sequence) order. Within a stage:
+//! STRUCTURE, then CARVE, then FIXTURE. In STRUCTURE, rewriting a cell with
+//! the identical block is allowed and a differing block is a
+//! `block_conflict`. FIXTURE rejects any overlap with a non-air cell. CARVE
+//! overwrites. A write may replace any cell last written in an earlier
+//! stage (an observer replacing its placeholder). An operation's writes are
 //! all validated before any is applied, so assemblies are atomic, and all of
 //! one operation's errors are reported together.
+//!
+//! When more than one stage is used, `execute_staged` also returns one
+//! layer per stage: the cells that stage wrote, as they stood when it
+//! finished. Placing the layers in order on successive ticks reproduces
+//! the final volume.
 
 use std::sync::Arc;
 
@@ -21,6 +28,15 @@ pub struct Voxel {
     pub block: BlockId,
     pub provenance: Arc<Provenance>,
     pub phase: Phase,
+    pub stage: u8,
+}
+
+/// The cells one install stage writes. Bounds are always the root box, so
+/// every layer shares one coordinate frame.
+#[derive(Clone, Debug)]
+pub struct StageLayer {
+    pub stage: u8,
+    pub volume: SparseVolume,
 }
 
 #[derive(Clone, Debug)]
@@ -55,6 +71,18 @@ pub fn execute(
     entities: Vec<EntityPlacement>,
     blocks: &BlockTable,
 ) -> Result<SparseVolume, BuildError> {
+    execute_staged(operations, root, entities, blocks).map(|(volume, _)| volume)
+}
+
+/// `execute`, plus the per-stage layers when operations use more than one
+/// stage (otherwise the layer list is empty). Entities ride on the last
+/// layer, after every block is in place.
+pub fn execute_staged(
+    operations: &[BlockOperation],
+    root: Region,
+    entities: Vec<EntityPlacement>,
+    blocks: &BlockTable,
+) -> Result<(SparseVolume, Vec<StageLayer>), BuildError> {
     for item in &entities {
         if !root.contains_point(item.pos) {
             return Err(Diagnostic::new("entity_root_overflow", "entity anchor is outside root bounds", &item.provenance.component_path)
@@ -67,11 +95,25 @@ pub fn execute(
     volume.entities = entities;
     volume.voxels.reserve(operations.iter().map(|o| o.writes.len()).sum());
     let mut order: Vec<&BlockOperation> = operations.iter().collect();
-    order.sort_by_key(|op| (op.phase, op.sequence));
+    order.sort_by_key(|op| (op.stage, op.phase, op.sequence));
+    let staged = order.first().zip(order.last()).is_some_and(|(a, b)| a.stage != b.stage);
+    let mut layers: Vec<StageLayer> = Vec::new();
     for op in order {
         execute_operation(&mut volume, op, blocks)?;
+        if staged {
+            if layers.last().is_none_or(|l| l.stage != op.stage) {
+                layers.push(StageLayer { stage: op.stage, volume: SparseVolume::new(root) });
+            }
+            let layer = &mut layers.last_mut().expect("pushed above").volume;
+            for write in &op.writes {
+                layer.voxels.insert(write.pos, volume.voxels[&write.pos].clone());
+            }
+        }
     }
-    Ok(volume)
+    if let Some(last) = layers.last_mut() {
+        last.volume.entities = volume.entities.clone();
+    }
+    Ok((volume, layers))
 }
 
 pub fn execute_operation(volume: &mut SparseVolume, op: &BlockOperation, blocks: &BlockTable) -> Result<(), BuildError> {
@@ -97,7 +139,7 @@ pub fn execute_operation(volume: &mut SparseVolume, op: &BlockOperation, blocks:
             continue;
         }
         if let Some(existing) = volume.voxels.get(&write.pos) {
-            if existing.block != BlockId::AIR {
+            if existing.block != BlockId::AIR && existing.stage == op.stage {
                 // Identical structural rewrites are harmless (fills share
                 // corners and edges); fixtures may never overlap.
                 let conflict = match op.phase {
@@ -115,7 +157,7 @@ pub fn execute_operation(volume: &mut SparseVolume, op: &BlockOperation, blocks:
         return Err(BuildError::new(errors));
     }
     for write in &op.writes {
-        volume.voxels.insert(write.pos, Voxel { block: write.block, provenance: op.provenance.clone(), phase: op.phase });
+        volume.voxels.insert(write.pos, Voxel { block: write.block, provenance: op.provenance.clone(), phase: op.phase, stage: op.stage });
     }
     Ok(())
 }
@@ -146,6 +188,7 @@ pub(crate) mod tests {
 
     pub fn op(phase: Phase, writes: &[((i32, i32, i32), BlockId)], prov: &Arc<Provenance>, sequence: usize) -> BlockOperation {
         BlockOperation {
+            stage: 0,
             phase,
             kind: OpKind::PlaceBlock,
             writes: writes.iter().map(|((x, y, z), b)| BlockWrite { pos: Point::new(*x, *y, *z), block: *b }).collect(),
@@ -157,6 +200,44 @@ pub(crate) mod tests {
 
     fn codes(r: Result<SparseVolume, BuildError>) -> Vec<&'static str> {
         r.unwrap_err().diagnostics.iter().map(|d| d.code).collect()
+    }
+
+    fn staged(stage: u8, phase: Phase, writes: &[((i32, i32, i32), BlockId)], prov: &Arc<Provenance>, sequence: usize) -> BlockOperation {
+        BlockOperation { stage, ..op(phase, writes, prov, sequence) }
+    }
+
+    #[test]
+    fn later_stages_replace_earlier_cells_and_get_their_own_layers() {
+        let mut t = BlockTable::new();
+        let (glass, observer, stone) = (
+            t.intern(BlockSpec::new("minecraft:glass")),
+            t.intern(BlockSpec::new("minecraft:observer")),
+            t.intern(BlockSpec::new("minecraft:stone")),
+        );
+        let p = provenance("Door", bounds(4, 4, 4));
+        // Source order is reversed on purpose: stage order wins.
+        let (volume, layers) = execute_staged(&[
+            staged(2, Phase::Fixture, &[((1, 1, 1), stone)], &p, 0),
+            staged(1, Phase::Structure, &[((1, 1, 1), observer)], &p, 1),
+            staged(0, Phase::Structure, &[((1, 1, 1), glass), ((2, 1, 1), glass)], &p, 2),
+        ], bounds(4, 4, 4), vec![], &t).unwrap();
+        assert_eq!(volume.block_at(Point::new(1, 1, 1)), stone);
+        assert_eq!(layers.iter().map(|l| l.stage).collect::<Vec<_>>(), [0, 1, 2]);
+        assert_eq!(layers[0].volume.voxels.len(), 2);
+        assert_eq!(layers[0].volume.block_at(Point::new(1, 1, 1)), glass);
+        assert_eq!((layers[1].volume.voxels.len(), layers[1].volume.block_at(Point::new(1, 1, 1))), (1, observer));
+        assert_eq!(layers[2].volume.bounds, bounds(4, 4, 4));
+    }
+
+    #[test]
+    fn conflicts_still_apply_within_a_stage_and_single_stage_builds_have_no_layers() {
+        let mut t = BlockTable::new();
+        let (stone, planks) = (t.intern(BlockSpec::new("minecraft:stone")), t.intern(BlockSpec::new("minecraft:oak_planks")));
+        let p = provenance("Test", bounds(4, 4, 4));
+        let e = execute_staged(&[staged(3, Phase::Structure, &[((1, 1, 1), stone)], &p, 0), staged(3, Phase::Structure, &[((1, 1, 1), planks)], &p, 1)], bounds(4, 4, 4), vec![], &t).unwrap_err();
+        assert_eq!(e.diagnostics[0].code, "block_conflict");
+        let (_, layers) = execute_staged(&[staged(3, Phase::Structure, &[((1, 1, 1), stone)], &p, 0)], bounds(4, 4, 4), vec![], &t).unwrap();
+        assert!(layers.is_empty());
     }
 
     #[test]

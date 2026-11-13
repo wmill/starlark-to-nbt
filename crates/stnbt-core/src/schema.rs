@@ -9,7 +9,7 @@
 
 use std::fmt::Write;
 
-use crate::ir::{AssemblyBlock, BuildMetadata, Component, EntitySpec, Node, Phase, SizeExpr, ValidatorSpec};
+use crate::ir::{AssemblyBlock, BuildMetadata, Component, EntitySpec, Node, Phase, SizeExpr, ValidatorSpec, MAX_STAGE};
 use crate::model::{Axis, BlockSpec, BlockState, BuildError, Diagnostic, Point, Region, Rotation, SourceRef};
 use crate::val::{Dict, Val};
 
@@ -260,7 +260,7 @@ fn source(value: &Val, path: &Path) -> R<SourceRef> {
 
 fn metadata(value: &Val, path: &Path) -> R<BuildMetadata> {
     let obj = dict(value, path)?;
-    let mut unknown: Vec<&str> = obj.keys().map(String::as_str).filter(|k| *k != "ground_level").collect();
+    let mut unknown: Vec<&str> = obj.keys().map(String::as_str).filter(|k| !matches!(*k, "ground_level" | "stage_delay_ticks")).collect();
     if !unknown.is_empty() {
         unknown.sort_unstable();
         return Err(error_code(path, format!("unknown metadata fields: {}", unknown.join(", ")), "invalid_metadata"));
@@ -274,7 +274,14 @@ fn metadata(value: &Val, path: &Path) -> R<BuildMetadata> {
             return Err(error_code(&path.key("ground_level"), "expected a non-negative integer", "invalid_metadata"))
         }
     };
-    Ok(BuildMetadata { ground_level })
+    let stage_delay_ticks = match obj.get("stage_delay_ticks") {
+        None | Some(Val::Null) => None,
+        Some(Val::Int(v)) if (1..=100).contains(v) => Some(*v as i32),
+        Some(_) => {
+            return Err(error_code(&path.key("stage_delay_ticks"), "expected an integer from 1 to 100", "invalid_metadata"))
+        }
+    };
+    Ok(BuildMetadata { ground_level, stage_delay_ticks })
 }
 
 fn validator(value: &Val, path: &Path) -> R<ValidatorSpec> {
@@ -315,6 +322,14 @@ fn phase(obj: &Dict, path: &Path) -> R<Phase> {
         None | Some(Some("structure")) => Ok(Phase::Structure),
         Some(Some("fixture")) => Ok(Phase::Fixture),
         Some(_) => Err(error(&path.key("phase"), "phase must be structure or fixture")),
+    }
+}
+
+fn stage(obj: &Dict, path: &Path) -> R<u8> {
+    match present(obj, "stage") {
+        None => Ok(0),
+        Some(Val::Int(v)) if (0..=i64::from(MAX_STAGE)).contains(v) => Ok(*v as u8),
+        Some(_) => Err(error_code(&path.key("stage"), format!("stage must be an integer from 0 to {MAX_STAGE}"), "invalid_stage")),
     }
 }
 
@@ -447,11 +462,12 @@ fn node(value: &Val, path: &Path, source_file: Option<&str>) -> R<Node> {
             Ok(Node::Transform { translation, rotation, child_size, child: Box::new(child) })
         }
         "place_block" => {
-            keys(obj, &["kind", "pos", "block"], &["phase"], path)?;
+            keys(obj, &["kind", "pos", "block"], &["phase", "stage"], path)?;
             let phase = phase(obj, path)?;
+            let stage = stage(obj, path)?;
             let pos = point(field(obj, "pos"), &path.key("pos"), false)?;
             let block = block(field(obj, "block"), &path.key("block"))?;
-            Ok(Node::PlaceBlock { pos, block, phase })
+            Ok(Node::PlaceBlock { pos, block, phase, stage })
         }
         "place_entity" => {
             keys(obj, &["kind", "pos", "entity"], &[], path)?;
@@ -460,18 +476,21 @@ fn node(value: &Val, path: &Path, source_file: Option<&str>) -> R<Node> {
             Ok(Node::PlaceEntity { pos, entity })
         }
         "fill_region" => {
-            keys(obj, &["kind", "box", "block"], &["phase"], path)?;
+            keys(obj, &["kind", "box", "block"], &["phase", "stage"], path)?;
             let phase = phase(obj, path)?;
+            let stage = stage(obj, path)?;
             let region = region(field(obj, "box"), &path.key("box"))?;
             let block = block(field(obj, "block"), &path.key("block"))?;
-            Ok(Node::FillRegion { region, block, phase })
+            Ok(Node::FillRegion { region, block, phase, stage })
         }
         "carve_region" => {
-            keys(obj, &["kind", "box"], &[], path)?;
-            Ok(Node::CarveRegion { region: region(field(obj, "box"), &path.key("box"))? })
+            keys(obj, &["kind", "box"], &["stage"], path)?;
+            let stage = stage(obj, path)?;
+            Ok(Node::CarveRegion { region: region(field(obj, "box"), &path.key("box"))?, stage })
         }
         "place_assembly" => {
-            keys(obj, &["kind", "pos", "name", "size", "blocks"], &[], path)?;
+            keys(obj, &["kind", "pos", "name", "size", "blocks"], &["stage"], path)?;
+            let stage = stage(obj, path)?;
             let name = match field(obj, "name") {
                 Val::Str(s) if !s.is_empty() => s.clone(),
                 _ => return Err(error(&path.key("name"), "expected a non-empty string")),
@@ -493,7 +512,7 @@ fn node(value: &Val, path: &Path, source_file: Option<&str>) -> R<Node> {
             }
             let pos = point(field(obj, "pos"), &path.key("pos"), false)?;
             let size = point(field(obj, "size"), &path.key("size"), true)?;
-            Ok(Node::PlaceAssembly { pos, name, size, blocks })
+            Ok(Node::PlaceAssembly { pos, name, size, blocks, stage })
         }
         other => Err(error(path, format!("unknown node kind {}", crate::val::py_str_repr(other)))),
     }
@@ -529,7 +548,7 @@ mod tests {
         let n = parse(&format!(r#"{{"kind": "component", "name": "Embedded", "props": {{}}, "min_size": [1, 2, 1],
             "metadata": {{"ground_level": 1}}, "body": {{"kind": "place_block", "pos": [0, 0, 0], "block": {STONE}}}}}"#)).unwrap();
         let Node::Component(c) = n else { panic!() };
-        assert_eq!(c.metadata, Some(BuildMetadata { ground_level: 1 }));
+        assert_eq!(c.metadata, Some(BuildMetadata { ground_level: 1, stage_delay_ticks: None }));
         assert_eq!(c.metadata.unwrap().y_offset(), -1);
     }
 
@@ -539,6 +558,26 @@ mod tests {
             let e = err(&format!(r#"{{"kind": "component", "name": "Invalid", "props": {{}}, "metadata": {metadata},
                 "body": {{"kind": "group", "children": []}}}}"#));
             assert_eq!(e.0, "invalid_metadata", "{metadata}");
+        }
+    }
+
+    #[test]
+    fn parses_stages_and_stage_delay() {
+        let n = parse(&format!(r#"{{"kind": "component", "name": "S", "props": {{}}, "metadata": {{"stage_delay_ticks": 5}},
+            "body": {{"kind": "place_block", "pos": [0, 0, 0], "block": {STONE}, "stage": 7}}}}"#)).unwrap();
+        let Node::Component(c) = n else { panic!() };
+        assert_eq!(c.metadata.unwrap().stage_delay_ticks, Some(5));
+        assert!(matches!(c.body, Node::PlaceBlock { stage: 7, .. }));
+        let carve = parse(r#"{"kind": "carve_region", "box": {"min": [0, 0, 0], "max": [1, 1, 1]}, "stage": 2}"#).unwrap();
+        assert!(matches!(carve, Node::CarveRegion { stage: 2, .. }));
+        for stage in ["-1", "64", "true", "\"1\""] {
+            let e = err(&format!(r#"{{"kind": "place_block", "pos": [0, 0, 0], "block": {STONE}, "stage": {stage}}}"#));
+            assert_eq!((e.0.as_str(), e.1.as_str()), ("invalid_stage", "$.stage"), "{stage}");
+        }
+        for ticks in ["0", "101", "true"] {
+            let e = err(&format!(r#"{{"kind": "component", "name": "S", "props": {{}}, "metadata": {{"stage_delay_ticks": {ticks}}},
+                "body": {{"kind": "group", "children": []}}}}"#));
+            assert_eq!(e.0, "invalid_metadata", "{ticks}");
         }
     }
 

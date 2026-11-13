@@ -208,7 +208,7 @@ mod tests {
         let p = provenance("Test", root);
         let ops: Vec<_> = writes.iter().enumerate().map(|(i, (phase, pos, b))| op(*phase, &[(*pos, t.intern(b.clone()))], &p, i)).collect();
         let v = execute(&ops, root, vec![], &t).unwrap();
-        support_diagnostics(&v, root, BuildMetadata { ground_level }, &t)
+        support_diagnostics(&v, root, BuildMetadata { ground_level, stage_delay_ticks: None }, &t)
     }
 
     fn ok(writes: &[(Phase, (i32, i32, i32), BlockSpec)]) -> bool {

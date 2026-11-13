@@ -64,14 +64,15 @@ def entity(entity_type, nbt = None, yaw = 0, pitch = 0):
 def place_entity(pos, entity):
     return _tag("place_entity", pos = pos, entity = entity)
 
-def place_block(pos, block, phase = "structure"):
-    return _tag("place_block", pos = pos, block = block, phase = phase)
+# stage = None means stage 0; _tag drops it, so unstaged trees are unchanged.
+def place_block(pos, block, phase = "structure", stage = None):
+    return _tag("place_block", pos = pos, block = block, phase = phase, stage = stage)
 
-def fill_region(min, max, block, phase = "structure"):
-    return _tag("fill_region", box = {"min": min, "max": max}, block = block, phase = phase)
+def fill_region(min, max, block, phase = "structure", stage = None):
+    return _tag("fill_region", box = {"min": min, "max": max}, block = block, phase = phase, stage = stage)
 
-def carve_region(min, max):
-    return _tag("carve_region", box = {"min": min, "max": max})
+def carve_region(min, max, stage = None):
+    return _tag("carve_region", box = {"min": min, "max": max}, stage = stage)
 
-def place_assembly(pos, name, size, blocks):
-    return _tag("place_assembly", pos = pos, name = name, size = size, blocks = blocks)
+def place_assembly(pos, name, size, blocks, stage = None):
+    return _tag("place_assembly", pos = pos, name = name, size = size, blocks = blocks, stage = stage)

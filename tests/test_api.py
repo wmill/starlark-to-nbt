@@ -88,3 +88,60 @@ def test_evaluate_source_returns_the_raw_tree():
         evaluate_source("def build(:\n", "bad.star")
     assert info.value.diagnostics[0].code == "starlark_error"
     assert BlockSpec("minecraft:stone") != AIR
+
+
+STAGED = """
+def build():
+    glass = block("minecraft:white_stained_glass")
+    observer = block("minecraft:observer", {"facing": "down", "powered": "false"})
+    return component(
+        name = "Staged",
+        props = {},
+        min_size = [3, 2, 1],
+        metadata = {"stage_delay_ticks": 4},
+        body = group([
+            fill_region([0, 0, 0], [3, 1, 1], block("minecraft:stone")),
+            place_block([0, 1, 0], glass),
+            place_block([1, 1, 0], glass),
+            place_block([0, 1, 0], observer, stage = 1),
+            place_block([1, 1, 0], observer, stage = 2),
+            carve_region([2, 1, 0], [3, 2, 1], stage = 2),
+        ]),
+    )
+"""
+
+
+def test_staged_builds_write_one_nbt_per_stage(tmp_path):
+    result = build_source(STAGED)
+    assert [(s.stage, s.block_count) for s in result.stages] == [(0, 5), (1, 1), (2, 2)]
+    assert result.metadata.stage_delay_ticks == 4
+    # The main volume is the state after every stage.
+    assert result.volume.block_at(Point(0, 1, 0)).block_type == "minecraft:observer"
+    assert result.volume.block_at(Point(2, 1, 0)) == AIR
+
+    def decoded(path):
+        nbt = nbtlib.load(path)
+        palette = [entry["Name"] for entry in nbt["palette"]]
+        return list(nbt["size"]), {tuple(b["pos"]): palette[b["state"]] for b in nbt["blocks"]}
+
+    for stage in result.stages:
+        result.write_stage_nbt(stage.stage, tmp_path / f"s{stage.stage}.nbt")
+    size0, stage0 = decoded(tmp_path / "s0.nbt")
+    size2, stage2 = decoded(tmp_path / "s2.nbt")
+    assert size0 == size2 == [3, 2, 1]
+    assert stage0[(0, 1, 0)] == stage0[(1, 1, 0)] == "minecraft:white_stained_glass"
+    assert stage2 == {(1, 1, 0): "minecraft:observer", (2, 1, 0): "minecraft:air"}
+    with pytest.raises(ValueError):
+        result.write_stage_nbt(9, tmp_path / "missing.nbt")
+
+    write_build_outputs(result, tmp_path / "out.nbt")
+    meta = (tmp_path / "out.meta.json").read_text(encoding="utf-8")
+    assert '"stages": [\n    0,\n    1,\n    2\n  ]' in meta and '"stage_delay_ticks": 4' in meta
+    assert sorted(p.name for p in tmp_path.glob("out.stage*.nbt")) == ["out.stage0.nbt", "out.stage1.nbt", "out.stage2.nbt"]
+
+
+def test_unstaged_builds_have_no_stages(tmp_path):
+    result = build_file(ROOT / "examples" / "cottage.star")
+    assert result.stages == [] and result.metadata.stage_delay_ticks is None
+    write_build_outputs(result, tmp_path / "out.nbt")
+    assert not list(tmp_path.glob("out.stage*.nbt"))

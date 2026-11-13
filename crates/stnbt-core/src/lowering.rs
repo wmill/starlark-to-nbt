@@ -72,9 +72,9 @@ impl Lowerer {
         id
     }
 
-    fn push_op(&mut self, phase: Phase, kind: OpKind, writes: Vec<BlockWrite>, provenance: &Arc<Provenance>, assembly: Option<String>) {
+    fn push_op(&mut self, stage: u8, phase: Phase, kind: OpKind, writes: Vec<BlockWrite>, provenance: &Arc<Provenance>, assembly: Option<String>) {
         let sequence = self.operations.len();
-        self.operations.push(BlockOperation { phase, kind, writes, provenance: provenance.clone(), assembly_name: assembly, sequence });
+        self.operations.push(BlockOperation { stage, phase, kind, writes, provenance: provenance.clone(), assembly_name: assembly, sequence });
     }
 
     fn lower(&mut self, node: &ResolvedNode<'_>, owner: Option<&Arc<Provenance>>) -> R<()> {
@@ -118,9 +118,9 @@ impl Lowerer {
         let world_point = |local: Point| apply(node.region.min + local, transforms);
 
         match node.node {
-            Node::PlaceBlock { pos, block, phase } => {
+            Node::PlaceBlock { pos, block, phase, stage } => {
                 let id = self.world_block(block, transforms);
-                self.push_op(*phase, OpKind::PlaceBlock, vec![BlockWrite { pos: world_point(*pos), block: id }], provenance, None);
+                self.push_op(*stage, *phase, OpKind::PlaceBlock, vec![BlockWrite { pos: world_point(*pos), block: id }], provenance, None);
             }
             Node::PlaceEntity { pos, entity } => {
                 let pos = world_point(*pos);
@@ -142,16 +142,16 @@ impl Lowerer {
                     sequence,
                 });
             }
-            Node::FillRegion { region, block, phase } => {
+            Node::FillRegion { region, block, phase, stage } => {
                 let id = self.world_block(block, transforms);
                 let writes = cells(region).map(|p| BlockWrite { pos: world_point(p), block: id }).collect();
-                self.push_op(*phase, OpKind::FillRegion, writes, provenance, None);
+                self.push_op(*stage, *phase, OpKind::FillRegion, writes, provenance, None);
             }
-            Node::CarveRegion { region } => {
+            Node::CarveRegion { region, stage } => {
                 let writes = cells(region).map(|p| BlockWrite { pos: world_point(p), block: BlockId::AIR }).collect();
-                self.push_op(Phase::Carve, OpKind::CarveRegion, writes, provenance, None);
+                self.push_op(*stage, Phase::Carve, OpKind::CarveRegion, writes, provenance, None);
             }
-            Node::PlaceAssembly { pos, name, size, blocks } => {
+            Node::PlaceAssembly { pos, name, size, blocks, stage } => {
                 let bounds = Region { min: Point::ZERO, max: *size };
                 let placed = world_box(&bounds.translated(node.region.min + *pos), transforms);
                 if !provenance.assigned_region.contains_box(&placed) {
@@ -172,7 +172,7 @@ impl Lowerer {
                     let id = self.world_block(&item.block, transforms);
                     writes.push(BlockWrite { pos: world_point(*pos + item.pos), block: id });
                 }
-                self.push_op(Phase::Fixture, OpKind::PlaceAssembly, writes, provenance, Some(name.clone()));
+                self.push_op(*stage, Phase::Fixture, OpKind::PlaceAssembly, writes, provenance, Some(name.clone()));
             }
             Node::Component(_) | Node::Group { .. } | Node::Split { .. } | Node::Inset { .. } | Node::Repeat { .. } | Node::Transform { .. } => {
                 unreachable!("layout always gives {} children", node.node.class_name())
@@ -241,7 +241,7 @@ mod tests {
     // Ported from tests/test_transform_execution.py.
     #[test]
     fn fixture_phase_fill_region_lowers_into_fixture_operations() {
-        let node = component("Carpet", Node::FillRegion { region: size(2, 1, 2), block: BlockSpec::new("minecraft:red_carpet"), phase: Phase::Fixture });
+        let node = component("Carpet", Node::FillRegion { region: size(2, 1, 2), block: BlockSpec::new("minecraft:red_carpet"), phase: Phase::Fixture, stage: 0 });
         let out = lower(&node, size(2, 1, 2)).unwrap();
         assert_eq!(out.operations.iter().map(|o| o.phase).collect::<Vec<_>>(), [Phase::Fixture]);
         let writes: Vec<_> = out.operations[0].writes.iter().map(|w| w.pos).collect();
@@ -252,7 +252,7 @@ mod tests {
     fn declared_assembly_bounds_must_fit_even_when_a_cell_is_unoccupied() {
         let node = component("Door", Node::PlaceAssembly {
             pos: Point::ZERO, name: "door".into(), size: Point::new(1, 2, 1),
-            blocks: vec![AssemblyBlock { pos: Point::ZERO, block: BlockSpec::new("minecraft:oak_door") }],
+            blocks: vec![AssemblyBlock { pos: Point::ZERO, block: BlockSpec::new("minecraft:oak_door") }], stage: 0,
         });
         let e = lower(&node, size(1, 1, 1)).unwrap_err();
         assert_eq!(e.diagnostics[0].code, "assembly_overflow");
@@ -264,7 +264,7 @@ mod tests {
         let mut stairs = BlockSpec::new("minecraft:oak_stairs");
         stairs.block_state.insert("facing".into(), "south".into());
         let inner = component("Inner", Node::Group { children: vec![
-            Node::PlaceBlock { pos: Point::new(2, 0, 0), block: stairs, phase: Phase::Structure },
+            Node::PlaceBlock { pos: Point::new(2, 0, 0), block: stairs, phase: Phase::Structure, stage: 0 },
             Node::PlaceEntity { pos: Point::new(0, 0, 0), entity: EntitySpec { entity_type: "minecraft:pig".into(), nbt: None, yaw: 300.0, pitch: 0.0 } },
         ] });
         let root = component("Root", Node::Transform { translation: Point::new(1, 0, 1), rotation: Rotation::R90, child_size: Point::new(3, 1, 2), child: Box::new(inner) });
@@ -281,9 +281,9 @@ mod tests {
     #[test]
     fn fills_share_one_interned_block_and_assemblies_check_offsets() {
         let node = component("C", Node::Group { children: vec![
-            Node::FillRegion { region: size(3, 1, 1), block: BlockSpec::new("minecraft:stone"), phase: Phase::Structure },
-            Node::PlaceBlock { pos: Point::new(0, 1, 0), block: BlockSpec::new("minecraft:stone"), phase: Phase::Structure },
-            Node::CarveRegion { region: size(1, 1, 1) },
+            Node::FillRegion { region: size(3, 1, 1), block: BlockSpec::new("minecraft:stone"), phase: Phase::Structure, stage: 0 },
+            Node::PlaceBlock { pos: Point::new(0, 1, 0), block: BlockSpec::new("minecraft:stone"), phase: Phase::Structure, stage: 0 },
+            Node::CarveRegion { region: size(1, 1, 1), stage: 0 },
         ] });
         let out = lower(&node, size(3, 2, 1)).unwrap();
         assert_eq!(out.blocks.len(), 2); // air + stone
@@ -293,7 +293,7 @@ mod tests {
         let dup = component("D", Node::PlaceAssembly { pos: Point::ZERO, name: "bed".into(), size: Point::new(2, 1, 1), blocks: vec![
             AssemblyBlock { pos: Point::ZERO, block: BlockSpec::new("minecraft:red_bed") },
             AssemblyBlock { pos: Point::ZERO, block: BlockSpec::new("minecraft:red_bed") },
-        ] });
+        ], stage: 0 });
         assert_eq!(lower(&dup, size(2, 1, 1)).unwrap_err().diagnostics[0].message, "assembly bed contains duplicate offset [0, 0, 0]");
     }
 

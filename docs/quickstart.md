@@ -53,6 +53,9 @@ inspect the world before retrying, especially when entities are included.
 - Structural writes may overlap only when blocks are identical. Carves run
   after all structure, then fixtures run into empty/carved cells. Moving a
   carve earlier in the source does not change this ordering.
+- Redstone that misfires when pasted in one go (observers, piston doors) can
+  set `stage=N` on its writes; stages are placed in order a few ticks apart,
+  and a later stage may replace an earlier stage's placeholder.
 - Doors/windows carve their own holes. Furniture belongs above floors.
 - Untouched cells preserve terrain; explicitly carved air clears it on placement.
 - Starlark supports functions, loops, and comprehensions; no while or recursion.

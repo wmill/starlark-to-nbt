@@ -16,7 +16,12 @@ pub enum SizeExpr {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct BuildMetadata {
     pub ground_level: i32,
+    /// Server ticks between install stages, if the script set it.
+    pub stage_delay_ticks: Option<i32>,
 }
+
+/// Highest `stage=` a script may use. Stage 0 is the default.
+pub const MAX_STAGE: u8 = 63;
 
 impl BuildMetadata {
     pub fn y_offset(&self) -> i32 {
@@ -92,11 +97,12 @@ pub enum Node {
     Inset { amounts: [(i32, i32); 3], child: Box<Node> },
     Repeat { axis: Axis, count: i32, child_extent: i32, gap: i32, child: Box<Node> },
     Transform { translation: Point, rotation: Rotation, child_size: Point, child: Box<Node> },
-    PlaceBlock { pos: Point, block: BlockSpec, phase: Phase },
+    /// `stage` orders installation across stages (see execute.rs).
+    PlaceBlock { pos: Point, block: BlockSpec, phase: Phase, stage: u8 },
     PlaceEntity { pos: Point, entity: EntitySpec },
-    FillRegion { region: Region, block: BlockSpec, phase: Phase },
-    CarveRegion { region: Region },
-    PlaceAssembly { pos: Point, name: String, size: Point, blocks: Vec<AssemblyBlock> },
+    FillRegion { region: Region, block: BlockSpec, phase: Phase, stage: u8 },
+    CarveRegion { region: Region, stage: u8 },
+    PlaceAssembly { pos: Point, name: String, size: Point, blocks: Vec<AssemblyBlock>, stage: u8 },
 }
 
 impl Node {
@@ -134,7 +140,13 @@ impl Node {
                 ("body", c.body.to_val()),
                 ("min_size", opt(c.min_size.map(Point::to_val))),
                 ("source", opt(c.source.as_ref().map(source_val))),
-                ("metadata", opt(c.metadata.map(|m| tagged("BuildMetadata", vec![("ground_level", int(m.ground_level))])))),
+                ("metadata", opt(c.metadata.map(|m| {
+                    let mut fields = vec![("ground_level", int(m.ground_level))];
+                    if let Some(ticks) = m.stage_delay_ticks {
+                        fields.push(("stage_delay_ticks", int(ticks)));
+                    }
+                    tagged("BuildMetadata", fields)
+                }))),
                 ("validators", Val::List(c.validators.iter().map(validator_val).collect())),
             ]),
             Node::Group { children } => tagged("Group", vec![("children", nodes(children))]),
@@ -170,11 +182,11 @@ impl Node {
                 ("child_size", child_size.to_val()),
                 ("child", child.to_val()),
             ]),
-            Node::PlaceBlock { pos, block, phase } => tagged("PlaceBlock", vec![
+            Node::PlaceBlock { pos, block, phase, stage } => staged(tagged("PlaceBlock", vec![
                 ("pos", pos.to_val()),
                 ("block", block_val(block)),
                 ("phase", Val::Str(phase.as_str().into())),
-            ]),
+            ]), *stage),
             Node::PlaceEntity { pos, entity } => tagged("PlaceEntity", vec![
                 ("pos", pos.to_val()),
                 ("entity", tagged("EntitySpec", vec![
@@ -184,13 +196,13 @@ impl Node {
                     ("pitch", Val::Float(entity.pitch)),
                 ])),
             ]),
-            Node::FillRegion { region, block, phase } => tagged("FillRegion", vec![
+            Node::FillRegion { region, block, phase, stage } => staged(tagged("FillRegion", vec![
                 ("box", region.to_val()),
                 ("block", block_val(block)),
                 ("phase", Val::Str(phase.as_str().into())),
-            ]),
-            Node::CarveRegion { region } => tagged("CarveRegion", vec![("box", region.to_val())]),
-            Node::PlaceAssembly { pos, name, size, blocks } => tagged("PlaceAssembly", vec![
+            ]), *stage),
+            Node::CarveRegion { region, stage } => staged(tagged("CarveRegion", vec![("box", region.to_val())]), *stage),
+            Node::PlaceAssembly { pos, name, size, blocks, stage } => staged(tagged("PlaceAssembly", vec![
                 ("pos", pos.to_val()),
                 ("name", Val::Str(name.clone())),
                 ("size", size.to_val()),
@@ -198,9 +210,20 @@ impl Node {
                     ("pos", b.pos.to_val()),
                     ("block", block_val(&b.block)),
                 ])).collect())),
-            ]),
+            ]), *stage),
         }
     }
+}
+
+/// Adds `stage` to a leaf's debug value only when it isn't the default, so
+/// unstaged builds keep their existing `component-ir.json`.
+fn staged(mut value: Val, stage: u8) -> Val {
+    if stage != 0 {
+        if let Val::Dict(d) = &mut value {
+            d.insert("stage".into(), Val::Int(stage.into()));
+        }
+    }
+    value
 }
 
 fn int(v: i32) -> Val {
@@ -277,6 +300,8 @@ pub struct BlockWrite {
 
 #[derive(Clone, Debug)]
 pub struct BlockOperation {
+    /// Install stage: operations run in (stage, phase, sequence) order.
+    pub stage: u8,
     pub phase: Phase,
     pub kind: OpKind,
     pub writes: Vec<BlockWrite>,

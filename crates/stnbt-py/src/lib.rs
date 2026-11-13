@@ -131,6 +131,25 @@ impl Build {
         self.result.metadata.ground_level
     }
 
+    /// The script's `stage_delay_ticks` metadata, or `None`.
+    fn stage_delay_ticks(&self) -> Option<i32> {
+        self.result.metadata.stage_delay_ticks
+    }
+
+    /// `(stage, block_count)` per install stage, in order; empty unless the
+    /// build uses more than one stage.
+    fn stages(&self) -> Vec<(u8, usize)> {
+        self.result.stages.iter().map(|l| (l.stage, l.volume.voxels.len())).collect()
+    }
+
+    /// Write one install stage's cells as structure NBT (root-box size).
+    fn write_stage_nbt(&self, py: Python<'_>, stage: u8, path: PathBuf) -> PyResult<()> {
+        let Some(layer) = self.result.stages.iter().find(|l| l.stage == stage) else {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!("build has no install stage {stage}")));
+        };
+        stnbt_core::serialize::write_structure_nbt(&layer.volume, &self.result.blocks, &path).map_err(|e| core_error(py, &e))
+    }
+
     /// The root component's props, or `None` if the root isn't a component.
     fn root_props<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         match &self.node {

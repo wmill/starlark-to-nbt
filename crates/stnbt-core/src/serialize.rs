@@ -165,11 +165,26 @@ fn write_json(value: &Val, path: &Path) -> Result<(), BuildError> {
     std::fs::write(path, json::dumps(value)).map_err(|e| output_error(path, e))
 }
 
+/// Server ticks between stages when the script doesn't say.
+pub const DEFAULT_STAGE_DELAY_TICKS: i32 = 2;
+
+/// `ground_level` and `y_offset`; staged builds add `stages` (stage ids in
+/// install order) and `stage_delay_ticks`. Unstaged output is unchanged.
 pub fn metadata_val(result: &BuildResult) -> Val {
     let mut d = Dict::new();
     d.insert("ground_level".into(), Val::Int(result.metadata.ground_level.into()));
     d.insert("y_offset".into(), Val::Int(result.metadata.y_offset().into()));
+    if !result.stages.is_empty() {
+        d.insert("stages".into(), Val::List(result.stages.iter().map(|l| Val::Int(l.stage.into())).collect()));
+        let ticks = result.metadata.stage_delay_ticks.unwrap_or(DEFAULT_STAGE_DELAY_TICKS);
+        d.insert("stage_delay_ticks".into(), Val::Int(ticks.into()));
+    }
     Val::Dict(d)
+}
+
+/// Where a stage's NBT goes beside the main output: `OUT.stage<N>.nbt`.
+pub fn stage_nbt_path(nbt_path: &Path, stage: u8) -> std::path::PathBuf {
+    nbt_path.with_extension(format!("stage{stage}.nbt"))
 }
 
 /// Python `execute.dense_to_dict`: every cell of the root box, y/z/x nested.
@@ -191,11 +206,15 @@ pub fn dense_val(volume: &SparseVolume, blocks: &crate::blocks::BlockTable) -> V
     Val::Dict(d)
 }
 
-/// Python `write_build_outputs`: the NBT, `<stem>.meta.json` beside it, and
-/// with `debug_dir` the per-stage JSON. The resolved tree is recomputed for
+/// Python `write_build_outputs`: the NBT, `<stem>.meta.json` beside it,
+/// `<stem>.stage<N>.nbt` per install stage for staged builds, and with
+/// `debug_dir` the per-pipeline-step JSON. The resolved tree is recomputed for
 /// `resolved.json` (cheap, and it borrows the IR, so results don't keep it).
 pub fn write_build_outputs(node: &Node, result: &BuildResult, nbt_path: &Path, debug_dir: Option<&Path>) -> Result<(), BuildError> {
     write_structure_nbt(&result.volume, &result.blocks, nbt_path)?;
+    for layer in &result.stages {
+        write_structure_nbt(&layer.volume, &result.blocks, &stage_nbt_path(nbt_path, layer.stage))?;
+    }
     write_json(&metadata_val(result), &nbt_path.with_extension("meta.json"))?;
     let Some(dir) = debug_dir else {
         return Ok(());

@@ -11,13 +11,30 @@ from .model import BlockSpec, Point, Provenance
 @dataclass(frozen=True, slots=True)
 class BuildMetadata:
     ground_level: int = 0
+    # Ticks between install stages, if the script's metadata set it.
+    stage_delay_ticks: int | None = None
 
     @property
     def y_offset(self) -> int:
         return -self.ground_level
 
     def to_dict(self) -> dict[str, int]:
-        return {"ground_level": self.ground_level, "y_offset": self.y_offset}
+        out = {"ground_level": self.ground_level, "y_offset": self.y_offset}
+        if self.stage_delay_ticks is not None:
+            out["stage_delay_ticks"] = self.stage_delay_ticks
+        return out
+
+
+# Ticks between install stages when a staged script doesn't set them.
+DEFAULT_STAGE_DELAY_TICKS = 2
+
+
+@dataclass(frozen=True, slots=True)
+class Stage:
+    """One install stage of a staged build (see `stage=` on the placement
+    constructors): the cells it writes, placed after every lower stage."""
+    stage: int
+    block_count: int
 
 
 class Phase(IntEnum):

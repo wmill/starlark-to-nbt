@@ -237,12 +237,12 @@ mod tests {
 
         fn structure(&mut self, points: &[Point], block: &str) -> BlockOperation {
             let id = self.t.intern(BlockSpec::new(block));
-            BlockOperation { phase: Phase::Structure, kind: OpKind::FillRegion, writes: points.iter().map(|p| BlockWrite { pos: *p, block: id }).collect(), provenance: self.owner.clone(), assembly_name: None, sequence: 0 }
+            BlockOperation { stage: 0, phase: Phase::Structure, kind: OpKind::FillRegion, writes: points.iter().map(|p| BlockWrite { pos: *p, block: id }).collect(), provenance: self.owner.clone(), assembly_name: None, sequence: 0 }
         }
 
         fn door_op(&mut self, facing: &str) -> BlockOperation {
             let (lo, hi) = (door(&mut self.t, facing, "lower", "left", None), door(&mut self.t, facing, "upper", "left", None));
-            BlockOperation { phase: Phase::Fixture, kind: OpKind::PlaceAssembly, writes: vec![
+            BlockOperation { stage: 0, phase: Phase::Fixture, kind: OpKind::PlaceAssembly, writes: vec![
                 BlockWrite { pos: Point::new(3, 1, 3), block: lo }, BlockWrite { pos: Point::new(3, 2, 3), block: hi },
             ], provenance: self.owner.clone(), assembly_name: Some("door".into()), sequence: 1 }
         }
@@ -263,14 +263,14 @@ mod tests {
                     writes.push(BlockWrite { pos: pos + Point::new(0, height, 0), block: door(&mut self.t, facing, half, hinge, over) });
                 }
             }
-            (BlockOperation { phase: Phase::Fixture, kind: OpKind::PlaceAssembly, writes, provenance: self.owner.clone(), assembly_name: Some("door".into()), sequence: 1 }, front, side)
+            (BlockOperation { stage: 0, phase: Phase::Fixture, kind: OpKind::PlaceAssembly, writes, provenance: self.owner.clone(), assembly_name: Some("door".into()), sequence: 1 }, front, side)
         }
 
         fn run(&self, ops: &[BlockOperation], ground_level: i32) -> Vec<&'static str> {
             let root = bounds(7, 4, 7);
             let v = execute(ops, root, vec![], &self.t).unwrap();
             let placement = ValidatorPlacement { validator: ValidatorSpec::DoorSupportedOnBothSides { assembly: "door".into() }, provenance: provenance("Root", root), sequence: 0 };
-            validator_diagnostics(&[placement], ops, &v, root, BuildMetadata { ground_level }, &self.t).iter().map(|d| d.code).collect()
+            validator_diagnostics(&[placement], ops, &v, root, BuildMetadata { ground_level, stage_delay_ticks: None }, &self.t).iter().map(|d| d.code).collect()
         }
     }
 
@@ -307,8 +307,8 @@ mod tests {
     fn malformed_out_of_scope_and_missing_targets() {
         let mut f = Fixture::new();
         let stone = f.t.intern(BlockSpec::new("minecraft:stone"));
-        let malformed = BlockOperation { phase: Phase::Fixture, kind: OpKind::PlaceAssembly, writes: vec![BlockWrite { pos: Point::new(1, 1, 1), block: stone }], provenance: f.owner.clone(), assembly_name: Some("door".into()), sequence: 0 };
-        let outside = BlockOperation { phase: Phase::Fixture, kind: OpKind::PlaceAssembly, writes: vec![BlockWrite { pos: Point::new(5, 1, 5), block: stone }], provenance: provenance("Other", bounds(7, 4, 7)), assembly_name: Some("door".into()), sequence: 2 };
+        let malformed = BlockOperation { stage: 0, phase: Phase::Fixture, kind: OpKind::PlaceAssembly, writes: vec![BlockWrite { pos: Point::new(1, 1, 1), block: stone }], provenance: f.owner.clone(), assembly_name: Some("door".into()), sequence: 0 };
+        let outside = BlockOperation { stage: 0, phase: Phase::Fixture, kind: OpKind::PlaceAssembly, writes: vec![BlockWrite { pos: Point::new(5, 1, 5), block: stone }], provenance: provenance("Other", bounds(7, 4, 7)), assembly_name: Some("door".into()), sequence: 2 };
         assert_eq!(f.run(&[malformed, outside], 0), ["invalid_validator_target"]);
         assert_eq!(f.run(&[], 0), ["validator_no_targets"]);
         assert!(in_scope("Root/body", "Root") && in_scope("Root", "Root") && !in_scope("Rooted", "Root"));
