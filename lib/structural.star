@@ -101,7 +101,7 @@ def Balcony(width, depth=2, material="minecraft:oak_planks", railing="minecraft:
 
 
 def StraightStaircase(width, rise, stair="minecraft:oak_stairs"):
-    """Solid stair flight ascending toward +Z, one level per row."""
+    """Solid stair flight ascending toward +Z, one level per row (stairs `facing: south`)."""
     parts = []
     for z in range(rise):
         parts.append(fill_region(

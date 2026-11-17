@@ -4,7 +4,11 @@
 
 
 def Bench(length, stair="minecraft:oak_stairs"):
-    """Row of stairs facing +Z (south)."""
+    """Row of stair seats; a seated player faces +Z (south).
+
+    Minecraft's stair `facing` names the side of the tall back step, so the
+    backrest on the north side is `facing: north`.
+    """
     return component(
         name="Bench",
         props={"length": length, "stair": stair},
@@ -19,7 +23,10 @@ def Bench(length, stair="minecraft:oak_stairs"):
 
 
 def Chair(stair="minecraft:oak_stairs"):
-    """Single stair seat facing +Z (south)."""
+    """Single stair seat; a seated player faces +Z (south).
+
+    The backrest is on the north side, which is stair `facing: north`.
+    """
     return component(
         name="Chair",
         props={"stair": stair},
