@@ -110,7 +110,7 @@ and bounds checks as `transform`: pos is the minimum rotated footprint corner;
 | `inset(child, amount=n)` or `inset(child, x=[lo,hi], y=[...], z=[...])` | Shrink the region by per-axis margins. |
 | `repeat(axis, count, child_extent, gap, child)` | `count` copies laid out along `axis`, each `child_extent` deep, `gap` blocks apart, starting at the region min. |
 | `transform(translation, rotation_y, child_size, child)` | Place a `child_size` child at `translation`, rotated 0/90/180/270 degrees around +Y. The rotated footprint must fit in the region. Block states rotate too: `facing`, `axis`, sign `rotation`, and multi-face keys (`north`/`south`/`east`/`west`). |
-| `block(block_type, block_state={}, nbt=None)` | e.g. `block("minecraft:oak_stairs", {"facing": "south", "half": "bottom"})`. States are strings. `nbt` is an optional object of block-entity data (sign text, etc.) serialized onto that block instance. |
+| `block(block_type, block_state={}, nbt=None)` | e.g. `block("minecraft:oak_stairs", {"facing": "south", "half": "bottom"})`. States are strings. `nbt` is an optional object of block-entity data (sign text, etc.) serialized onto that block instance. See Stair and slab states below. |
 | `entity(entity_type, nbt=None, yaw=0, pitch=0)` | Declares an entity. Engine-owned `id`, `Pos`, `Rotation`, and `UUID` fields are reserved. Rotation zero faces +Z (south). |
 | `place_entity(pos, entity)` | Places an entity at an integer ground-cell anchor. Structure NBT centers it at X/Z + 0.5; transforms rotate both anchor and yaw. |
 | `sign_nbt(lines=None, color="black", glowing=False, back_lines=None, back_color="black", back_glowing=False, waxed=True)` | Sign block-entity data for `block(..., nbt=...)`: up to four `lines` of front text, dye `color`, glow-ink `glowing`. Signs are waxed by default so pasted text is not editable. |
@@ -120,6 +120,35 @@ and bounds checks as `transform`: pos is the minimum rotated footprint corner;
 | `fill_region(min, max, block, phase="structure", stage=0)` | Box fill. |
 | `carve_region(min, max, stage=0)` | Box of air (CARVE phase). |
 | `place_assembly(pos, name, size, blocks, stage=0)` | Atomic multi-block placement; `blocks` is a list of `{"pos": [...], "block": block(...)}` offsets inside `size`. |
+
+### Stair and slab states
+
+A stair is a half-height slab plus a raised step. Its state names describe the
+block itself, not the person using it:
+
+- `facing` is the side the **tall back step** is on. It is the direction you walk
+  while climbing, and the opposite of the way someone sitting on the stair looks:
+  a seat whose occupant faces south is `facing: "north"`.
+- `half: "bottom"` puts the slab on the floor and the step on top; `"top"` hangs it
+  upside down (slab against the ceiling, step below), as used for arches and eaves.
+- `shape` is for corners, named relative to `facing`. `"straight"` raises the
+  whole `facing` half. `"outer_left"` / `"outer_right"` raise only the quarter in
+  the corner between `facing` and the next direction counter-clockwise /
+  clockwise (seen from above, north → west → south → east is counter-clockwise),
+  for the outside corner of a hip roof or stepped ring. `"inner_left"` /
+  `"inner_right"` raise the `facing` half plus that neighbouring side's half,
+  leaving one low quarter, for an inside corner. For example, with `facing:
+  "north"`, `outer_left` raises only the north-west quarter and `inner_right`
+  raises everything except the south-west quarter.
+
+Minecraft recomputes `shape` from neighbouring stairs when a block next to them
+updates, so give corners the shape they would settle into.
+
+A slab's `type` is `"bottom"` (lower half), `"top"` (upper half) or `"double"` (a
+full block).
+
+The Starlark service previews draw stairs and slabs at half-block detail. Check a
+build's `top` view or `iso` render: raised steps and top slabs are lighter from above.
 
 `load("relative/path.star", "Name", ...)` imports symbols from another file,
 resolved relative to the loading file. Standard Starlark applies: `def`,
@@ -177,7 +206,7 @@ them builds standalone. `lib/showcase.star` builds any single component:
 | `TimberFrameWall(width, height, log="minecraft:oak_log", infill="minecraft:white_terracotta")` | `[width, height, 1]` | Log posts/beams + plaster; needs >= 3x3. |
 | `Column(height, material="minecraft:quartz_pillar")` | `[1, height, 1]` | Vertical pillar. |
 | `Balcony(width, depth=2, material=..., railing="minecraft:oak_fence")` | `[width, 2, depth]` | Deck + railing on front/side edges. |
-| `StraightStaircase(width, rise, stair="minecraft:oak_stairs")` | `[width, rise, rise]` | Ascends one block per row toward +Z; south-facing stairs. |
+| `StraightStaircase(width, rise, stair="minecraft:oak_stairs")` | `[width, rise, rise]` | Ascends one block per row toward +Z; stairs are `facing: south` (the climbing direction). |
 | `Footbridge(width, length, deck="minecraft:oak_planks", railing="minecraft:oak_fence")` | `[width, 2, length]` | Runs along +Z; plank deck with connected side rails. |
 
 ### `lib/openings.star` (all carve their own hole; face south at rotation 0)
@@ -271,8 +300,8 @@ tower = group([
 
 | Component | Size | Notes |
 |---|---|---|
-| `Bench(length, stair="minecraft:oak_stairs")` | `[length, 1, 1]` | Faces south. |
-| `Chair(stair=...)` | `[1, 1, 1]` | Faces south. |
+| `Bench(length, stair="minecraft:oak_stairs")` | `[length, 1, 1]` | Seated players face south; the stairs are `facing: north` (backrest on the north). |
+| `Chair(stair=...)` | `[1, 1, 1]` | Seated player faces south; stair `facing: north`. |
 | `Table(leg="minecraft:oak_fence", top="minecraft:oak_pressure_plate")` | `[1, 2, 1]` | Fence + pressure plate. |
 | `Bed(material="minecraft:red_bed")` | `[1, 1, 2]` | Atomic; foot at z=0, head at z=1. |
 | `BookshelfWall(width, height, material="minecraft:bookshelf")` | `[width, height, 1]` | Stands against a wall. |
